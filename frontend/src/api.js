@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // URL de base de l'API (votre backend sur Render)
-const API_URL = 'https://task-manager-api-yx13.onrender.com/api';
+const API_URL = process.env.REACT_APP_API_URL || "https://task-manager-api-yx13.onrender.com/api";
 
 // Configuration d'axios avec le token d'authentification
 const setAuthToken = (token)  => {
