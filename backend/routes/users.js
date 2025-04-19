@@ -7,7 +7,7 @@ const User = require('../models/User');
 const config = require('../config/auth.config');
 
 // Route d'inscription
-router.post('/register', async (req, res) => {
+router.post('/api/users/register', async (req, res) => {
   try {
     const { username, email, password } = req.body;
     
@@ -56,7 +56,7 @@ router.post('/register', async (req, res) => {
 });
 
 // Route de connexion
-router.post('/login', async (req, res) => {
+router.post('/api/users/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     
