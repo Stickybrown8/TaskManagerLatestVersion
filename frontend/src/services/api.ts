@@ -39,7 +39,7 @@ api.interceptors.response.use(
 // Services pour les différentes entités
 export const authService = {
   login: async (email: string, password: string) => {
-    const response = await api.post('/api/users/login', { email, password });
+    const response = await api.post('${API_URL}/api/users/login', { email, password });
     return response.data;
   },
   register: async (username: string, email: string, password: string) => {
