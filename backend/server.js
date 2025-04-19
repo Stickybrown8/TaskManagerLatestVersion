@@ -20,10 +20,41 @@ const app = express();
 // Middleware
 app.use(express.json());
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://task-manager-client.vercel.app', 'https://task-manager-steven.netlify.app'] 
-    : ['http://localhost:3000', 'http://localhost:3009']
-}) );
+  origin: '*' // Autoriser toutes les origines temporairement pour le débogage
+}));
+
+// Route de débogage pour voir toutes les routes enregistrées
+app.get('/debug/routes', (req, res) => {
+  const routes = [];
+  app._router.stack.forEach(middleware => {
+    if(middleware.route) { // routes registered directly on the app
+      routes.push(middleware.route.path);
+    } else if(middleware.name === 'router') { // router middleware 
+      middleware.handle.stack.forEach(handler => {
+        const route = handler.route;
+        if(route) {
+          routes.push(route.path);
+        }
+      });
+    }
+  });
+  res.json(routes);
+});
+
+// Route de test simple
+app.get('/api/test', (req, res) => {
+  res.json({ message: 'Route de test fonctionnelle' });
+});
+
+// Route pour vérifier les variables d'environnement (sécurisées)
+app.get('/debug/env', (req, res) => {
+  res.json({ 
+    nodeEnv: process.env.NODE_ENV,
+    hasMongoUri: !!process.env.MONGO_URI,
+    hasJwtSecret: !!process.env.JWT_SECRET,
+    port: process.env.PORT || 5000
+  });
+});
 
 // Routes
 app.use('/api/users', userRoutes);
