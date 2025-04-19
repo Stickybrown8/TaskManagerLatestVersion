@@ -5,7 +5,7 @@ import { logout } from '../store/slices/authSlice';
 
 const Header: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { darkMode } = useAppSelector(state => state.ui);
+  const { darkMode = false } = useAppSelector(state => state.ui || {});
   const { user } = useAppSelector(state => state.auth);
   const { actionPoints, badges } = useAppSelector(state => state.gamification);
 
