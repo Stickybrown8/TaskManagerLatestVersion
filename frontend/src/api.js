@@ -17,7 +17,7 @@ const authService = {
   login: async (email, password) => {
   console.log("Tentative de connexion avec URL:", API_URL);
   console.log("Données envoyées:", { email, password: "***" });
-  console.log("URL complète:", ${API_URL}/api/users/login);
+  console.log("URL complète:", `${API_URL}/api/users/login`);
   try {
     const response = await axios.post(`${API_URL}/api/users/login`, { email, password });
     console.log("Réponse reçue:", response.data);
