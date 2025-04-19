@@ -1,0 +1,70 @@
+const mongoose = require('mongoose');
+
+const TaskSchema = mongoose.Schema({
+  title: {
+    type: String,
+    required: true
+  },
+  description: {
+    type: String
+  },
+  clientId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Client',
+    required: true
+  },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  dueDate: {
+    type: Date
+  },
+  priority: {
+    type: String,
+    enum: ['basse', 'moyenne', 'haute'],
+    default: 'moyenne'
+  },
+  status: {
+    type: String,
+    enum: ['à faire', 'en cours', 'terminée'],
+    default: 'à faire'
+  },
+  category: {
+    type: String,
+    enum: ['campagne', 'landing page', 'rapport', 'email', 'réunion', 'tracking', 'CRO', 'autre'],
+    default: 'autre'
+  },
+  actionPoints: {
+    type: Number,
+    default: 5
+  },
+  isHighImpact: {
+    type: Boolean,
+    default: false
+  },
+  impactScore: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 100
+  },
+  estimatedTime: {
+    type: Number,  // en minutes
+    default: 0
+  },
+  timeSpent: {
+    type: Number,  // en minutes
+    default: 0
+  },
+  completedAt: {
+    type: Date
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
+module.exports = mongoose.model('Task', TaskSchema);
