@@ -10,13 +10,15 @@ import Layout from './components/Layout';
 import PrivateRoute from './components/PrivateRoute';
 import './App.css';
 import TestApi from './pages/TestApi';
+import TestLogin from './TestLogin';
 
 const App = () => {
   return (
     <div className="App">
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/test-api" element={<TestApi />} /> {/* Déplacé ici */}
+        <Route path="/test-api" element={<TestApi />} />
+        <Route path="/test-login" element={<TestLogin />} /> {/* Nouvelle route pour le test de connexion */}
         <Route element={<PrivateRoute />}>
           <Route element={<Layout />}>
             <Route path="/" element={<Dashboard />} />
