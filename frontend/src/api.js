@@ -58,7 +58,7 @@ const authService = {
       setAuthToken(token);
       
       // Vérifier si le token est valide
-      const response = await axios.get(${API_URL}/api/users/profile);
+      const response = await axios.get(`${API_URL}/api/users/profile`);
       return response.data;
     } catch (error) {
       console.error('Erreur de vérification d\'authentification:', error);
