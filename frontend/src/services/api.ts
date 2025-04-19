@@ -39,239 +39,235 @@ api.interceptors.response.use(
 // Services pour les différentes entités
 export const authService = {
   login: async (email: string, password: string) => {
-    const response = await api.post('${API_URL}/api/users/login', { email, password });
+    const response = await api.post('/api/users/login', { email, password });
     return response.data;
   },
   register: async (username: string, email: string, password: string) => {
-    const response = await api.post('${API_URL}/api/users/register', { username, email, password });
+    const response = await api.post('/api/users/register', { username, email, password });
     return response.data;
   },
   getCurrentUser: async () => {
-    const response = await api.get('${API_URL}/api/users/profile');
+    const response = await api.get('/api/users/profile');
     return response.data;
   },
 };
 
 export const tasksService = {
   getTasks: async () => {
-    const response = await api.get('/tasks');
+    const response = await api.get('/api/tasks');
     return response.data;
   },
   getTaskById: async (id: string) => {
-    const response = await api.get(`/tasks/${id}`);
+    const response = await api.get(`/api/tasks/${id}`);
     return response.data;
   },
   createTask: async (taskData: any) => {
-    const response = await api.post('/tasks', taskData);
+    const response = await api.post('/api/tasks', taskData);
     return response.data;
   },
   updateTask: async (id: string, taskData: any) => {
-    const response = await api.put(`/tasks/${id}`, taskData);
+    const response = await api.put(`/api/tasks/${id}`, taskData);
     return response.data;
   },
   deleteTask: async (id: string) => {
-    const response = await api.delete(`/tasks/${id}`);
+    const response = await api.delete(`/api/tasks/${id}`);
     return response.data;
   },
 };
 
 export const clientsService = {
   getClients: async () => {
-    const response = await api.get('/clients');
+    const response = await api.get('/api/clients');
     return response.data;
   },
   getClientById: async (id: string) => {
-    const response = await api.get(`/clients/${id}`);
+    const response = await api.get(`/api/clients/${id}`);
     return response.data;
   },
   createClient: async (clientData: any) => {
-    const response = await api.post('/clients', clientData);
+    const response = await api.post('/api/clients', clientData);
     return response.data;
   },
   updateClient: async (id: string, clientData: any) => {
-    const response = await api.put(`/clients/${id}`, clientData);
+    const response = await api.put(`/api/clients/${id}`, clientData);
     return response.data;
   },
   deleteClient: async (id: string) => {
-    const response = await api.delete(`/clients/${id}`);
+    const response = await api.delete(`/api/clients/${id}`);
     return response.data;
   },
 };
 
 export const gamificationService = {
   getProfile: async () => {
-    const response = await api.get('/gamification/profile');
+    const response = await api.get('/api/gamification/profile');
     return response.data;
   },
   getLevels: async () => {
-    const response = await api.get('/gamification/levels');
+    const response = await api.get('/api/gamification/levels');
     return response.data;
   },
   getActivities: async (page: number, limit: number) => {
-    const response = await api.get(`/gamification/activities?page=${page}&limit=${limit}`);
+    const response = await api.get(`/api/gamification/activities?page=${page}&limit=${limit}`);
     return response.data;
   },
   updateStreak: async () => {
-    const response = await api.post('/gamification/streak');
+    const response = await api.post('/api/gamification/streak');
     return response.data;
   },
-  // Ajout de méthodes manquantes
   addActionPoints: async (points: number, type: string, description: string) => {
-    const response = await api.post('/gamification/action-points', { points, type, description });
+    const response = await api.post('/api/gamification/action-points', { points, type, description });
     return response.data;
   }
 };
 
 export const badgesService = {
   getUserBadges: async () => {
-    const response = await api.get('/badges/user');
+    const response = await api.get('/api/badges/user');
     return response.data;
   },
   getAllBadges: async () => {
-    const response = await api.get('/badges');
+    const response = await api.get('/api/badges');
     return response.data;
   },
 };
 
-// Service Timer complet avec toutes les méthodes nécessaires
 export const timerService = {
   startTimer: async (timerData: any) => {
-    const response = await api.post('/timer/start', timerData);
+    const response = await api.post('/api/timer/start', timerData);
     return response.data;
   },
   stopTimer: async (id: string, duration?: number) => {
-    const response = await api.post(`/timer/stop/${id}`, { duration });
+    const response = await api.post(`/api/timer/stop/${id}`, { duration });
     return response.data;
   },
   getTimerHistory: async (taskId: string) => {
-    const response = await api.get(`/timer/history/${taskId}`);
+    const response = await api.get(`/api/timer/history/${taskId}`);
     return response.data;
   },
-  // Méthodes manquantes
   getAllTimers: async () => {
-    const response = await api.get('/timer/all');
+    const response = await api.get('/api/timer/all');
     return response.data;
   },
   getRunningTimer: async () => {
-    const response = await api.get('/timer/running');
+    const response = await api.get('/api/timer/running');
     return response.data;
   },
   getTimerById: async (id: string) => {
-    const response = await api.get(`/timer/${id}`);
+    const response = await api.get(`/api/timer/${id}`);
     return response.data;
   },
   pauseTimer: async (id: string) => {
-    const response = await api.post(`/timer/pause/${id}`);
+    const response = await api.post(`/api/timer/pause/${id}`);
     return response.data;
   },
   resumeTimer: async (id: string) => {
-    const response = await api.post(`/timer/resume/${id}`);
+    const response = await api.post(`/api/timer/resume/${id}`);
     return response.data;
   },
   deleteTimer: async (id: string) => {
-    const response = await api.delete(`/timer/${id}`);
+    const response = await api.delete(`/api/timer/${id}`);
     return response.data;
   },
   getClientTimers: async (clientId: string) => {
-    const response = await api.get(`/timer/client/${clientId}`);
+    const response = await api.get(`/api/timer/client/${clientId}`);
     return response.data;
   },
   getTaskTimers: async (taskId: string) => {
-    const response = await api.get(`/timer/task/${taskId}`);
+    const response = await api.get(`/api/timer/task/${taskId}`);
     return response.data;
   }
 };
 
-// Ajout des services manquants
 export const taskImpactService = {
   getHighImpactTasks: async () => {
-    const response = await api.get('/taskImpact/highImpact');
+    const response = await api.get('/api/taskImpact/highImpact');
     return response.data;
   },
   updateTaskImpact: async (taskId: string, isHighImpact: boolean, impactScore: number) => {
-    const response = await api.put(`/taskImpact/${taskId}`, { isHighImpact, impactScore });
+    const response = await api.put(`/api/taskImpact/${taskId}`, { isHighImpact, impactScore });
     return response.data;
   },
   analyzeTasksImpact: async () => {
-    const response = await api.post('/taskImpact/analyze');
+    const response = await api.post('/api/taskImpact/analyze');
     return response.data;
   },
   applyImpactAnalysis: async (updatedTasks: any[]) => {
-    const response = await api.post('/taskImpact/apply', { tasks: updatedTasks });
+    const response = await api.post('/api/taskImpact/apply', { tasks: updatedTasks });
     return response.data;
   },
 };
 
 export const profitabilityService = {
   getAllProfitability: async () => {
-    const response = await api.get('/profitability/all');
+    const response = await api.get('/api/profitability/all');
     return response.data;
   },
   getClientProfitability: async (clientId: string) => {
-    const response = await api.get(`/profitability/client/${clientId}`);
+    const response = await api.get(`/api/profitability/client/${clientId}`);
     return response.data;
   },
   updateHourlyRate: async (clientId: string, hourlyRate: number) => {
-    const response = await api.put(`/profitability/hourlyRate/${clientId}`, { hourlyRate });
+    const response = await api.put(`/api/profitability/hourlyRate/${clientId}`, { hourlyRate });
     return response.data;
   },
   updateSpentHours: async (clientId: string, spentHours: number, incrementOnly?: boolean) => {
-    const response = await api.put(`/profitability/spentHours/${clientId}`, { spentHours, incrementOnly });
+    const response = await api.put(`/api/profitability/spentHours/${clientId}`, { spentHours, incrementOnly });
     return response.data;
   },
   updateTargetHours: async (clientId: string, targetHours: number) => {
-    const response = await api.put(`/profitability/targetHours/${clientId}`, { targetHours });
+    const response = await api.put(`/api/profitability/targetHours/${clientId}`, { targetHours });
     return response.data;
   },
   getGlobalProfitabilitySummary: async () => {
-    const response = await api.get('/profitability/summary');
+    const response = await api.get('/api/profitability/summary');
     return response.data;
   },
   getClientTasks: async (clientId: string) => {
-    const response = await api.get(`/profitability/tasks/${clientId}`);
+    const response = await api.get(`/api/profitability/tasks/${clientId}`);
     return response.data;
   },
 };
 
 export const objectivesService = {
   getAll: async () => {
-    const response = await api.get('/objectives');
+    const response = await api.get('/api/objectives');
     return response.data;
   },
   getById: async (id: string) => {
-    const response = await api.get(`/objectives/${id}`);
+    const response = await api.get(`/api/objectives/${id}`);
     return response.data;
   },
   getByClient: async (clientId: string) => {
-    const response = await api.get(`/objectives/client/${clientId}`);
+    const response = await api.get(`/api/objectives/client/${clientId}`);
     return response.data;
   },
   getHighImpact: async () => {
-    const response = await api.get('/objectives/highImpact');
+    const response = await api.get('/api/objectives/highImpact');
     return response.data;
   },
   create: async (objectiveData: any) => {
-    const response = await api.post('/objectives', objectiveData);
+    const response = await api.post('/api/objectives', objectiveData);
     return response.data;
   },
   update: async (id: string, objectiveData: any) => {
-    const response = await api.put(`/objectives/${id}`, objectiveData);
+    const response = await api.put(`/api/objectives/${id}`, objectiveData);
     return response.data;
   },
   updateProgress: async (id: string, currentValue: number) => {
-    const response = await api.put(`/objectives/${id}/progress`, { currentValue });
+    const response = await api.put(`/api/objectives/${id}/progress`, { currentValue });
     return response.data;
   },
   delete: async (id: string) => {
-    const response = await api.delete(`/objectives/${id}`);
+    const response = await api.delete(`/api/objectives/${id}`);
     return response.data;
   },
   linkTask: async (objectiveId: string, taskId: string) => {
-    const response = await api.post(`/objectives/${objectiveId}/tasks/${taskId}`);
+    const response = await api.post(`/api/objectives/${objectiveId}/tasks/${taskId}`);
     return response.data;
   },
   unlinkTask: async (objectiveId: string, taskId: string) => {
-    const response = await api.delete(`/objectives/${objectiveId}/tasks/${taskId}`);
+    const response = await api.delete(`/api/objectives/${objectiveId}/tasks/${taskId}`);
     return response.data;
   },
 };
