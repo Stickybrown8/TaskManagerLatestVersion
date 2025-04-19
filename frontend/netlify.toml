@@ -1,7 +1,9 @@
 [build]
   base = "frontend"
-  command = "npm ci --legacy-peer-deps && npm run build"
+  command = "yarn install && yarn build"
   publish = "build"
 
 [build.environment]
+  NODE_VERSION = "16"
   NODE_PATH = "src/"
+
