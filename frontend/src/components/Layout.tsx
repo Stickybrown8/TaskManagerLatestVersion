@@ -9,8 +9,10 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const { sidebarOpen } = useAppSelector(state => state.ui);
-  const { darkMode } = useAppSelector(state => state.ui);
+  // Utilisez l'opérateur nullish coalescing (??) pour fournir des valeurs par défaut
+  const ui = useAppSelector(state => state.ui);
+  const sidebarOpen = ui?.sidebarOpen ?? true; // Utiliser true comme valeur par défaut
+  const darkMode = ui?.darkMode ?? false; // Utiliser false comme valeur par défaut
 
   return (
     <div className={`flex h-screen ${darkMode ? 'dark' : ''}`}>
