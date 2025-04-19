@@ -9,7 +9,7 @@ const config = require('../config/auth.config');
 // Route d'inscription
 router.post('/register', async (req, res) => {
   try {
-    const { username, email, password } = req.body;
+    const { name, email, password } = req.body;
     
     // Vérifier si l'utilisateur existe déjà
     const existingUser = await User.findOne({ email });
@@ -20,7 +20,7 @@ router.post('/register', async (req, res) => {
     // Créer un nouvel utilisateur
     const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = new User({
-      username,
+      name,
       email,
       password: hashedPassword,
       level: 1,
@@ -43,7 +43,7 @@ router.post('/register', async (req, res) => {
       token,
       user: {
         id: newUser._id,
-        username: newUser.username,
+        name: newUser.name,
         email: newUser.email,
         level: newUser.level,
         experience: newUser.experience,
@@ -86,7 +86,7 @@ router.post('/login', async (req, res) => {
       token,
       user: {
         id: user._id,
-        username: user.username,
+        name: user.name,
         email: user.email,
         level: user.level,
         experience: user.experience,
@@ -109,7 +109,7 @@ router.get('/profile', verifyToken, async (req, res) => {
     res.status(200).json({
       user: {
         id: user._id,
-        username: user.username,
+        name: user.name,
         email: user.email,
         level: user.level,
         experience: user.experience,
