@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const connectDB = require('./config/db');
@@ -20,9 +21,9 @@ const app = express();
 app.use(express.json());
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://task-manager-client.vercel.app'] 
-    : 'http://localhost:3000'
-}));
+    ? ['https://task-manager-client.vercel.app', 'https://task-manager-steven.netlify.app'] 
+    : ['http://localhost:3000', 'http://localhost:3009']
+}) );
 
 // Routes
 app.use('/api/users', userRoutes);
