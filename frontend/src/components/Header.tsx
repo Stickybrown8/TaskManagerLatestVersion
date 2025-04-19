@@ -59,7 +59,7 @@ const Header: React.FC = () => {
         <div className="relative">
           <button className="flex items-center space-x-2 focus:outline-none">
             <img
-              src={user?.profile.avatar || '/default-avatar.png'}
+              src={user?.profile?.avatar || '/default-avatar.png'}
               alt="Avatar"
               className="w-8 h-8 rounded-full"
             />
