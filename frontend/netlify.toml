@@ -1,9 +1,0 @@
-[build]
-  base = "frontend"
-  command = "rm -rf node_modules && npm install --force && npm run build"
-  publish = "build"
-
-[build.environment]
-  NODE_VERSION = "16"
-  NODE_PATH = "src/"
-
