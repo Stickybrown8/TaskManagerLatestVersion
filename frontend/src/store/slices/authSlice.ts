@@ -11,9 +11,9 @@ interface AuthState {
 
 interface User {
   id: string;
-  name: string;
+  name: string;  // Changé de username à name
   email: string;
-  profile: {
+  profile?: {
     avatar: string;
     theme: string;
     settings: {
@@ -22,7 +22,7 @@ interface User {
       soundEffects: boolean;
     };
   };
-  gamification: {
+  gamification?: {
     level: number;
     experience: number;
     actionPoints: number;
