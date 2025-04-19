@@ -15,7 +15,7 @@ const ExpandIcon = () => <svg className="w-6 h-6" fill="none" stroke="currentCol
 const Sidebar: React.FC = () => {
   const dispatch = useAppDispatch();
   const location = useLocation();
-  const { sidebarOpen } = useAppSelector(state => state.ui);
+  const { sidebarOpen = true } = useAppSelector(state => state.ui || {});
   const { user } = useAppSelector(state => state.auth);
   const { level, experience } = useAppSelector(state => state.gamification);
 
