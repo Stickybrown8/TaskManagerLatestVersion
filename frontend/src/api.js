@@ -15,22 +15,27 @@ const setAuthToken = (token)  => {
 // Service d'authentification
 const authService = {
   login: async (email, password) => {
-    try {
-      const response = await axios.post(`${API_URL}/auth/login`, { email, password });
-      const { token, user } = response.data;
-      
-      // Stocker le token dans le localStorage
-      localStorage.setItem('token', token);
-      
-      // Configurer axios avec le token
-      setAuthToken(token);
-      
-      return user;
-    } catch (error) {
-      console.error('Erreur de connexion:', error);
-      throw error;
-    }
-  },
+  console.log("Tentative de connexion avec URL:", API_URL);
+  console.log("Données envoyées:", { email, password: "***" });
+  console.log("URL complète:", `${API_URL}/auth/login`);
+  try {
+    const response = await axios.post(`${API_URL}/auth/login`, { email, password });
+    console.log("Réponse reçue:", response.data);
+    const { token, user } = response.data;
+    
+    // Stocker le token dans le localStorage
+    localStorage.setItem('token', token);
+    
+    // Configurer axios avec le token
+    setAuthToken(token);
+    
+    return user;
+  } catch (error) {
+    console.error("Erreur de connexion:", error);
+    console.error("Détails de l'erreur:", error.response ? error.response.data : "Pas de réponse");
+    throw error;
+  }
+},
   
   logout: () => {
     // Supprimer le token du localStorage
