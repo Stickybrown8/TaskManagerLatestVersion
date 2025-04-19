@@ -9,12 +9,14 @@ import Gamification from './pages/Gamification';
 import Layout from './components/Layout';
 import PrivateRoute from './components/PrivateRoute';
 import './App.css';
+import TestApi from './pages/TestApi';
 
 const App = () => {
   return (
     <div className="App">
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/test-api" element={<TestApi />} /> {/* Déplacé ici */}
         <Route element={<PrivateRoute />}>
           <Route element={<Layout />}>
             <Route path="/" element={<Dashboard />} />
