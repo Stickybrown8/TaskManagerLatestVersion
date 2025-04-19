@@ -43,11 +43,11 @@ export const authService = {
     return response.data;
   },
   register: async (username: string, email: string, password: string) => {
-    const response = await api.post('/api/users/register', { username, email, password });
+    const response = await api.post('${API_URL}/api/users/register', { username, email, password });
     return response.data;
   },
   getCurrentUser: async () => {
-    const response = await api.get('/api/users/profile');
+    const response = await api.get('${API_URL}/api/users/profile');
     return response.data;
   },
 };
