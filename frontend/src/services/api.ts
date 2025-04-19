@@ -4,7 +4,7 @@ import { logout } from '../store/slices/authSlice';
 
 // Créer une instance axios avec la configuration de base
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000',
+  baseURL: process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com',
   headers: {
     'Content-Type': 'application/json',
   },
