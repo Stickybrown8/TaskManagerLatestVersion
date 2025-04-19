@@ -19,7 +19,7 @@ const authService = {
   console.log("Données envoyées:", { email, password: "***" });
   console.log("URL complète:", `${API_URL}/auth/login`);
   try {
-    const response = await axios.post(`${API_URL}/auth/login`, { email, password });
+    const response = await axios.post(`${API_URL}/api/users/login`, { email, password });
     console.log("Réponse reçue:", response.data);
     const { token, user } = response.data;
     
