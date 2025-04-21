@@ -1,3 +1,4 @@
+// frontend/src/store/slices/uiSlice.ts
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 // Types
@@ -29,8 +30,8 @@ interface Notification {
   read: boolean;
 }
 
-// État initial
-const initialState: UIState = {
+// État initial - Exporté pour être utilisé dans initialStates.js
+export const initialUIState: UIState = {
   sidebarOpen: true,
   darkMode: window.matchMedia('(prefers-color-scheme: dark)').matches,
   currentTheme: 'default',
@@ -53,7 +54,7 @@ const initialState: UIState = {
 // Slice
 const uiSlice = createSlice({
   name: 'ui',
-  initialState,
+  initialState: initialUIState,
   reducers: {
     toggleSidebar: (state) => {
       state.sidebarOpen = !state.sidebarOpen;
