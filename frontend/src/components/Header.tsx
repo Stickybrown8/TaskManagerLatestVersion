@@ -3,11 +3,18 @@ import { useAppSelector, useAppDispatch } from '../hooks';
 import { toggleDarkMode } from '../store/slices/uiSlice';
 import { logout } from '../store/slices/authSlice';
 
-const Header: React.FC = () => {
+const Header = () => {
   const dispatch = useAppDispatch();
-  const { darkMode = false } = useAppSelector(state => state.ui || {});
-  const { user } = useAppSelector(state => state.auth);
-  const { actionPoints, badges } = useAppSelector(state => state.gamification);
+  
+  // Utilisation de l'opérateur nullish coalescing (??) pour fournir des valeurs par défaut
+  const ui = useAppSelector(state => state.ui) || {};
+  const { darkMode = false } = ui;
+  
+  const auth = useAppSelector(state => state.auth) || {};
+  const { user = { name: 'Utilisateur', profile: { avatar: '/default-avatar.png' } } } = auth;
+  
+  const gamification = useAppSelector(state => state.gamification) || {};
+  const { actionPoints = 0, badges = [] } = gamification;
 
   const handleLogout = () => {
     dispatch(logout());
@@ -63,7 +70,7 @@ const Header: React.FC = () => {
               alt="Avatar"
               className="w-8 h-8 rounded-full"
             />
-            <span className="hidden md:inline text-gray-800 dark:text-white">{user?.name}</span>
+            <span className="hidden md:inline text-gray-800 dark:text-white">{user?.name || 'Utilisateur'}</span>
           </button>
           {/* Menu déroulant (à implémenter) */}
         </div>
