@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { addNotification } from '../store/slices/uiSlice';
 import { gamificationService } from '../services/api';
 
-// Interface pour le type Challenge
+// Définition de l'interface Challenge pour résoudre l'erreur TypeScript
 interface Challenge {
   id: number;
   title: string;
@@ -47,7 +47,7 @@ const Dashboard = () => {
   const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
   
   // Défis quotidiens (simulés)
-  const dailyChallenges: Challenge[] = [
+  const dailyChallenges = [
     {
       id: 1,
       title: 'Complétez 3 tâches aujourd\'hui',
@@ -75,6 +75,7 @@ const Dashboard = () => {
   ];
   
   // Réclamer la récompense d'un défi
+  // Ajout du type Challenge pour corriger l'erreur TypeScript
   const handleClaimReward = async (challenge: Challenge) => {
     if (!challenge.completed) {
       dispatch(addNotification({
@@ -101,7 +102,7 @@ const Dashboard = () => {
       setTimeout(() => {
         setShowChallenges(false);
       }, 1000);
-    } catch (error: any) {
+    } catch (error) {
       dispatch(addNotification({
         message: 'Erreur lors de la réclamation de la récompense',
         type: 'error'
@@ -327,7 +328,79 @@ const Dashboard = () => {
         </motion.div>
       </div>
       
-      {/* Reste du composant... */}
+      {/* Taux de complétion */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.6 }}
+        className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8"
+      >
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Taux de complétion des tâches</h2>
+        
+        <div className="flex items-center">
+          <div className="flex-1 mr-4">
+            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded-full">
+              <div 
+                className="h-full bg-success-500 rounded-full" 
+                style={{ width: `${completionRate}%` }}
+              ></div>
+            </div>
+          </div>
+          <div className="text-2xl font-bold text-success-600 dark:text-success-400">{completionRate}%</div>
+        </div>
+        
+        <div className="flex justify-between mt-4">
+          <div className="text-center">
+            <div className="text-sm font-medium text-gray-500 dark:text-gray-400">Total</div>
+            <div className="text-lg font-bold text-gray-900 dark:text-white">{totalTasks}</div>
+          </div>
+          <div className="text-center">
+            <div className="text-sm font-medium text-gray-500 dark:text-gray-400">Terminées</div>
+            <div className="text-lg font-bold text-success-600 dark:text-success-400">{completedTasks}</div>
+          </div>
+          <div className="text-center">
+            <div className="text-sm font-medium text-gray-500 dark:text-gray-400">En cours</div>
+            <div className="text-lg font-bold text-blue-600 dark:text-blue-400">{inProgressTasks}</div>
+          </div>
+          <div className="text-center">
+            <div className="text-sm font-medium text-gray-500 dark:text-gray-400">À faire</div>
+            <div className="text-lg font-bold text-yellow-600 dark:text-yellow-400">{pendingTasks}</div>
+          </div>
+        </div>
+      </motion.div>
+      
+      {/* Badges récents */}
+      {badges.length > 0 && (
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.7 }}
+          className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6"
+        >
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Badges récents</h2>
+            <button
+              onClick={() => {/* Navigation vers la page de gamification */}}
+              className="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+            >
+              Voir tous les badges
+            </button>
+          </div>
+          
+          <div className="flex space-x-4 overflow-x-auto pb-2">
+            {badges.slice(0, 4).map((badge) => (
+              <div key={badge._id} className="flex-shrink-0 w-24 text-center">
+                <img 
+                  src={badge.icon} 
+                  alt={badge.name} 
+                  className="w-16 h-16 mx-auto mb-2 object-contain"
+                />
+                <h4 className="text-xs font-medium text-gray-900 dark:text-white truncate">{badge.name}</h4>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
     </div>
   );
 };
