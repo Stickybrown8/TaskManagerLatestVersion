@@ -1,3 +1,4 @@
+// frontend/src/store/slices/gamificationSlice.ts
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 // Types
@@ -61,8 +62,8 @@ interface Level {
   icon: string;
 }
 
-// État initial
-const initialState: GamificationState = {
+// État initial - Exporté pour être utilisé dans initialStates.js
+export const initialGamificationState: GamificationState = {
   level: 1,
   experience: 0,
   actionPoints: 0,
@@ -84,7 +85,7 @@ const initialState: GamificationState = {
 // Slice
 const gamificationSlice = createSlice({
   name: 'gamification',
-  initialState,
+  initialState: initialGamificationState,
   reducers: {
     fetchGamificationProfileStart: (state) => {
       state.loading = true;
