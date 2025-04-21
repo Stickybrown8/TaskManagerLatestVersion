@@ -4,6 +4,16 @@ import { motion } from 'framer-motion';
 import { addNotification } from '../store/slices/uiSlice';
 import { gamificationService } from '../services/api';
 
+// Interface pour le type Challenge
+interface Challenge {
+  id: number;
+  title: string;
+  description: string;
+  progress: number;
+  reward: number;
+  completed: boolean;
+}
+
 // Composant pour afficher un tableau de bord ludique
 const Dashboard = () => {
   const dispatch = useAppDispatch();
@@ -37,7 +47,7 @@ const Dashboard = () => {
   const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
   
   // Défis quotidiens (simulés)
-  const dailyChallenges = [
+  const dailyChallenges: Challenge[] = [
     {
       id: 1,
       title: 'Complétez 3 tâches aujourd\'hui',
@@ -65,7 +75,7 @@ const Dashboard = () => {
   ];
   
   // Réclamer la récompense d'un défi
-  const handleClaimReward = async (challenge) => {
+  const handleClaimReward = async (challenge: Challenge) => {
     if (!challenge.completed) {
       dispatch(addNotification({
         message: 'Vous devez d\'abord compléter ce défi !',
@@ -91,7 +101,7 @@ const Dashboard = () => {
       setTimeout(() => {
         setShowChallenges(false);
       }, 1000);
-    } catch (error) {
+    } catch (error: any) {
       dispatch(addNotification({
         message: 'Erreur lors de la réclamation de la récompense',
         type: 'error'
