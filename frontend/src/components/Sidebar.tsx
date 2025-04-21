@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '../hooks';
 import { toggleSidebar } from '../store/slices/uiSlice';
 
-// Icônes (à remplacer par des imports de bibliothèque d'icônes si nécessaire)
+// Icônes
 const DashboardIcon = () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>;
 const ClientsIcon = () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>;
 const TasksIcon = () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>;
@@ -12,12 +12,19 @@ const ProfileIcon = () => <svg className="w-6 h-6" fill="none" stroke="currentCo
 const CollapseIcon = () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" /></svg>;
 const ExpandIcon = () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>;
 
-const Sidebar: React.FC = () => {
+const Sidebar = () => {
   const dispatch = useAppDispatch();
   const location = useLocation();
-  const { sidebarOpen = true } = useAppSelector(state => state.ui || {});
-  const { user } = useAppSelector(state => state.auth);
-  const { level, experience } = useAppSelector(state => state.gamification);
+  
+  // Utilisation de l'opérateur nullish coalescing (??) pour fournir des valeurs par défaut
+  const ui = useAppSelector(state => state.ui) || {};
+  const { sidebarOpen = true } = ui;
+  
+  const auth = useAppSelector(state => state.auth) || {};
+  const { user = { name: 'Utilisateur', profile: { avatar: '/default-avatar.png' } } } = auth;
+  
+  const gamification = useAppSelector(state => state.gamification) || {};
+  const { level = 1, experience = 0 } = gamification;
 
   // Navigation items
   const navItems = [
@@ -62,7 +69,7 @@ const Sidebar: React.FC = () => {
         </div>
         {sidebarOpen && (
           <div className="ml-3 overflow-hidden">
-            <p className="text-sm font-medium truncate">{user?.name}</p>
+            <p className="text-sm font-medium truncate">{user?.name || 'Utilisateur'}</p>
             <div className="w-full h-2 bg-gray-200 rounded-full mt-1">
               <div
                 className="h-full bg-secondary-500 rounded-full"
