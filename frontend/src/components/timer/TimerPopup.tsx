@@ -114,7 +114,7 @@ const TimerPopup: React.FC = () => {
 
   // Afficher le timer
   const handleShowTimer = () => {
-    console.log('État actuel du timer avant toggleTimerPopup:', timerPopupVisible);
+    console.log('État actuel du timer avant toggleTimerPopup:', showTimerPopup);
     dispatch(toggleTimerPopup(true));
     console.log('Action toggleTimerPopup(true) dispatched');
   };
