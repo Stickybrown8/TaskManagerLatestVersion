@@ -5,7 +5,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { store } from './store';
 import './index.css';
 
-// Importations avec chemins relatifs
+// Composants de mise en page
 import Layout from './components/Layout';
 import PrivateRoute from './components/PrivateRoute';
 import TimerPopup from './components/timer/TimerPopup';
@@ -14,9 +14,12 @@ import TimerPopup from './components/timer/TimerPopup';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Tasks from './pages/Tasks';
+import TaskDetail from './pages/TaskDetail';
 import Clients from './pages/Clients';
 import Gamification from './pages/Gamification';
-import TaskDetail from './pages/TaskDetail';
+import TestApi from './pages/TestApi';
+import TestLogin from './TestLogin';
+import AdminSetup from './AdminSetup';
 
 const App = () => {
   return (
@@ -24,6 +27,11 @@ const App = () => {
       <TimerPopup />
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/test-api" element={<TestApi />} />
+        <Route path="/test-login" element={<TestLogin />} />
+        <Route path="/admin-setup" element={<AdminSetup />} />
+        
+        {/* Routes privées avec layout */}
         <Route element={<PrivateRoute />}>
           <Route element={<Layout />}>
             <Route path="/" element={<Dashboard />} />
