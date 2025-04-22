@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client';
 import { Provider } from 'react-redux';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { store } from './store';
+// Ajoutez l'import pour le nouveau composant ClientForm
+import ClientForm from './pages/ClientForm';
 import './index.css';
 
 // Composant ErrorBoundary pour capturer les erreurs
@@ -44,9 +46,11 @@ const Root = () => {
             <Route element={<Layout />}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/clients" element={<Clients />} />
+              <Route path="/clients/new" element={<ClientForm />} />
               <Route path="/tasks" element={<Tasks />} />
               <Route path="/tasks/:id" element={<TaskDetail />} />
               <Route path="/gamification" element={<Gamification />} />
+              <Route path="/profile" element={<Profile />} />
             </Route>
           </Route>
         </Routes>
