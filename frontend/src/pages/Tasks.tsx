@@ -10,7 +10,8 @@ import { motion } from 'framer-motion';
 const Tasks: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const { tasks, filteredTasks, filters, loading, error } = useAppSelector(state => state.tasks);
+  const tasksState = useAppSelector(state => state.tasks || {});
+  const { tasks = [], filteredTasks = [], filters = {}, loading = false, error = null } = tasksState;
   const { clients } = useAppSelector(state => state.clients);
   const [searchTerm, setSearchTerm] = useState('');
 
