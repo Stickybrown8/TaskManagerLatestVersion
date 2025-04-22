@@ -9,15 +9,17 @@ interface PrivateRouteProps {
 const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
   const location = useLocation();
   
-  // AUTHENTIFICATION DÉSACTIVÉE TEMPORAIREMENT
+  // AUTHENTIFICATION DÉSACTIVÉE TEMPORAIREMENT POUR LE DÉVELOPPEMENT
   // ⚠️ À NE PAS UTILISER EN PRODUCTION ⚠️
   console.log("PrivateRoute: Authentification désactivée - Accès direct");
   
   // Toujours rendre les enfants ou l'Outlet, peu importe l'état d'authentification
   return children ? <>{children}</> : <Outlet />;
   
-  /* CODE ORIGINAL COMMENTÉ POUR RESTAURATION FUTURE
-  const { isAuthenticated, loading } = useAppSelector(state => state.auth);
+  /* CODE ORIGINAL POUR RESTAURATION FUTURE
+  // Utiliser useAppSelector avec valeur par défaut sécurisée
+  const authState = useAppSelector(state => state.auth) || {};
+  const { isAuthenticated = false, loading = false } = authState;
 
   // Si l'authentification est en cours de vérification, afficher un loader
   if (loading) {
@@ -30,6 +32,7 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
 
   // Si l'utilisateur n'est pas authentifié, rediriger vers la page de connexion
   if (!isAuthenticated) {
+    // Sauvegarder l'emplacement actuel pour y revenir après connexion
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
