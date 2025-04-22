@@ -80,6 +80,59 @@ const initialTasksState = {
   error: null
 };
 
+// Ajout des états initiaux pour les autres reducers
+const initialGamificationState = {
+  level: 1,
+  experience: 0,
+  actionPoints: 10,
+  totalPointsEarned: 0,
+  currentStreak: 0,
+  longestStreak: 0,
+  badges: [],
+  activities: [],
+  levels: [],
+  loading: false,
+  error: null,
+  rewardAnimation: {
+    show: false,
+    type: null,
+    data: null
+  }
+};
+
+const initialClientsState = {
+  clients: [],
+  currentClient: null,
+  loading: false,
+  error: null
+};
+
+const initialTaskImpactState = {
+  highImpactTasks: [],
+  impactAnalysis: null,
+  loading: false,
+  applyingAnalysis: false,
+  analysisApplied: false,
+  error: null
+};
+
+const initialProfitabilityState = {
+  clientsProfitability: [],
+  currentClientProfitability: null,
+  globalSummary: null,
+  clientTasks: {},
+  loading: false,
+  error: null
+};
+
+const initialObjectivesState = {
+  objectives: {},
+  highImpactObjectives: {},
+  currentObjective: null,
+  loading: false,
+  error: null
+};
+
 // Configuration du store Redux
 export const store = configureStore({
   reducer: {
@@ -93,12 +146,17 @@ export const store = configureStore({
     profitability: profitabilityReducer,
     objectives: objectivesReducer
   },
-  // S'assurer que les états initiaux critiques sont correctement définis
+  // S'assurer que tous les états initiaux sont correctement définis
   preloadedState: {
     auth: initialAuthState,
     timer: initialTimerState,
     ui: initialUiState,
-    tasks: initialTasksState
+    tasks: initialTasksState,
+    gamification: initialGamificationState,
+    clients: initialClientsState,
+    taskImpact: initialTaskImpactState,
+    profitability: initialProfitabilityState,
+    objectives: initialObjectivesState
   }
 });
 
