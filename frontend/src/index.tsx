@@ -21,7 +21,9 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Tasks from './pages/Tasks';
 import TaskDetail from './pages/TaskDetail';
+import TaskForm from './pages/TaskForm';  // Ajoutez cette ligne
 import Clients from './pages/Clients';
+import ClientDashboard from './pages/ClientDashboard';  // Ajoutez cette ligne
 import Gamification from './pages/Gamification';
 import TestApi from './pages/TestApi';
 import TestLogin from './TestLogin';
@@ -48,7 +50,9 @@ const Root = () => {
               <Route path="/clients" element={<Clients />} />
               <Route path="/clients/new" element={<ClientForm />} />
               <Route path="/tasks" element={<Tasks />} />
+              <Route path="/tasks/new" element={<TaskForm />} />  {/* Ajoutez cette ligne */}
               <Route path="/tasks/:id" element={<TaskDetail />} />
+              <Route path="/dashboard/clients" element={<ClientDashboard />} />  {/* Ajoutez cette ligne */}
               <Route path="/gamification" element={<Gamification />} />
               <Route path="/profile" element={<Profile />} />
             </Route>
