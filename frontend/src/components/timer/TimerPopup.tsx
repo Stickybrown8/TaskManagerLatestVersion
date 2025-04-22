@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   fetchRunningTimer,
   startTimer,
@@ -9,34 +9,42 @@ import {
   hideTimerPopup,
   setTimerPopupSize,
   setTimerPopupPosition,
-  updateRunningTimerDuration
+  updateRunningTimerDuration,
+  toggleTimerPopup
 } from '../../store/slices/timerSlice';
 import { RootState, AppDispatch } from '../../store';
-import { useSelector } from 'react-redux';
 
 const TimerPopup: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
 
-  // Ajout d'une vérification de sécurité pour state.timer
-  const timerState = useSelector((state: RootState) => state.timer) || {};
+  // Récupération sécurisée des états avec valeurs par défaut
+  const timerState = useSelector((state: RootState) => state.timer || {});
   const {
     runningTimer = null,
-    showTimerPopup: timerPopupVisible = false,
+    showTimerPopup = false,
     timerPopupSize = 'medium',
     timerPopupPosition = 'bottom-right'
   } = timerState;
 
-  // Vérification de sécurité pour les autres states
-  const clientsState = useSelector((state: RootState) => state.clients) || {};
-  const { clients = {} } = clientsState;
-
-  const tasksState = useSelector((state: RootState) => state.tasks) || {};
-  const { tasks = {} } = tasksState;
-
+  // États locaux supplémentaires
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [selectedTaskId, setSelectedTaskId] = useState<string>('');
   const [timerDuration, setTimerDuration] = useState<number>(0);
   const [isRunning, setIsRunning] = useState<boolean>(false);
+
+  // Simulation de données clients et tâches pour le développement
+  // À remplacer par les données réelles du store
+  const dummyClients = [
+    { _id: 'client1', name: 'Client A' },
+    { _id: 'client2', name: 'Client B' },
+    { _id: 'client3', name: 'Client C' },
+  ];
+  
+  const dummyTasks = [
+    { _id: 'task1', title: 'Tâche 1' },
+    { _id: 'task2', title: 'Tâche 2' },
+    { _id: 'task3', title: 'Tâche 3' },
+  ];
 
   // Fonction pour formater la durée en HH:MM:SS
   const formatDuration = (seconds: number): string => {
@@ -56,7 +64,7 @@ const TimerPopup: React.FC = () => {
       if (isRunning) {
         dispatch(updateRunningTimerDuration());
         if (runningTimer) {
-          setTimerDuration(runningTimer.duration);
+          setTimerDuration(runningTimer.duration || 0);
         }
       }
     }, 1000);
@@ -67,8 +75,8 @@ const TimerPopup: React.FC = () => {
   // Mettre à jour l'état local lorsque runningTimer change
   useEffect(() => {
     if (runningTimer) {
-      setIsRunning(runningTimer.isRunning);
-      setTimerDuration(runningTimer.duration);
+      setIsRunning(runningTimer.isRunning || false);
+      setTimerDuration(runningTimer.duration || 0);
 
       if (runningTimer.clientId) {
         setSelectedClientId(runningTimer.clientId);
@@ -132,6 +140,11 @@ const TimerPopup: React.FC = () => {
     setSelectedTaskId('');
   };
 
+  // Afficher la popup
+  const handleShowPopup = () => {
+    dispatch(toggleTimerPopup(true));
+  };
+
   // Fermer la popup
   const handleClosePopup = () => {
     dispatch(hideTimerPopup());
@@ -147,9 +160,19 @@ const TimerPopup: React.FC = () => {
     dispatch(setTimerPopupPosition(position));
   };
 
-  // Si la popup n'est pas visible, ne rien afficher
-  if (!timerPopupVisible) {
-    return null;
+  // Si la popup n'est pas visible, afficher juste un bouton pour l'ouvrir
+  if (!showTimerPopup) {
+    return (
+      <button 
+        onClick={handleShowPopup}
+        className="fixed bottom-4 right-4 bg-primary-600 text-white p-3 rounded-full shadow-lg hover:bg-primary-700 transition-colors z-50"
+        title="Ouvrir le chronomètre"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </button>
+    );
   }
 
   // Déterminer les classes CSS en fonction de la taille et de la position
@@ -165,18 +188,16 @@ const TimerPopup: React.FC = () => {
     'center': 'top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2'
   };
 
-  // Fonction pour accéder de manière sécurisée aux propriétés des clients
+  // Fonction pour obtenir le nom du client
   const getClientName = (id: string): string => {
-    if (!clients) return '';
-    const client = clients[id as keyof typeof clients];
-    return client && typeof client === 'object' && 'name' in client ? (client as any).name : '';
+    const client = dummyClients.find(c => c._id === id);
+    return client ? client.name : 'Client sans nom';
   };
 
-  // Fonction pour accéder de manière sécurisée aux propriétés des tâches
+  // Fonction pour obtenir le titre de la tâche
   const getTaskTitle = (id: string): string => {
-    if (!tasks) return '';
-    const task = tasks[id as keyof typeof tasks];
-    return task && typeof task === 'object' && 'title' in task ? (task as any).title : '';
+    const task = dummyTasks.find(t => t._id === id);
+    return task ? task.title : 'Tâche sans titre';
   };
 
   return (
@@ -250,26 +271,26 @@ const TimerPopup: React.FC = () => {
         <div className="mt-4">
           <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Clients</h4>
           <div className="max-h-24 overflow-y-auto">
-            {clients && Object.entries(clients).map(([clientId, client]: [string, any]) => (
+            {dummyClients.map((client) => (
               <button
-                key={clientId}
-                onClick={() => handleStartClientTimer(clientId)}
+                key={client._id}
+                onClick={() => handleStartClientTimer(client._id)}
                 className="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md mb-1"
               >
-                {client && client.name ? client.name : 'Client sans nom'}
+                {client.name}
               </button>
             ))}
           </div>
 
           <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mt-3 mb-2">Tâches</h4>
           <div className="max-h-24 overflow-y-auto">
-            {tasks && Object.entries(tasks).map(([taskId, task]: [string, any]) => (
+            {dummyTasks.map((task) => (
               <button
-                key={taskId}
-                onClick={() => handleStartTaskTimer(taskId)}
+                key={task._id}
+                onClick={() => handleStartTaskTimer(task._id)}
                 className="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md mb-1"
               >
-                {task && task.title ? task.title : 'Tâche sans titre'}
+                {task.title}
               </button>
             ))}
           </div>
