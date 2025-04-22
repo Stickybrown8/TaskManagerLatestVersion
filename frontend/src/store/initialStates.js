@@ -70,7 +70,7 @@ export const initialGamificationState = {
 export const initialTasksState = {
   tasks: [],
   filteredTasks: [],
-  currentTask: null,     // Propriété ajoutée
+  currentTask: null,
   filters: {},
   loading: false,
   error: null
@@ -78,19 +78,20 @@ export const initialTasksState = {
 
 export const initialClientsState = {
   clients: [],
-  currentClient: null,   // Propriété ajoutée
+  currentClient: null,
   loading: false,
   error: null
 };
 
 export const initialTimerState = {
   runningTimer: null,
-  clientTimers: {},      // Changé de "timers" à "clientTimers"
-  taskTimers: {},        // Propriété ajoutée
-  currentTimer: null,    // Propriété ajoutée
+  clientTimers: {},
+  taskTimers: {},
+  currentTimer: null,
   showTimerPopup: false,
-  timerPopupSize: 'medium',
-  timerPopupPosition: 'bottom-right',
+  // Utilisation directe de l'un des littéraux autorisés
+  timerPopupSize: "medium", // Doit être exactement "small", "medium" ou "large"
+  timerPopupPosition: "bottom-right", // Doit être exactement "top-right", "bottom-right" ou "center"
   loading: false,
   error: null
 };
@@ -106,17 +107,17 @@ export const initialTaskImpactState = {
 
 export const initialProfitabilityState = {
   clientsProfitability: [],
-  currentClientProfitability: null,  // Propriété ajoutée
+  currentClientProfitability: null,
   globalSummary: null,
-  clientTasks: {},                   // Propriété ajoutée
+  clientTasks: {},
   loading: false,
   error: null
 };
 
 export const initialObjectivesState = {
-  objectives: {},                    // Changé de [] à {} pour correspondre aux interfaces
-  highImpactObjectives: {},          // Propriété ajoutée
-  currentObjective: null,            // Propriété ajoutée
+  objectives: {},
+  highImpactObjectives: {},
+  currentObjective: null,
   loading: false,
   error: null
 };
