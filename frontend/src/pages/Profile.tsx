@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppSelector, useAppDispatch } from '../hooks';
 import { updateUserProfile } from '../store/slices/authSlice';
 import { addNotification } from '../store/slices/uiSlice';
@@ -23,42 +23,91 @@ const Profile: React.FC = () => {
   };
   
   const [formData, setFormData] = useState({
-    name: user?.name || '',
-    email: user?.email || '',
+    name: '',
+    email: '',
     profile: {
-      ...defaultProfile,
-      ...(user?.profile || {})
+      ...defaultProfile
     }
   });
 
   const [activeTab, setActiveTab] = useState('info');
+  const [formChanged, setFormChanged] = useState(false);
+  const [localLoading, setLocalLoading] = useState(false);
+  
+  // Initialiser les données du formulaire quand l'utilisateur est chargé
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        name: user.name || '',
+        email: user.email || '',
+        profile: {
+          ...defaultProfile,
+          ...(user.profile || {})
+        }
+      });
+    }
+  }, [user]);
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => {
+      const newData = { ...prev, [name]: value };
+      setFormChanged(true);
+      return newData;
+    });
   };
   
   const handleSettingChange = (setting: string, value: boolean | string) => {
-    setFormData(prev => ({
-      ...prev,
-      profile: {
-        ...prev.profile,
-        settings: {
-          ...prev.profile.settings,
-          [setting]: value
+    setFormData(prev => {
+      const newData = {
+        ...prev,
+        profile: {
+          ...prev.profile,
+          settings: {
+            ...prev.profile.settings,
+            [setting]: value
+          }
         }
-      }
-    }));
+      };
+      setFormChanged(true);
+      return newData;
+    });
   };
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    dispatch(updateUserProfile(formData));
-    dispatch(addNotification({
-      message: 'Profil mis à jour avec succès!',
-      type: 'success'
-    }));
+    if (!formChanged) {
+      dispatch(addNotification({
+        message: 'Aucune modification à enregistrer',
+        type: 'info'
+      }));
+      return;
+    }
+    
+    try {
+      setLocalLoading(true);
+      
+      // Journal pour débogage
+      console.log("Mise à jour du profil avec les données:", formData);
+      
+      dispatch(updateUserProfile(formData));
+      
+      dispatch(addNotification({
+        message: 'Profil mis à jour avec succès!',
+        type: 'success'
+      }));
+      
+      setFormChanged(false);
+    } catch (error) {
+      console.error("Erreur lors de la mise à jour du profil:", error);
+      dispatch(addNotification({
+        message: 'Erreur lors de la mise à jour du profil',
+        type: 'error'
+      }));
+    } finally {
+      setLocalLoading(false);
+    }
   };
   
   if (!user) {
@@ -70,7 +119,7 @@ const Profile: React.FC = () => {
   }
   
   return (
-    <div className="container mx-auto">
+    <div className="container mx-auto px-4">
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -163,10 +212,18 @@ const Profile: React.FC = () => {
                 <div className="flex justify-end">
                   <button
                     type="submit"
-                    disabled={loading}
+                    disabled={localLoading || !formChanged}
                     className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors disabled:opacity-50"
                   >
-                    {loading ? 'Mise à jour...' : 'Enregistrer les modifications'}
+                    {localLoading ? (
+                      <div className="flex items-center">
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Mise à jour...
+                      </div>
+                    ) : 'Enregistrer les modifications'}
                   </button>
                 </div>
               </form>
@@ -253,10 +310,10 @@ const Profile: React.FC = () => {
                 <div className="flex justify-end">
                   <button
                     onClick={handleSubmit}
-                    disabled={loading}
+                    disabled={localLoading || !formChanged}
                     className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors disabled:opacity-50"
                   >
-                    {loading ? 'Mise à jour...' : 'Enregistrer les préférences'}
+                    {localLoading ? 'Mise à jour...' : 'Enregistrer les préférences'}
                   </button>
                 </div>
               </div>
