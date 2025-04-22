@@ -9,6 +9,7 @@ import './index.css';
 import Layout from './components/Layout';
 import PrivateRoute from './components/PrivateRoute';
 import TimerPopup from './components/timer/TimerPopup';
+import App from './App';
 
 // Pages
 import Login from './pages/Login';
@@ -21,11 +22,14 @@ import TestApi from './pages/TestApi';
 import TestLogin from './TestLogin';
 import AdminSetup from './AdminSetup';
 
-const App = () => {
+const Root = () => {
   return (
-    <div className="App">
+    <App>
+      {/* Le timer est toujours disponible, indépendamment des routes */}
       <TimerPopup />
+      
       <Routes>
+        {/* Routes publiques */}
         <Route path="/login" element={<Login />} />
         <Route path="/test-api" element={<TestApi />} />
         <Route path="/test-login" element={<TestLogin />} />
@@ -42,10 +46,11 @@ const App = () => {
           </Route>
         </Route>
       </Routes>
-    </div>
+    </App>
   );
 };
 
+// Point d'entrée principal de l'application
 const container = document.getElementById('root');
 if (container) {
   const root = createRoot(container);
@@ -53,7 +58,7 @@ if (container) {
     <React.StrictMode>
       <Provider store={store}>
         <Router>
-          <App />
+          <Root />
         </Router>
       </Provider>
     </React.StrictMode>
