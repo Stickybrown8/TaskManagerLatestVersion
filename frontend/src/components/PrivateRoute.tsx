@@ -1,5 +1,5 @@
 import React from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAppSelector } from '../hooks';
 
 interface PrivateRouteProps {
@@ -7,6 +7,8 @@ interface PrivateRouteProps {
 }
 
 const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
+  const location = useLocation();
+  
   // AUTHENTIFICATION DÉSACTIVÉE TEMPORAIREMENT
   // ⚠️ À NE PAS UTILISER EN PRODUCTION ⚠️
   console.log("PrivateRoute: Authentification désactivée - Accès direct");
@@ -28,7 +30,7 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
 
   // Si l'utilisateur n'est pas authentifié, rediriger vers la page de connexion
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
   // Si l'utilisateur est authentifié, rendre les enfants ou utiliser Outlet
