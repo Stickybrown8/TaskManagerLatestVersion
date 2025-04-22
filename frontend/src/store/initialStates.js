@@ -5,19 +5,19 @@ export const initialAuthState = {
   isAuthenticated: false,
   token: null,
   user: {
-    id: "fake-user-id",  // Ajout de l'ID obligatoire
+    id: "fake-user-id",
     name: 'Utilisateur',
-    email: 'utilisateur@exemple.com',  // Email par défaut
+    email: 'utilisateur@exemple.com',
     profile: {
       avatar: '/default-avatar.png',
-      theme: 'default',  // Ajout du thème
-      settings: {        // Ajout des paramètres
+      theme: 'default',
+      settings: {
         notifications: true,
         language: 'fr',
         soundEffects: true
       }
     },
-    gamification: {      // Ajout de la section gamification
+    gamification: {
       level: 1,
       experience: 0,
       actionPoints: 0,
@@ -31,11 +31,22 @@ export const initialAuthState = {
 export const initialUiState = {
   darkMode: false,
   sidebarOpen: true,
+  currentTheme: 'default',        // Propriété manquante ajoutée
   notifications: [],
-  soundEnabled: true,
-  showModal: false,
-  modalContent: null,
-  modalType: null
+  modalOpen: false,               // Propriété manquante ajoutée (remplace showModal)
+  modalContent: {                 // Modifié pour correspondre à l'interface attendue
+    type: null,
+    data: null
+  },
+  loading: {                      // Propriété manquante ajoutée
+    global: false,
+    tasks: false,
+    clients: false,
+    auth: false,
+    gamification: false
+  },
+  soundEnabled: true
+  // J'ai retiré showModal et modalType car ils sont probablement remplacés par modalOpen et modalContent.type
 };
 
 export const initialGamificationState = {
