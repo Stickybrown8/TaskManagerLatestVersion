@@ -31,14 +31,14 @@ export const initialAuthState = {
 export const initialUiState = {
   darkMode: false,
   sidebarOpen: true,
-  currentTheme: 'default',        // Propriété manquante ajoutée
+  currentTheme: 'default',
   notifications: [],
-  modalOpen: false,               // Propriété manquante ajoutée (remplace showModal)
-  modalContent: {                 // Modifié pour correspondre à l'interface attendue
+  modalOpen: false,
+  modalContent: {
     type: null,
     data: null
   },
-  loading: {                      // Propriété manquante ajoutée
+  loading: {
     global: false,
     tasks: false,
     clients: false,
@@ -46,7 +46,6 @@ export const initialUiState = {
     gamification: false
   },
   soundEnabled: true
-  // J'ai retiré showModal et modalType car ils sont probablement remplacés par modalOpen et modalContent.type
 };
 
 export const initialGamificationState = {
@@ -71,6 +70,7 @@ export const initialGamificationState = {
 export const initialTasksState = {
   tasks: [],
   filteredTasks: [],
+  currentTask: null,     // Propriété manquante ajoutée
   filters: {},
   loading: false,
   error: null
