@@ -43,7 +43,11 @@ export const store = configureStore({
     gamification: initialGamificationState,
     tasks: initialTasksState,
     clients: initialClientsState,
-    timer: initialTimerState,
+    timer: {
+  ...initialTimerState,
+  timerPopupSize: "medium" as "medium",
+  timerPopupPosition: "bottom-right" as "bottom-right"
+  },
     taskImpact: initialTaskImpactState,
     profitability: initialProfitabilityState,
     objectives: initialObjectivesState
