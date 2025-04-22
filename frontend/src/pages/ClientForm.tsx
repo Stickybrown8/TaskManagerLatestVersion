@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch } from '../hooks';
 import { createClientStart, createClientSuccess, createClientFailure } from '../store/slices/clientsSlice';
-import { clientsService, profitabilityService } from '../services/api';
 import { addNotification } from '../store/slices/uiSlice';
 import { motion } from 'framer-motion';
+import axios from 'axios';
+
+const API_URL = process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com';
 
 const ClientForm: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -22,8 +24,12 @@ const ClientForm: React.FC = () => {
       isMain: true
     }],
     notes: '',
-    tags: [] as string[]
+    tags: [] as string[],
+    logo: '' // Ajout d'un champ pour le logo
   });
+
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string>('');
 
   const [profitabilityData, setProfitabilityData] = useState({
     hourlyRate: 100, // Taux horaire par défaut à 100€/h
@@ -33,18 +39,23 @@ const ClientForm: React.FC = () => {
   
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1); // Pour la navigation entre les étapes du formulaire
-  const [formErrors, setFormErrors] = useState<{[key: string]: string}>({});
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    // Effacer l'erreur lorsque l'utilisateur modifie le champ
-    if (formErrors[name]) {
-      setFormErrors(prev => {
-        const newErrors = {...prev};
-        delete newErrors[name];
-        return newErrors;
-      });
+  };
+
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setLogoFile(file);
+      
+      // Créer un aperçu du logo
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLogoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -52,20 +63,9 @@ const ClientForm: React.FC = () => {
     const { name, value } = e.target;
     const numValue = parseFloat(value);
     
-    // Effacer l'erreur lorsque l'utilisateur modifie le champ
-    if (formErrors[name]) {
-      setFormErrors(prev => {
-        const newErrors = {...prev};
-        delete newErrors[name];
-        return newErrors;
-      });
-    }
-    
     // Calculer automatiquement les valeurs liées
-    if (name === 'monthlyBudget' && numValue >= 0) {
-      const targetHours = profitabilityData.hourlyRate > 0 
-        ? Math.round((numValue / profitabilityData.hourlyRate) * 10) / 10
-        : 0;
+    if (name === 'monthlyBudget' && numValue > 0) {
+      const targetHours = Math.round((numValue / profitabilityData.hourlyRate) * 10) / 10;
       setProfitabilityData(prev => ({
         ...prev,
         [name]: numValue,
@@ -125,74 +125,55 @@ const ClientForm: React.FC = () => {
     setFormData(prev => ({ ...prev, contacts: updatedContacts }));
   };
   
-  const validateForm = () => {
-    const errors: {[key: string]: string} = {};
-    
-    // Validation de l'étape 1
-    if (step === 1) {
-      if (!formData.name.trim()) {
-        errors.name = 'Le nom du client est obligatoire';
-      }
-      
-      // Valider les contacts si nécessaire
-      formData.contacts.forEach((contact, index) => {
-        if (contact.isMain && !contact.name.trim()) {
-          errors[`contact_${index}_name`] = 'Le nom du contact principal est obligatoire';
-        }
-        if (contact.email && !/\S+@\S+\.\S+/.test(contact.email)) {
-          errors[`contact_${index}_email`] = 'Email invalide';
-        }
-      });
-    } 
-    // Validation de l'étape 2
-    else if (step === 2) {
-      if (!profitabilityData.hourlyRate || profitabilityData.hourlyRate <= 0) {
-        errors.hourlyRate = 'Le taux horaire doit être supérieur à 0';
-      }
-      
-      // Rendre le budget mensuel obligatoire - crucial pour la facturation
-      if (!profitabilityData.monthlyBudget || profitabilityData.monthlyBudget <= 0) {
-        errors.monthlyBudget = 'Le budget mensuel est obligatoire pour le suivi de rentabilité';
-      }
-    }
-    
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!validateForm()) {
-      // Afficher une notification d'erreur
-      dispatch(addNotification({
-        message: 'Veuillez corriger les erreurs dans le formulaire',
-        type: 'error'
-      }));
-      return;
-    }
     
     try {
       setLoading(true);
       dispatch(createClientStart());
       
-      // Journaliser pour déboguer
-      console.log("Envoi de la création du client:", formData);
+      let clientData = { ...formData };
       
-      // 1. Créer le client
-      const response = await clientsService.createClient(formData);
-      console.log("Réponse de la création du client:", response);
-      
-      if (!response || !response.client || !response.client._id) {
-        throw new Error("La création du client a échoué : réponse invalide du serveur");
+      // Si un logo a été téléchargé, il faudrait l'envoyer au serveur
+      // Ceci est un exemple simple, idéalement vous auriez un endpoint pour télécharger des images
+      if (logoFile) {
+        // Exemple simplifié - dans un cas réel, vous utiliseriez FormData avec un endpoint spécifique
+        // pour télécharger l'image, puis stockeriez l'URL retournée
+        clientData.logo = logoPreview; // Pour l'exemple, nous utilisons directement le base64
       }
       
-      dispatch(createClientSuccess(response.client));
+      console.log("Envoi des données client:", clientData);
+      
+      // 1. Créer le client - Utilisation directe d'axios pour voir les erreurs
+      const response = await axios.post(`${API_URL}/api/clients`, clientData, {
+        headers: {
+          'Content-Type': 'application/json',
+          // Ajoutez ici des headers d'auth si nécessaire
+        }
+      });
+      
+      console.log("Réponse de création client:", response.data);
+      
+      const createdClient = response.data.client || response.data;
+      dispatch(createClientSuccess(createdClient));
       
       // 2. Créer les données de rentabilité pour ce client
-      console.log("Mise à jour des données de rentabilité pour le client:", response.client._id);
-      await profitabilityService.updateHourlyRate(response.client._id, profitabilityData.hourlyRate);
-      await profitabilityService.updateTargetHours(response.client._id, profitabilityData.targetHours);
+      if (createdClient && createdClient._id) {
+        try {
+          await axios.put(`${API_URL}/api/profitability/${createdClient._id}/hourly-rate`, {
+            hourlyRate: profitabilityData.hourlyRate
+          });
+          
+          await axios.put(`${API_URL}/api/profitability/${createdClient._id}/target-hours`, {
+            targetHours: profitabilityData.targetHours
+          });
+          
+          console.log("Données de rentabilité mises à jour avec succès");
+        } catch (profitabilityError: any) {
+          console.error("Erreur lors de la mise à jour des données de rentabilité:", profitabilityError);
+          // Continuer malgré l'erreur de rentabilité, le client a été créé
+        }
+      }
       
       dispatch(addNotification({
         message: 'Client créé avec succès!',
@@ -202,7 +183,7 @@ const ClientForm: React.FC = () => {
       navigate('/clients');
     } catch (error: any) {
       console.error("Erreur complète lors de la création du client:", error);
-      dispatch(createClientFailure(error.message));
+      dispatch(createClientFailure(error.message || 'Erreur lors de la création du client'));
       dispatch(addNotification({
         message: error.response?.data?.message || 'Erreur lors de la création du client: ' + error.message,
         type: 'error'
@@ -213,15 +194,14 @@ const ClientForm: React.FC = () => {
   };
 
   const nextStep = () => {
-    if (validateForm()) {
-      setStep(2);
-    } else {
-      // Afficher une notification d'erreur
+    if (formData.name.trim() === '') {
       dispatch(addNotification({
-        message: 'Veuillez corriger les erreurs dans le formulaire',
+        message: 'Le nom du client est obligatoire',
         type: 'error'
       }));
+      return;
     }
+    setStep(2);
   };
   
   const prevStep = () => {
@@ -229,7 +209,7 @@ const ClientForm: React.FC = () => {
   };
   
   return (
-    <div className="container mx-auto px-4">
+    <div className="container mx-auto">
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -276,7 +256,7 @@ const ClientForm: React.FC = () => {
             <div className="space-y-4">
               <div>
                 <label htmlFor="name" className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                  Nom du client <span className="text-red-500">*</span>
+                  Nom du client *
                 </label>
                 <input
                   type="text"
@@ -284,12 +264,36 @@ const ClientForm: React.FC = () => {
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
-                  className={`w-full px-3 py-2 border ${formErrors.name ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white`}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
                   required
                 />
-                {formErrors.name && (
-                  <p className="text-red-500 text-sm mt-1">{formErrors.name}</p>
-                )}
+              </div>
+              
+              {/* Logo du client */}
+              <div>
+                <label htmlFor="logo" className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                  Logo du client
+                </label>
+                <div className="flex items-center space-x-4">
+                  {logoPreview && (
+                    <div className="w-20 h-20 border border-gray-300 dark:border-gray-600 rounded-md overflow-hidden">
+                      <img src={logoPreview} alt="Aperçu du logo" className="w-full h-full object-contain" />
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <input
+                      type="file"
+                      id="logo"
+                      name="logo"
+                      accept="image/*"
+                      onChange={handleLogoChange}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
+                    />
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                      Format recommandé: carré, PNG ou JPG
+                    </p>
+                  </div>
+                </div>
               </div>
               
               <div>
@@ -357,18 +361,15 @@ const ClientForm: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div>
                         <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">
-                          Nom {contact.isMain && <span className="text-red-500">*</span>}
+                          Nom
                         </label>
                         <input
                           type="text"
                           name="name"
                           value={contact.name}
                           onChange={(e) => handleContactChange(index, e)}
-                          className={`w-full px-3 py-2 border ${formErrors[`contact_${index}_name`] ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white`}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
                         />
-                        {formErrors[`contact_${index}_name`] && (
-                          <p className="text-red-500 text-sm mt-1">{formErrors[`contact_${index}_name`]}</p>
-                        )}
                       </div>
                       <div>
                         <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">
@@ -391,11 +392,8 @@ const ClientForm: React.FC = () => {
                           name="email"
                           value={contact.email}
                           onChange={(e) => handleContactChange(index, e)}
-                          className={`w-full px-3 py-2 border ${formErrors[`contact_${index}_email`] ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white`}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
                         />
-                        {formErrors[`contact_${index}_email`] && (
-                          <p className="text-red-500 text-sm mt-1">{formErrors[`contact_${index}_email`]}</p>
-                        )}
                       </div>
                       <div>
                         <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">
@@ -438,34 +436,31 @@ const ClientForm: React.FC = () => {
                   Configuration de la rentabilité
                 </h3>
                 <p className="text-blue-700 dark:text-blue-400 text-sm">
-                  Ces informations sont nécessaires pour suivre la rentabilité du client et respecter vos objectifs financiers.
+                  Ces informations vous aideront à suivre la rentabilité du client et à déterminer si vous respectez vos objectifs financiers.
                 </p>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label htmlFor="hourlyRate" className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                    Taux horaire (€/h) <span className="text-red-500">*</span>
+                    Taux horaire (€/h) *
                   </label>
                   <div className="relative">
                     <input
                       type="number"
                       id="hourlyRate"
                       name="hourlyRate"
-                      min="1"
+                      min="0"
                       step="0.1"
                       value={profitabilityData.hourlyRate}
                       onChange={handleProfitabilityChange}
-                      className={`w-full px-3 py-2 border ${formErrors.hourlyRate ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white`}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
                       required
                     />
                     <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                       <span className="text-gray-500">€/h</span>
                     </div>
                   </div>
-                  {formErrors.hourlyRate && (
-                    <p className="text-red-500 text-sm mt-1">{formErrors.hourlyRate}</p>
-                  )}
                   <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                     Le taux horaire que vous souhaitez facturer pour ce client.
                   </p>
@@ -473,7 +468,7 @@ const ClientForm: React.FC = () => {
                 
                 <div>
                   <label htmlFor="monthlyBudget" className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                    Budget mensuel (€) <span className="text-red-500">*</span>
+                    Budget mensuel (€)
                   </label>
                   <div className="relative">
                     <input
@@ -484,16 +479,12 @@ const ClientForm: React.FC = () => {
                       step="100"
                       value={profitabilityData.monthlyBudget}
                       onChange={handleProfitabilityChange}
-                      className={`w-full px-3 py-2 border ${formErrors.monthlyBudget ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white`}
-                      required
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
                     />
                     <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                       <span className="text-gray-500">€</span>
                     </div>
                   </div>
-                  {formErrors.monthlyBudget && (
-                    <p className="text-red-500 text-sm mt-1">{formErrors.monthlyBudget}</p>
-                  )}
                   <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                     Le montant mensuel facturé ou budgété pour ce client.
                   </p>
@@ -501,7 +492,7 @@ const ClientForm: React.FC = () => {
                 
                 <div>
                   <label htmlFor="targetHours" className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                    Heures cibles par mois (calculées automatiquement)
+                    Heures cibles par mois
                   </label>
                   <div className="relative">
                     <input
@@ -512,17 +503,16 @@ const ClientForm: React.FC = () => {
                       step="0.5"
                       value={profitabilityData.targetHours}
                       onChange={handleProfitabilityChange}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white bg-gray-100 dark:bg-gray-600"
-                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
                     />
                     <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                       <span className="text-gray-500">h</span>
                     </div>
                   </div>
                   <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    {profitabilityData.monthlyBudget > 0 && profitabilityData.hourlyRate > 0
+                    {profitabilityData.monthlyBudget > 0 
                       ? `Pour maintenir votre taux horaire de ${profitabilityData.hourlyRate}€/h avec un budget de ${profitabilityData.monthlyBudget}€, vous devez travailler ${profitabilityData.targetHours}h par mois.`
-                      : "Nombre d'heures calculé automatiquement en fonction du budget et du taux."}
+                      : "Nombre d'heures que vous prévoyez de consacrer à ce client par mois."}
                   </p>
                 </div>
                 
@@ -575,7 +565,7 @@ const ClientForm: React.FC = () => {
               >
                 {loading ? (
                   <div className="flex items-center">
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin h-5 w-5 mr-2 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
