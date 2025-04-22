@@ -20,7 +20,7 @@ const Dashboard = () => {
   
   // Utilisation de valeurs par défaut pour tous les états
   const auth = useAppSelector(state => state.auth) || {};
-  const { user = { name: 'Utilisateur' } } = auth;
+  const { user = { name: 'Utilisateur', email: 'utilisateur@exemple.com' } } = auth;
   
   const gamification = useAppSelector(state => state.gamification) || {};
   const { 
