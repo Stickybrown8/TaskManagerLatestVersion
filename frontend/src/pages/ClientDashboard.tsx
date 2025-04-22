@@ -480,3 +480,93 @@ const ClientDashboard: React.FC = () => {
                     const date = new Date(entry.startTime).toISOString().split('T')[0];
                     if (!entriesByDate[date]) {
                       entriesByDate[date] = { total: 0, byClient: {} };
+                    }
+                    
+                    // Ajouter au total de la date
+                    entriesByDate[date].total += entry.duration;
+                    
+                    // Ajouter au client spécifique
+                    if (!entriesByDate[date].byClient[entry.clientId]) {
+                      entriesByDate[date].byClient[entry.clientId] = 0;
+                    }
+                    entriesByDate[date].byClient[entry.clientId] += entry.duration;
+                  });
+                  
+                  // Convertir en tableau pour faciliter le rendu
+                  const dateEntries = Object.entries(entriesByDate).sort(([a], [b]) => a.localeCompare(b));
+                  
+                  // Trouver la valeur maximale pour l'échelle
+                  const maxDuration = Math.max(...dateEntries.map(([_, data]) => data.total));
+                  
+                  // Rendu du graphique simplifié
+                  return (
+                    <>
+                      {/* Axe des dates (X) */}
+                      <div className="absolute bottom-0 left-0 right-0 flex justify-between px-4">
+                        {dateEntries.length > 10 ? (
+                          // Si trop de dates, n'afficher que quelques-unes
+                          dateEntries.filter((_, i) => i % Math.ceil(dateEntries.length / 10) === 0).map(([date]) => (
+                            <div key={date} className="text-xs text-gray-500 dark:text-gray-400">
+                              {new Date(date).toLocaleDateString('fr-FR', {day: 'numeric', month: 'short'})}
+                            </div>
+                          ))
+                        ) : (
+                          // Sinon, afficher toutes les dates
+                          dateEntries.map(([date]) => (
+                            <div key={date} className="text-xs text-gray-500 dark:text-gray-400">
+                              {new Date(date).toLocaleDateString('fr-FR', {day: 'numeric', month: 'short'})}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                      
+                      {/* Barres du graphique */}
+                      <div className="absolute top-0 bottom-8 left-0 right-0 flex justify-between items-end px-4">
+                        {dateEntries.map(([date, data]) => {
+                          const height = maxDuration > 0 ? (data.total / maxDuration) * 100 : 0;
+                          return (
+                            <div key={date} className="flex-1 mx-px relative group">
+                              <div
+                                className="bg-primary-500 dark:bg-primary-600 rounded-t hover:bg-primary-400 dark:hover:bg-primary-500 transition-colors"
+                                style={{ height: `${height}%` }}
+                              ></div>
+                              
+                              {/* Info-bulle au survol */}
+                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity z-10 whitespace-nowrap">
+                                <div className="font-medium">{new Date(date).toLocaleDateString('fr-FR', {day: 'numeric', month: 'long'})}</div>
+                                <div>{formatDuration(data.total)}</div>
+                                {Object.entries(data.byClient).slice(0, 3).map(([clientId, duration]) => {
+                                  const client = clientSummaries.find(c => c.clientId === clientId);
+                                  return (
+                                    <div key={clientId} className="text-gray-300 text-xxs">
+                                      {client?.clientName || 'Client'}: {formatDuration(duration)}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      
+                      {/* Axe des durées (Y) */}
+                      <div className="absolute top-0 bottom-8 left-0 flex flex-col justify-between items-end pr-2">
+                        {[0, 25, 50, 75, 100].map(percent => (
+                          <div key={percent} className="text-xs text-gray-500 dark:text-gray-400">
+                            {formatDuration((maxDuration * percent) / 100)}
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+export default ClientDashboard;
