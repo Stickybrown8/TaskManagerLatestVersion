@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppSelector, useAppDispatch } from '../hooks';
 import { updateUserProfile } from '../store/slices/authSlice';
 import { addNotification } from '../store/slices/uiSlice';
@@ -37,6 +37,20 @@ const Profile: React.FC = () => {
     }
   });
 
+  // Mettre à jour formData lorsque user change
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        name: user.name || '',
+        email: user.email || '',
+        profile: {
+          ...defaultProfile,
+          ...(user.profile || {})
+        }
+      });
+    }
+  }, [user]);
+
   const [activeTab, setActiveTab] = useState('info');
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -65,12 +79,21 @@ const Profile: React.FC = () => {
       
       console.log("Données du profil à mettre à jour:", formData);
       
-      // Appel API direct pour voir les erreurs potentielles
-      const response = await axios.put(`${API_URL}/api/users/profile`, formData, {
+      // Récupérer le token d'authentification depuis localStorage
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        throw new Error("Vous n'êtes pas authentifié");
+      }
+      
+      // Appel API direct avec les headers d'authentification
+      const response = await axios({
+        method: 'put',
+        url: `${API_URL}/api/users/profile`,
+        data: formData,
         headers: {
           'Content-Type': 'application/json',
-          // Ajoutez l'en-tête d'autorisation si nécessaire
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`
         }
       });
       
@@ -85,6 +108,14 @@ const Profile: React.FC = () => {
       }));
     } catch (error: any) {
       console.error("Erreur lors de la mise à jour du profil:", error);
+      
+      // Ajouter des logs supplémentaires pour diagnostiquer le problème
+      if (error.response) {
+        console.error("Détails de l'erreur:", error.response.data);
+        console.error("Statut HTTP:", error.response.status);
+      } else if (error.request) {
+        console.error("Aucune réponse reçue:", error.request);
+      }
       
       dispatch(addNotification({
         message: error.response?.data?.message || 'Erreur lors de la mise à jour du profil: ' + error.message,
