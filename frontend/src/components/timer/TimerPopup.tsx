@@ -1,33 +1,25 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '../../hooks';
 import {
+  toggleTimerPopup,
   hideTimerPopup,
   setTimerPopupSize,
   setTimerPopupPosition,
-  updateRunningTimerDuration,
-  toggleTimerPopup
+  updateRunningTimerDuration
 } from '../../store/slices/timerSlice';
 
 const TimerPopup: React.FC = () => {
-  // Utiliser AppDispatch au lieu du dispatch générique
   const dispatch = useAppDispatch();
-
-  // Récupération sécurisée des états avec des valeurs par défaut
+  
+  // Accès sécurisé à l'état Redux avec des valeurs par défaut
   const timerState = useAppSelector(state => state.timer || {});
   const {
     runningTimer = null,
-    showTimerPopup: timerPopupVisible = false,
+    showTimerPopup = false,
     timerPopupSize = 'medium',
     timerPopupPosition = 'bottom-right'
   } = timerState;
-
-  // Récupération des clients et tâches (avec valeurs par défaut)
-  const clientsState = useAppSelector(state => state.clients || {});
-  const { clients = [] } = clientsState;
   
-  const tasksState = useAppSelector(state => state.tasks || {});
-  const { tasks = [] } = tasksState;
-
   // États locaux
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [selectedTaskId, setSelectedTaskId] = useState<string>('');
@@ -56,51 +48,16 @@ const TimerPopup: React.FC = () => {
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
-  // Simuler fetchRunningTimer sans utiliser directement la fonction thunk
-  const fetchRunningTimer = () => {
-    // Ce code est une simulation - remplacez-le par votre vraie logique si nécessaire
-    console.log("Tentative de récupération du timer en cours");
-    // Pour le moment, nous ne faisons rien car il s'agit d'un contournement
-  };
-
-  // Simuler les autres actions du timer pour éviter les erreurs TypeScript
-  const startTimer = (id: string, type: 'client' | 'task') => {
-    console.log(`Démarrage du timer pour ${type} ${id}`);
-    setIsRunning(true);
-  };
-
-  const pauseTimer = (id: string, type: 'client' | 'task') => {
-    console.log(`Pause du timer pour ${type} ${id}`);
-    setIsRunning(false);
-  };
-
-  const resumeTimer = (id: string, type: 'client' | 'task') => {
-    console.log(`Reprise du timer pour ${type} ${id}`);
-    setIsRunning(true);
-  };
-
-  const stopTimer = (id: string, type: 'client' | 'task') => {
-    console.log(`Arrêt du timer pour ${type} ${id}`);
-    setIsRunning(false);
-  };
-
-  // Charger le timer en cours au chargement du composant
+  // Mettre à jour la durée du timer toutes les secondes si en cours d'exécution
   useEffect(() => {
-    // Utiliser directement notre fonction locale au lieu du thunk
-    fetchRunningTimer();
-
-    // Mettre à jour la durée du timer toutes les secondes
-    const intervalId = setInterval(() => {
-      if (isRunning) {
-        dispatch(updateRunningTimerDuration());
-        if (runningTimer) {
-          setTimerDuration(runningTimer.duration || 0);
-        }
-      }
-    }, 1000);
-
-    return () => clearInterval(intervalId);
-  }, [dispatch, isRunning, runningTimer]);
+    if (isRunning) {
+      const intervalId = setInterval(() => {
+        setTimerDuration(prev => prev + 1);
+      }, 1000);
+      
+      return () => clearInterval(intervalId);
+    }
+  }, [isRunning]);
 
   // Mettre à jour l'état local lorsque runningTimer change
   useEffect(() => {
@@ -115,9 +72,6 @@ const TimerPopup: React.FC = () => {
         setSelectedTaskId(runningTimer.taskId);
         setSelectedClientId('');
       }
-    } else {
-      setIsRunning(false);
-      setTimerDuration(0);
     }
   }, [runningTimer]);
 
@@ -126,7 +80,7 @@ const TimerPopup: React.FC = () => {
     setSelectedClientId(clientId);
     setSelectedTaskId('');
     setIsRunning(true);
-    startTimer(clientId, 'client');
+    console.log(`Timer démarré pour le client ${clientId}`);
   };
 
   // Démarrer un timer pour une tâche
@@ -134,45 +88,35 @@ const TimerPopup: React.FC = () => {
     setSelectedTaskId(taskId);
     setSelectedClientId('');
     setIsRunning(true);
-    startTimer(taskId, 'task');
+    console.log(`Timer démarré pour la tâche ${taskId}`);
   };
 
   // Mettre en pause le timer en cours
   const handlePauseTimer = () => {
     setIsRunning(false);
-    if (selectedClientId) {
-      pauseTimer(selectedClientId, 'client');
-    } else if (selectedTaskId) {
-      pauseTimer(selectedTaskId, 'task');
-    }
+    console.log('Timer mis en pause');
   };
 
   // Reprendre le timer en pause
   const handleResumeTimer = () => {
     setIsRunning(true);
-    if (selectedClientId) {
-      resumeTimer(selectedClientId, 'client');
-    } else if (selectedTaskId) {
-      resumeTimer(selectedTaskId, 'task');
-    }
+    console.log('Timer repris');
   };
 
   // Arrêter le timer en cours
   const handleStopTimer = () => {
     setIsRunning(false);
     setTimerDuration(0);
-    if (selectedClientId) {
-      stopTimer(selectedClientId, 'client');
-    } else if (selectedTaskId) {
-      stopTimer(selectedTaskId, 'task');
-    }
     setSelectedClientId('');
     setSelectedTaskId('');
+    console.log('Timer arrêté et réinitialisé');
   };
 
   // Afficher le timer
   const handleShowTimer = () => {
+    console.log('État actuel du showTimerPopup:', showTimerPopup);
     dispatch(toggleTimerPopup(true));
+    console.log('Action toggleTimerPopup dispatched');
   };
 
   // Fermer la popup
@@ -190,8 +134,9 @@ const TimerPopup: React.FC = () => {
     dispatch(setTimerPopupPosition(position));
   };
 
-  // Si la popup n'est pas visible, afficher uniquement un bouton flottant
-  if (!timerPopupVisible) {
+  // Afficher uniquement le bouton flottant si la popup n'est pas visible
+  if (!showTimerPopup) {
+    console.log('Timer popup is hidden, showing button only');
     return (
       <button
         onClick={handleShowTimer}
@@ -204,6 +149,8 @@ const TimerPopup: React.FC = () => {
       </button>
     );
   }
+
+  console.log('Rendering timer popup with size:', timerPopupSize, 'and position:', timerPopupPosition);
 
   // Déterminer les classes CSS en fonction de la taille et de la position
   const sizeClasses = {
@@ -220,34 +167,22 @@ const TimerPopup: React.FC = () => {
 
   // Fonction pour obtenir le nom du client
   const getClientName = (id: string): string => {
-    // Utiliser les vraies données si disponibles, sinon les données de démo
-    if (clients && clients.length > 0) {
-      const client = clients.find((c: any) => c._id === id);
-      return client ? client.name : 'Client inconnu';
-    } else {
-      const dummyClient = dummyClients.find(c => c._id === id);
-      return dummyClient ? dummyClient.name : 'Client inconnu';
-    }
+    const dummyClient = dummyClients.find(c => c._id === id);
+    return dummyClient ? dummyClient.name : 'Client inconnu';
   };
 
   // Fonction pour obtenir le titre de la tâche
   const getTaskTitle = (id: string): string => {
-    // Utiliser les vraies données si disponibles, sinon les données de démo
-    if (tasks && tasks.length > 0) {
-      const task = tasks.find((t: any) => t._id === id);
-      return task ? task.title : 'Tâche inconnue';
-    } else {
-      const dummyTask = dummyTasks.find(t => t._id === id);
-      return dummyTask ? dummyTask.title : 'Tâche inconnue';
-    }
+    const dummyTask = dummyTasks.find(t => t._id === id);
+    return dummyTask ? dummyTask.title : 'Tâche inconnue';
   };
 
-  // Déterminer quels clients/tâches afficher
-  const clientsToShow = clients && clients.length > 0 ? clients : dummyClients;
-  const tasksToShow = tasks && tasks.length > 0 ? tasks : dummyTasks;
-
   return (
-    <div className={`fixed ${positionClasses[timerPopupPosition]} ${sizeClasses[timerPopupSize]} bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 z-50 border border-gray-200 dark:border-gray-700`}>
+    <div 
+      className={`fixed ${positionClasses[timerPopupPosition as keyof typeof positionClasses]} ${
+        sizeClasses[timerPopupSize as keyof typeof sizeClasses]
+      } bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 z-50 border border-gray-200 dark:border-gray-700`}
+    >
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
           {selectedClientId ? getClientName(selectedClientId) : ''}
@@ -317,7 +252,7 @@ const TimerPopup: React.FC = () => {
         <div className="mt-4">
           <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Clients</h4>
           <div className="max-h-24 overflow-y-auto">
-            {clientsToShow.map((client: any) => (
+            {dummyClients.map((client) => (
               <button
                 key={client._id}
                 onClick={() => handleStartClientTimer(client._id)}
@@ -330,7 +265,7 @@ const TimerPopup: React.FC = () => {
 
           <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mt-3 mb-2">Tâches</h4>
           <div className="max-h-24 overflow-y-auto">
-            {tasksToShow.map((task: any) => (
+            {dummyTasks.map((task) => (
               <button
                 key={task._id}
                 onClick={() => handleStartTaskTimer(task._id)}
