@@ -53,7 +53,10 @@ const ClientForm: React.FC = () => {
       // Créer un aperçu du logo
       const reader = new FileReader();
       reader.onloadend = () => {
-        setLogoPreview(reader.result as string);
+        const result = reader.result as string;
+        setLogoPreview(result);
+        // Mettre à jour également formData avec l'image en base64
+        setFormData(prev => ({ ...prev, logo: result }));
       };
       reader.readAsDataURL(file);
     }
@@ -132,23 +135,23 @@ const ClientForm: React.FC = () => {
       setLoading(true);
       dispatch(createClientStart());
       
-      let clientData = { ...formData };
-      
-      // Si un logo a été téléchargé, il faudrait l'envoyer au serveur
-      // Ceci est un exemple simple, idéalement vous auriez un endpoint pour télécharger des images
-      if (logoFile) {
-        // Exemple simplifié - dans un cas réel, vous utiliseriez FormData avec un endpoint spécifique
-        // pour télécharger l'image, puis stockeriez l'URL retournée
-        clientData.logo = logoPreview; // Pour l'exemple, nous utilisons directement le base64
-      }
+      // Préparer les données du client en incluant directement le logo
+      const clientData = { 
+        ...formData,
+        logo: logoPreview // Utiliser directement le logo en base64
+      };
       
       console.log("Envoi des données client:", clientData);
       
-      // 1. Créer le client - Utilisation directe d'axios pour voir les erreurs
-      const response = await axios.post(`${API_URL}/api/clients`, clientData, {
+      // 1. Création du client avec axios
+      const response = await axios({
+        method: 'post',
+        url: `${API_URL}/api/clients`,
+        data: clientData,
         headers: {
           'Content-Type': 'application/json',
-          // Ajoutez ici des headers d'auth si nécessaire
+          // Ajouter le token d'authentification s'il existe
+          'Authorization': localStorage.getItem('token') ? `Bearer ${localStorage.getItem('token')}` : ''
         }
       });
       
@@ -157,24 +160,32 @@ const ClientForm: React.FC = () => {
       const createdClient = response.data.client || response.data;
       dispatch(createClientSuccess(createdClient));
       
-      // 2. Créer les données de rentabilité pour ce client
+      // 2. Créer les données de rentabilité pour ce client si l'API est disponible
       if (createdClient && createdClient._id) {
         try {
-          await axios.put(`${API_URL}/api/profitability/${createdClient._id}/hourly-rate`, {
-            hourlyRate: profitabilityData.hourlyRate
+          // Envoyer les données de rentabilité
+          await axios({
+            method: 'post',
+            url: `${API_URL}/api/profitability/client/${createdClient._id}`,
+            data: {
+              hourlyRate: profitabilityData.hourlyRate,
+              targetHours: profitabilityData.targetHours,
+              revenue: profitabilityData.monthlyBudget
+            },
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': localStorage.getItem('token') ? `Bearer ${localStorage.getItem('token')}` : ''
+            }
           });
           
-          await axios.put(`${API_URL}/api/profitability/${createdClient._id}/target-hours`, {
-            targetHours: profitabilityData.targetHours
-          });
-          
-          console.log("Données de rentabilité mises à jour avec succès");
-        } catch (profitabilityError: any) {
-          console.error("Erreur lors de la mise à jour des données de rentabilité:", profitabilityError);
+          console.log("Données de rentabilité créées avec succès");
+        } catch (profitabilityError) {
+          console.error("Erreur lors de la création des données de rentabilité:", profitabilityError);
           // Continuer malgré l'erreur de rentabilité, le client a été créé
         }
       }
       
+      // 3. Notification et redirection
       dispatch(addNotification({
         message: 'Client créé avec succès!',
         type: 'success'
@@ -183,11 +194,23 @@ const ClientForm: React.FC = () => {
       navigate('/clients');
     } catch (error: any) {
       console.error("Erreur complète lors de la création du client:", error);
-      dispatch(createClientFailure(error.message || 'Erreur lors de la création du client'));
+      
+      // Afficher un message d'erreur plus détaillé
+      const errorMessage = error.response?.data?.message || error.message || 'Erreur lors de la création du client';
+      
+      dispatch(createClientFailure(errorMessage));
       dispatch(addNotification({
-        message: error.response?.data?.message || 'Erreur lors de la création du client: ' + error.message,
+        message: errorMessage,
         type: 'error'
       }));
+      
+      // Log supplémentaire pour le débogage
+      if (error.response) {
+        console.error("Réponse d'erreur:", error.response.data);
+        console.error("Statut:", error.response.status);
+      } else if (error.request) {
+        console.error("Pas de réponse reçue:", error.request);
+      }
     } finally {
       setLoading(false);
     }
