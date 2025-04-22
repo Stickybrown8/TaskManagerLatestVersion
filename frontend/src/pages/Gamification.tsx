@@ -18,19 +18,21 @@ import { motion } from 'framer-motion';
 
 const Gamification: React.FC = () => {
   const dispatch = useAppDispatch();
-  const {
-    level,
-    experience,
-    actionPoints,
-    totalPointsEarned,
-    currentStreak,
-    longestStreak,
-    badges,
-    activities,
-    levels,
-    loading,
-    error
-  } = useAppSelector(state => state.gamification);
+  // Récupération sécurisée des états avec des valeurs par défaut
+const gamificationState = useAppSelector(state => state.gamification || {});
+const {
+  level = 1,
+  experience = 0,
+  actionPoints = 0,
+  totalPointsEarned = 0,
+  currentStreak = 0,
+  longestStreak = 0,
+  badges = [],
+  activities = [],
+  levels = [],
+  loading = false,
+  error = null
+} = gamificationState;
 
   const [activeTab, setActiveTab] = useState('overview');
   const [currentPage, setCurrentPage] = useState(1);
