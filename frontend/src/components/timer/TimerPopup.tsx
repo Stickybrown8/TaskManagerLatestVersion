@@ -11,8 +11,10 @@ import {
   resumeTimer,
   stopTimer
 } from '../../store/slices/timerSlice';
-import TaskForm from './pages/TaskForm';
-import ClientDashboard from './pages/ClientDashboard';
+// Correction des imports qui font référence à des chemins inexistants
+// Changement de './pages/TaskForm' à '../../pages/TaskForm'
+import TaskForm from '../../pages/TaskForm';
+import ClientDashboard from '../../pages/ClientDashboard';
 import { addNotification } from '../../store/slices/uiSlice';
 import { motion } from 'framer-motion';
 import axios from 'axios';
@@ -259,9 +261,12 @@ const TimerPopup: React.FC = () => {
       };
       
       // Créer le timer
-      const response = await axios.post(`${API_URL}/api/timers/start`, timerData, {
+      const response = await axios({
+        method: 'post',
+        url: `${API_URL}/api/timers/start`,
+        data: timerData,
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': token ? `Bearer ${token}` : ''
         }
       });
       
