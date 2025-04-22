@@ -5,6 +5,9 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { store } from './store';
 import './index.css';
 
+// Composant ErrorBoundary pour capturer les erreurs
+import ErrorBoundary from './components/ErrorBoundary';
+
 // Composants de mise en page
 import Layout from './components/Layout';
 import PrivateRoute from './components/PrivateRoute';
@@ -24,29 +27,31 @@ import AdminSetup from './AdminSetup';
 
 const Root = () => {
   return (
-    <App>
-      {/* Le timer est toujours disponible, indépendamment des routes */}
-      <TimerPopup />
-      
-      <Routes>
-        {/* Routes publiques */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/test-api" element={<TestApi />} />
-        <Route path="/test-login" element={<TestLogin />} />
-        <Route path="/admin-setup" element={<AdminSetup />} />
+    <ErrorBoundary>
+      <App>
+        {/* Le timer est toujours disponible, indépendamment des routes */}
+        <TimerPopup />
         
-        {/* Routes privées avec layout */}
-        <Route element={<PrivateRoute />}>
-          <Route element={<Layout />}>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/clients" element={<Clients />} />
-            <Route path="/tasks" element={<Tasks />} />
-            <Route path="/tasks/:id" element={<TaskDetail />} />
-            <Route path="/gamification" element={<Gamification />} />
+        <Routes>
+          {/* Routes publiques */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/test-api" element={<TestApi />} />
+          <Route path="/test-login" element={<TestLogin />} />
+          <Route path="/admin-setup" element={<AdminSetup />} />
+          
+          {/* Routes privées avec layout */}
+          <Route element={<PrivateRoute />}>
+            <Route element={<Layout />}>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/clients" element={<Clients />} />
+              <Route path="/tasks" element={<Tasks />} />
+              <Route path="/tasks/:id" element={<TaskDetail />} />
+              <Route path="/gamification" element={<Gamification />} />
+            </Route>
           </Route>
-        </Route>
-      </Routes>
-    </App>
+        </Routes>
+      </App>
+    </ErrorBoundary>
   );
 };
 
