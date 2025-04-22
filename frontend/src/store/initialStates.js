@@ -5,10 +5,23 @@ export const initialAuthState = {
   isAuthenticated: false,
   token: null,
   user: {
+    id: "fake-user-id",  // Ajout de l'ID obligatoire
     name: 'Utilisateur',
-    email: '',
+    email: 'utilisateur@exemple.com',  // Email par défaut
     profile: {
-      avatar: '/default-avatar.png'
+      avatar: '/default-avatar.png',
+      theme: 'default',  // Ajout du thème
+      settings: {        // Ajout des paramètres
+        notifications: true,
+        language: 'fr',
+        soundEffects: true
+      }
+    },
+    gamification: {      // Ajout de la section gamification
+      level: 1,
+      experience: 0,
+      actionPoints: 0,
+      badges: []
     }
   },
   loading: false,
