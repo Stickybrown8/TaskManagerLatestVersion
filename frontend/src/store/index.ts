@@ -45,8 +45,37 @@ const initialTimerState = {
   taskTimers: {},
   currentTimer: null,
   showTimerPopup: false,
-  timerPopupSize: "medium" as "medium", // Types explicites
-  timerPopupPosition: "bottom-right" as "bottom-right",
+  timerPopupSize: "medium" as "small" | "medium" | "large",
+  timerPopupPosition: "bottom-right" as "top-right" | "bottom-right" | "center",
+  loading: false,
+  error: null
+};
+
+const initialUiState = {
+  sidebarOpen: true,
+  darkMode: false,
+  currentTheme: 'default',
+  notifications: [],
+  modalOpen: false,
+  modalContent: {
+    type: null,
+    data: null
+  },
+  loading: {
+    global: false,
+    tasks: false,
+    clients: false,
+    auth: false,
+    gamification: false
+  },
+  soundEnabled: true
+};
+
+const initialTasksState = {
+  tasks: [],
+  filteredTasks: [],
+  currentTask: null,
+  filters: {},
   loading: false,
   error: null
 };
@@ -68,7 +97,8 @@ export const store = configureStore({
   preloadedState: {
     auth: initialAuthState,
     timer: initialTimerState,
-    // D'autres états initiaux pourraient être ajoutés ici
+    ui: initialUiState,
+    tasks: initialTasksState
   }
 });
 
