@@ -11,6 +11,8 @@ import {
   resumeTimer,
   stopTimer
 } from '../../store/slices/timerSlice';
+import TaskForm from './pages/TaskForm';
+import ClientDashboard from './pages/ClientDashboard';
 import { addNotification } from '../../store/slices/uiSlice';
 import { motion } from 'framer-motion';
 import axios from 'axios';
