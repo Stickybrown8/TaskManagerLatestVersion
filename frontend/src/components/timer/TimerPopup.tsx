@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
 import {
   fetchRunningTimer,
   startTimer,
@@ -12,28 +12,35 @@ import {
   updateRunningTimerDuration,
   toggleTimerPopup
 } from '../../store/slices/timerSlice';
-import { RootState, AppDispatch } from '../../store';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../store';
 
 const TimerPopup: React.FC = () => {
-  const dispatch = useDispatch<AppDispatch>();
+  const dispatch = useDispatch();
 
-  // Récupération sécurisée des états avec valeurs par défaut
+  // Récupération sécurisée des états avec des valeurs par défaut
   const timerState = useSelector((state: RootState) => state.timer || {});
   const {
     runningTimer = null,
-    showTimerPopup = false,
+    showTimerPopup: timerPopupVisible = false,
     timerPopupSize = 'medium',
     timerPopupPosition = 'bottom-right'
   } = timerState;
 
-  // États locaux supplémentaires
+  // Récupération des clients et tâches (avec valeurs par défaut)
+  const clientsState = useSelector((state: RootState) => state.clients || {});
+  const { clients = [] } = clientsState;
+  
+  const tasksState = useSelector((state: RootState) => state.tasks || {});
+  const { tasks = [] } = tasksState;
+
+  // États locaux
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [selectedTaskId, setSelectedTaskId] = useState<string>('');
   const [timerDuration, setTimerDuration] = useState<number>(0);
   const [isRunning, setIsRunning] = useState<boolean>(false);
 
-  // Simulation de données clients et tâches pour le développement
-  // À remplacer par les données réelles du store
+  // Données de démonstration pour le développement
   const dummyClients = [
     { _id: 'client1', name: 'Client A' },
     { _id: 'client2', name: 'Client B' },
@@ -41,12 +48,12 @@ const TimerPopup: React.FC = () => {
   ];
   
   const dummyTasks = [
-    { _id: 'task1', title: 'Tâche 1' },
-    { _id: 'task2', title: 'Tâche 2' },
-    { _id: 'task3', title: 'Tâche 3' },
+    { _id: 'task1', title: 'Campagne Google Ads' },
+    { _id: 'task2', title: 'Rapport mensuel' },
+    { _id: 'task3', title: 'Optimisation landing page' },
   ];
 
-  // Fonction pour formater la durée en HH:MM:SS
+  // Formater la durée en HH:MM:SS
   const formatDuration = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
@@ -140,8 +147,8 @@ const TimerPopup: React.FC = () => {
     setSelectedTaskId('');
   };
 
-  // Afficher la popup
-  const handleShowPopup = () => {
+  // Afficher le timer
+  const handleShowTimer = () => {
     dispatch(toggleTimerPopup(true));
   };
 
@@ -160,11 +167,11 @@ const TimerPopup: React.FC = () => {
     dispatch(setTimerPopupPosition(position));
   };
 
-  // Si la popup n'est pas visible, afficher juste un bouton pour l'ouvrir
-  if (!showTimerPopup) {
+  // Si la popup n'est pas visible, afficher uniquement un bouton flottant
+  if (!timerPopupVisible) {
     return (
-      <button 
-        onClick={handleShowPopup}
+      <button
+        onClick={handleShowTimer}
         className="fixed bottom-4 right-4 bg-primary-600 text-white p-3 rounded-full shadow-lg hover:bg-primary-700 transition-colors z-50"
         title="Ouvrir le chronomètre"
       >
@@ -190,15 +197,31 @@ const TimerPopup: React.FC = () => {
 
   // Fonction pour obtenir le nom du client
   const getClientName = (id: string): string => {
-    const client = dummyClients.find(c => c._id === id);
-    return client ? client.name : 'Client sans nom';
+    // Utiliser les vraies données si disponibles, sinon les données de démo
+    if (clients && clients.length > 0) {
+      const client = clients.find((c: any) => c._id === id);
+      return client ? client.name : 'Client inconnu';
+    } else {
+      const dummyClient = dummyClients.find(c => c._id === id);
+      return dummyClient ? dummyClient.name : 'Client inconnu';
+    }
   };
 
   // Fonction pour obtenir le titre de la tâche
   const getTaskTitle = (id: string): string => {
-    const task = dummyTasks.find(t => t._id === id);
-    return task ? task.title : 'Tâche sans titre';
+    // Utiliser les vraies données si disponibles, sinon les données de démo
+    if (tasks && tasks.length > 0) {
+      const task = tasks.find((t: any) => t._id === id);
+      return task ? task.title : 'Tâche inconnue';
+    } else {
+      const dummyTask = dummyTasks.find(t => t._id === id);
+      return dummyTask ? dummyTask.title : 'Tâche inconnue';
+    }
   };
+
+  // Déterminer quels clients/tâches afficher
+  const clientsToShow = clients && clients.length > 0 ? clients : dummyClients;
+  const tasksToShow = tasks && tasks.length > 0 ? tasks : dummyTasks;
 
   return (
     <div className={`fixed ${positionClasses[timerPopupPosition]} ${sizeClasses[timerPopupSize]} bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 z-50 border border-gray-200 dark:border-gray-700`}>
@@ -271,7 +294,7 @@ const TimerPopup: React.FC = () => {
         <div className="mt-4">
           <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Clients</h4>
           <div className="max-h-24 overflow-y-auto">
-            {dummyClients.map((client) => (
+            {clientsToShow.map((client: any) => (
               <button
                 key={client._id}
                 onClick={() => handleStartClientTimer(client._id)}
@@ -284,7 +307,7 @@ const TimerPopup: React.FC = () => {
 
           <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mt-3 mb-2">Tâches</h4>
           <div className="max-h-24 overflow-y-auto">
-            {dummyTasks.map((task) => (
+            {tasksToShow.map((task: any) => (
               <button
                 key={task._id}
                 onClick={() => handleStartTaskTimer(task._id)}
