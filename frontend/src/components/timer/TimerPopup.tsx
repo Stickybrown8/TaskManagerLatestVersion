@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useAppDispatch, useAppSelector } from '../../hooks';
 import {
   hideTimerPopup,
   setTimerPopupSize,
@@ -7,17 +7,13 @@ import {
   updateRunningTimerDuration,
   toggleTimerPopup
 } from '../../store/slices/timerSlice';
-import { RootState } from '../../store';
-
-// Import typé du dispatch
-import { AppDispatch } from '../../store';
 
 const TimerPopup: React.FC = () => {
   // Utiliser AppDispatch au lieu du dispatch générique
-  const dispatch = useDispatch<AppDispatch>();
+  const dispatch = useAppDispatch();
 
   // Récupération sécurisée des états avec des valeurs par défaut
-  const timerState = useSelector((state: RootState) => state.timer || {});
+  const timerState = useAppSelector(state => state.timer || {});
   const {
     runningTimer = null,
     showTimerPopup: timerPopupVisible = false,
@@ -26,10 +22,10 @@ const TimerPopup: React.FC = () => {
   } = timerState;
 
   // Récupération des clients et tâches (avec valeurs par défaut)
-  const clientsState = useSelector((state: RootState) => state.clients || {});
+  const clientsState = useAppSelector(state => state.clients || {});
   const { clients = [] } = clientsState;
   
-  const tasksState = useSelector((state: RootState) => state.tasks || {});
+  const tasksState = useAppSelector(state => state.tasks || {});
   const { tasks = [] } = tasksState;
 
   // États locaux
