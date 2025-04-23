@@ -1,16 +1,17 @@
 const express = require('express');
-const registerRoute = require('./routes/register');
-const mongoose = require('mongoose');
-const cors = require('cors');
 const dotenv = require('dotenv');
+const cors = require('cors');
 const connectDB = require('./config/db');
+
+// Routes imports
+const registerRoute = require('./routes/register');
 const userRoutes = require('./routes/users');
 const clientRoutes = require('./routes/clients');
 const taskRoutes = require('./routes/tasks');
 const badgeRoutes = require('./routes/badges');
 const gamificationRoutes = require('./routes/gamification');
 
-// Charger les variables d'environnement
+// Chargement des variables d'environnement
 dotenv.config({ path: process.env.NODE_ENV === 'production' ? '.env.production' : '.env' });
 
 // Connexion à la base de données
@@ -22,22 +23,27 @@ const app = express();
 app.use(express.json());
 app.use(cors({ origin: '*' }));
 
-// Route de débogage pour voir toutes les routes enregistrées
+// Route de debug qui affiche toutes les routes montées, préfixes inclus (API-friendly)
 app.get('/debug/routes', (req, res) => {
-  const routes = [];
-  app._router.stack.forEach(middleware => {
-    if(middleware.route) { // routes registered directly on the app
-      routes.push(middleware.route.path);
-    } else if(middleware.name === 'router') { // router middleware 
-      middleware.handle.stack.forEach(handler => {
-        const route = handler.route;
-        if(route) {
-          routes.push(route.path);
-        }
-      });
-    }
-  });
-  res.json(routes);
+  const getRoutes = (stack, parent = '') => {
+    let routes = [];
+    stack.forEach((middleware) => {
+      if (middleware.route) {
+        routes.push(parent + middleware.route.path);
+      } else if (middleware.name === 'router' && middleware.handle.stack) {
+        // Extraction du préfixe du router
+        const prefix = middleware.regexp && middleware.regexp.source
+          ? middleware.regexp.source
+              .replace(/^\\^\\/, '/')
+              .replace(/\\\/\?\(\?=\\\/\|\$\)/, '')
+              .replace(/\\\//g, '/')
+          : '';
+        routes = routes.concat(getRoutes(middleware.handle.stack, parent + prefix));
+      }
+    });
+    return routes;
+  };
+  res.json(getRoutes(app._router.stack));
 });
 
 // Route de test simple
@@ -45,9 +51,9 @@ app.get('/api/test', (req, res) => {
   res.json({ message: 'Route de test fonctionnelle' });
 });
 
-// Route pour vérifier les variables d'environnement (sécurisées)
+// Route pour vérifier les variables d’environnement
 app.get('/debug/env', (req, res) => {
-  res.json({ 
+  res.json({
     nodeEnv: process.env.NODE_ENV,
     hasMongoUri: !!process.env.MONGO_URI,
     hasJwtSecret: !!process.env.JWT_SECRET,
@@ -55,7 +61,7 @@ app.get('/debug/env', (req, res) => {
   });
 });
 
-// Routes
+// ROUTES API
 app.use('/api/register', registerRoute);
 app.use('/api/users', userRoutes);
 app.use('/api/clients', clientRoutes);
@@ -63,26 +69,33 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/badges', badgeRoutes);
 app.use('/api/gamification', gamificationRoutes);
 
-// Route de base pour vérifier que l'API fonctionne
+// Route de base pour vérifier que l’API fonctionne
 app.get('/', (req, res) => {
   res.json({ message: 'API Task Manager fonctionnelle' });
 });
 
+// --- Affichage en console des routes exposées (pour Render logs/debug) ---
+function printRoutes(stack, parent = '') {
+  stack.forEach(middleware => {
+    if (middleware.route) {
+      const methods = Object.keys(middleware.route.methods);
+      console.log(`Route: ${parent}${middleware.route.path} [${methods.join(', ')}]`);
+    } else if (middleware.name === 'router' && middleware.handle.stack) {
+      const prefix = middleware.regexp && middleware.regexp.source
+        ? middleware.regexp.source
+            .replace(/^\\^\\/, '/')
+            .replace(/\\\/\?\(\?=\\\/\|\$\)/, '')
+            .replace(/\\\//g, '/')
+        : '';
+      printRoutes(middleware.handle.stack, parent + prefix);
+    }
+  });
+}
+
+printRoutes(app._router.stack);
+
 // Port
 const PORT = process.env.PORT || 5000;
-
-// Affiche toutes les routes effectivement montées (pour debug Render)
-app._router.stack.forEach((middleware) => {
-  if (middleware.route) {
-    console.log('Route:', middleware.route.path, Object.keys(middleware.route.methods));
-  } else if (middleware.name === 'router') {
-    middleware.handle.stack.forEach((handler) => {
-      if (handler.route) {
-        console.log('Route:', handler.route.path, Object.keys(handler.route.methods));
-      }
-    });
-  }
-});
 
 app.listen(PORT, () => {
   console.log(`Serveur démarré sur le port ${PORT}`);
