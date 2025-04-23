@@ -132,12 +132,13 @@ const ClientForm: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
 
-  // Si on n’est pas à l’étape 2, on ne fait rien
+  // Vérifie qu’on est bien à l’étape 2 AVANT de créer le client
   if (step !== 2) {
+    // Si ce n’est pas l’étape 2, ne rien faire
     return;
   }
 
-  // Vérifie la rentabilité (par exemple, taux horaire non vide)
+  // Vérification des champs rentabilité
   if (
     !profitabilityData.hourlyRate ||
     profitabilityData.hourlyRate <= 0
@@ -148,80 +149,76 @@ const ClientForm: React.FC = () => {
     }));
     return;
   }
-    
-    try {
-      setLoading(true);
-      dispatch(createClientStart());
-      
-      // Création du formulaire complet avec les données de rentabilité
-      const completeFormData = {
-        ...formData,
-        profitability: profitabilityData
-      };
-      
-      // Récupérer le token d'authentification
-      const token = localStorage.getItem('token');
-      
-      // Corriger l'URL en s'assurant qu'elle ne contient pas de double slash
-      const apiUrl = API_URL.endsWith('/') ? `${API_URL}api/clients` : `${API_URL}/api/clients`;
-      
-      console.log("Envoi des données client:", completeFormData);
-      console.log("URL finale utilisée:", apiUrl);
-      
-      // Appel API avec l'URL correcte
-      const response = await axios({
-        method: 'post',
-        url: apiUrl,
-        data: completeFormData,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : ''
-        }
-      });
-      
-      console.log("Réponse de création client:", response.data);
-      
-      const createdClient = response.data.client || response.data;
-      dispatch(createClientSuccess(createdClient));
-      
-      // Ajouter cette ligne pour forcer une actualisation des clients
-      dispatch(fetchClientsStart());
-      try {
-        const clientsData = await clientsService.getClients();
-        dispatch(fetchClientsSuccess(clientsData));
-      } catch (err) {
-        console.error("Erreur lors du rechargement des clients:", err);
-      }
 
-      dispatch(addNotification({
-        message: 'Client créé avec succès!',
-        type: 'success'
-      }));
-      
-      navigate('/clients');
-    } catch (error: any) {
-      console.error("Erreur complète lors de la création du client:", error);
-      
-      // Afficher un message d'erreur plus détaillé
-      const errorMessage = error.response?.data?.message || error.message || 'Erreur lors de la création du client';
-      
-      dispatch(createClientFailure(errorMessage));
-      dispatch(addNotification({
-        message: errorMessage,
-        type: 'error'
-      }));
-      
-      // Log supplémentaire pour le débogage
-      if (error.response) {
-        console.error("Réponse d'erreur:", error.response.data);
-        console.error("Statut:", error.response.status);
-      } else if (error.request) {
-        console.error("Pas de réponse reçue:", error.request);
+  // Ici, on continue la création du client SI TOUT EST OK
+  try {
+    setLoading(true);
+    dispatch(createClientStart());
+
+    // Création du formulaire complet avec les données de rentabilité
+    const completeFormData = {
+      ...formData,
+      profitability: profitabilityData
+    };
+
+    // Récupérer le token d'authentification
+    const token = localStorage.getItem('token');
+
+    // Corriger l'URL en s'assurant qu'elle ne contient pas de double slash
+    const apiUrl = API_URL.endsWith('/') ? `${API_URL}api/clients` : `${API_URL}/api/clients`;
+
+    // Appel API avec l'URL correcte
+    const response = await axios({
+      method: 'post',
+      url: apiUrl,
+      data: completeFormData,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : ''
       }
-    } finally {
-      setLoading(false);
+    });
+
+    const createdClient = response.data.client || response.data;
+    dispatch(createClientSuccess(createdClient));
+
+    // Ajouter cette ligne pour forcer une actualisation des clients
+    dispatch(fetchClientsStart());
+    try {
+      const clientsData = await clientsService.getClients();
+      dispatch(fetchClientsSuccess(clientsData));
+    } catch (err) {
+      console.error("Erreur lors du rechargement des clients:", err);
     }
-  };
+
+    dispatch(addNotification({
+      message: 'Client créé avec succès!',
+      type: 'success'
+    }));
+
+    navigate('/clients');
+  } catch (error: any) {
+    console.error("Erreur complète lors de la création du client:", error);
+
+    // Afficher un message d'erreur plus détaillé
+    const errorMessage = error.response?.data?.message || error.message || 'Erreur lors de la création du client';
+
+    dispatch(createClientFailure(errorMessage));
+    dispatch(addNotification({
+      message: errorMessage,
+      type: 'error'
+    }));
+
+    // Log supplémentaire pour le débogage
+    if (error.response) {
+      console.error("Réponse d'erreur:", error.response.data);
+      console.error("Statut:", error.response.status);
+    } else if (error.request) {
+      console.error("Pas de réponse reçue:", error.request);
+    }
+  } finally {
+    setLoading(false);
+  }
+};
 
   const nextStep = () => {
     if (formData.name.trim() === '') {
