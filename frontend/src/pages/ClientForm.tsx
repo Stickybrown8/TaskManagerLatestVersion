@@ -130,15 +130,24 @@ const ClientForm: React.FC = () => {
   };
   
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!formData.name) {  // Vérifiez le nom du client
-      dispatch(addNotification({
-        message: 'Veuillez remplir tous les champs obligatoires',
-        type: 'error'
-      }));
-      return;
-    }
+  e.preventDefault();
+
+  // Si on n’est pas à l’étape 2, on ne fait rien
+  if (step !== 2) {
+    return;
+  }
+
+  // Vérifie la rentabilité (par exemple, taux horaire non vide)
+  if (
+    !profitabilityData.hourlyRate ||
+    profitabilityData.hourlyRate <= 0
+  ) {
+    dispatch(addNotification({
+      message: "Merci de remplir correctement la configuration de la rentabilité.",
+      type: "error"
+    }));
+    return;
+  }
     
     try {
       setLoading(true);
