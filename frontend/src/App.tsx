@@ -46,6 +46,7 @@ const App: React.FC = () => {
             <Route path="/dashboard/clients" element={<ClientDashboard />} />
             <Route path="/gamification" element={<Gamification />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="*" element={<div>Page non trouvée</div>} />
           </Route>
         </Route>
       </Routes>
