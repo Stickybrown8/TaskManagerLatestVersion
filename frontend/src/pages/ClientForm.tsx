@@ -131,27 +131,35 @@ const ClientForm: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!formData.name) {  // Vérifiez le nom du client
+      dispatch(addNotification({
+        message: 'Veuillez remplir tous les champs obligatoires',
+        type: 'error'
+      }));
+      return;
+    }
+    
     try {
       setLoading(true);
-      dispatch(createClientStart());
+      dispatch(createClientStart());  // Action correcte
       
-      // Préparer les données du client en incluant directement le logo
-      const clientData = { 
-        ...formData,
-        logo: logoPreview // Utiliser directement le logo en base64
-      };
+      // Récupérer le token d'authentification
+      const token = localStorage.getItem('token');
       
-      console.log("Envoi des données client:", clientData);
+      // Corriger l'URL en s'assurant qu'elle ne contient pas de double slash
+      const apiUrl = API_URL.endsWith('/') ? `${API_URL}api/clients` : `${API_URL}/api/clients`;
       
-      // 1. Création du client avec axios
+      console.log("Envoi des données client:", formData);
+      console.log("URL finale utilisée:", apiUrl);
+      
+      // Appel API avec l'URL correcte
       const response = await axios({
         method: 'post',
-        url: `${API_URL}/api/clients`,
-        data: clientData,
+        url: apiUrl,
+        data: formData,
         headers: {
           'Content-Type': 'application/json',
-          // Ajouter le token d'authentification s'il existe
-          'Authorization': localStorage.getItem('token') ? `Bearer ${localStorage.getItem('token')}` : ''
+          'Authorization': token ? `Bearer ${token}` : ''
         }
       });
       
@@ -160,32 +168,6 @@ const ClientForm: React.FC = () => {
       const createdClient = response.data.client || response.data;
       dispatch(createClientSuccess(createdClient));
       
-      // 2. Créer les données de rentabilité pour ce client si l'API est disponible
-      if (createdClient && createdClient._id) {
-        try {
-          // Envoyer les données de rentabilité
-          await axios({
-            method: 'post',
-            url: `${API_URL}/api/profitability/client/${createdClient._id}`,
-            data: {
-              hourlyRate: profitabilityData.hourlyRate,
-              targetHours: profitabilityData.targetHours,
-              revenue: profitabilityData.monthlyBudget
-            },
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': localStorage.getItem('token') ? `Bearer ${localStorage.getItem('token')}` : ''
-            }
-          });
-          
-          console.log("Données de rentabilité créées avec succès");
-        } catch (profitabilityError) {
-          console.error("Erreur lors de la création des données de rentabilité:", profitabilityError);
-          // Continuer malgré l'erreur de rentabilité, le client a été créé
-        }
-      }
-      
-      // 3. Notification et redirection
       dispatch(addNotification({
         message: 'Client créé avec succès!',
         type: 'success'
