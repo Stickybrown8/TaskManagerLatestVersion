@@ -23,6 +23,9 @@ const Clients: React.FC = () => {
         const data = await clientsService.getClients();
         console.log('→ données reçues de l’API :', data);
         dispatch(fetchClientsSuccess(data));
+        // Ajoute CES DEUX LIGNES juste ici :
+        window.dispatch = dispatch;
+        window.fetchClientsSuccess = fetchClientsSuccess;
       } catch (error: any) {
         console.error('→ Erreur lors du fetch clients :', error);
         dispatch(fetchClientsFailure(error.message));
