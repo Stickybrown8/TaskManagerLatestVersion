@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../hooks';
+import { clientsService } from '../services/api';
 import { fetchClientsStart, fetchClientsSuccess, fetchClientsFailure, createClientStart, createClientSuccess, createClientFailure } from '../store/slices/clientsSlice';
 import { addNotification } from '../store/slices/uiSlice';
 import { motion } from 'framer-motion';
