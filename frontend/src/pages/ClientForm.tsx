@@ -174,6 +174,15 @@ const ClientForm: React.FC = () => {
       const createdClient = response.data.client || response.data;
       dispatch(createClientSuccess(createdClient));
       
+      // Ajouter cette ligne pour forcer une actualisation des clients
+      dispatch(fetchClientsStart());
+      try {
+        const clientsData = await clientsService.getClients();
+        dispatch(fetchClientsSuccess(clientsData));
+      } catch (err) {
+        console.error("Erreur lors du rechargement des clients:", err);
+      }
+
       dispatch(addNotification({
         message: 'Client créé avec succès!',
         type: 'success'
