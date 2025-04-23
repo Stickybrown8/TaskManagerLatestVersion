@@ -17,10 +17,13 @@ const Clients: React.FC = () => {
   useEffect(() => {
     const loadClients = async () => {
       try {
+        console.log('→ fetch clients ...');
         dispatch(fetchClientsStart());
         const data = await clientsService.getClients();
+        console.log('→ données reçues de l’API :', data);
         dispatch(fetchClientsSuccess(data));
       } catch (error: any) {
+        console.error('→ Erreur lors du fetch clients :', error);
         dispatch(fetchClientsFailure(error.message));
         dispatch(addNotification({
           message: 'Erreur lors du chargement des clients',
