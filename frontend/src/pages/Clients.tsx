@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../hooks';
 import { fetchClientsStart, fetchClientsSuccess, fetchClientsFailure } from '../store/slices/clientsSlice';
-console.log('fetchClientsSuccess importé de', import.meta.url || "pas d'info require");
 import { clientsService } from '../services/api';
 import { addNotification } from '../store/slices/uiSlice';
 import { motion } from 'framer-motion';
+
+// Les logs ou tout autre code doivent venir APRÈS les imports
+console.log('fetchClientsSuccess importé de', import.meta.url || "pas d'info require");
 
 const Clients: React.FC = () => {
   const dispatch = useAppDispatch();
