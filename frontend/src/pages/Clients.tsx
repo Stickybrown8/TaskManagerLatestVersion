@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../hooks';
-import { fetchClientsStart, fetchClientsSuccess, fetchClientsFailure, createClientStart, createClientSuccess, createClientFailure } from '../store/slices/clientsSlice';
+import { fetchClientsStart, fetchClientsSuccess, fetchClientsFailure } from '../store/slices/clientsSlice';
 import { clientsService } from '../services/api';
 import { addNotification } from '../store/slices/uiSlice';
 import { motion } from 'framer-motion';
@@ -34,11 +34,21 @@ const Clients: React.FC = () => {
 
   // Filtrer les clients en fonction de la recherche et du statut
   const filteredClients = clients.filter(client => {
-    const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         client.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'tous' || client.status === statusFilter;
+    const search = searchTerm.trim().toLowerCase();
+    const clientName = (client.name || '').trim().toLowerCase();
+    const clientDescription = (client.description || '').trim().toLowerCase();
+    const matchesSearch = clientName.includes(search) || clientDescription.includes(search);
+
+    const matchesStatus =
+      statusFilter === 'tous' ||
+      (client.status || '').trim().toLowerCase() === statusFilter.trim().toLowerCase();
+
     return matchesSearch && matchesStatus;
   });
+
+  // Debug logs pour vérifier les données du store et du filtre
+  console.log('clients du store :', clients);
+  console.log('filteredClients :', filteredClients);
 
   // Naviguer vers la page de détail du client
   const handleClientClick = (clientId: string) => {
