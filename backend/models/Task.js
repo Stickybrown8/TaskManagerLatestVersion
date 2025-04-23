@@ -67,4 +67,9 @@ const TaskSchema = mongoose.Schema({
   }
 });
 
+// Ajout d'index pour améliorer les performances
+TaskSchema.index({ userId: 1, status: 1 });
+TaskSchema.index({ clientId: 1, status: 1 });
+TaskSchema.index({ dueDate: 1 });
+
 module.exports = mongoose.model('Task', TaskSchema);
