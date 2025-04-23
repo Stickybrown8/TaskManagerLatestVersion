@@ -1,4 +1,5 @@
 const express = require('express');
+const registerRoute = require('./routes/register');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
@@ -19,9 +20,7 @@ const app = express();
 
 // Middleware
 app.use(express.json());
-app.use(cors({
-  origin: '*' // Autoriser toutes les origines temporairement pour le débogage
-}));
+app.use(cors({ origin: '*' }));
 
 // Route de débogage pour voir toutes les routes enregistrées
 app.get('/debug/routes', (req, res) => {
@@ -57,6 +56,7 @@ app.get('/debug/env', (req, res) => {
 });
 
 // Routes
+app.use('/api/register', registerRoute);
 app.use('/api/users', userRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/tasks', taskRoutes);
