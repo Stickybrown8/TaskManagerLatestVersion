@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAppDispatch } from '../hooks';
+import { useAppDispatch, useAppSelector } from '../hooks';
 import { createClientStart, createClientSuccess, createClientFailure } from '../store/slices/clientsSlice';
 import { addNotification } from '../store/slices/uiSlice';
 import { motion } from 'framer-motion';
@@ -141,7 +141,13 @@ const ClientForm: React.FC = () => {
     
     try {
       setLoading(true);
-      dispatch(createClientStart());  // Action correcte
+      dispatch(createClientStart());
+      
+      // Création du formulaire complet avec les données de rentabilité
+      const completeFormData = {
+        ...formData,
+        profitability: profitabilityData
+      };
       
       // Récupérer le token d'authentification
       const token = localStorage.getItem('token');
@@ -149,14 +155,14 @@ const ClientForm: React.FC = () => {
       // Corriger l'URL en s'assurant qu'elle ne contient pas de double slash
       const apiUrl = API_URL.endsWith('/') ? `${API_URL}api/clients` : `${API_URL}/api/clients`;
       
-      console.log("Envoi des données client:", formData);
+      console.log("Envoi des données client:", completeFormData);
       console.log("URL finale utilisée:", apiUrl);
       
       // Appel API avec l'URL correcte
       const response = await axios({
         method: 'post',
         url: apiUrl,
-        data: formData,
+        data: completeFormData,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': token ? `Bearer ${token}` : ''
