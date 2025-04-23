@@ -1,19 +1,25 @@
-import React from 'react';
-import './App.css';
+import { Routes, Route } from 'react-router-dom';
+import PrivateRoute from './components/PrivateRoute';
+import Clients from './pages/Clients';
+import Login from './pages/Login';
+// Ajoute ici d'autres pages
 
-// Définir explicitement le type des props pour inclure children
-interface AppProps {
-  children?: React.ReactNode;
-}
-
-// Note: Ce fichier ne doit PAS contenir de routes,
-// toutes les routes sont maintenant dans index.tsx
-const App: React.FC<AppProps> = ({ children }) => {
+function App() {
   return (
-    <div className="App">
-      {children}
-    </div>
+    <Routes>
+      {/* Route publique */}
+      <Route path="/login" element={<Login />} />
+
+      {/* Toutes les routes privées passent ici */}
+      <Route element={<PrivateRoute />}>
+        <Route path="/clients" element={<Clients />} />
+        {/* Ajoute d'autres routes privées ici */}
+      </Route>
+
+      {/* Route par défaut ou 404, facultatif */}
+      {/* <Route path="*" element={<NotFound />} /> */}
+    </Routes>
   );
-};
+}
 
 export default App;
