@@ -50,6 +50,7 @@ const clientsSlice = createSlice({
       state.error = null;
     },
     fetchClientsSuccess: (state, action: PayloadAction<Client[]>) => {
+      console.log("→ Reducer fetchClientsSuccess appelé avec :", action.payload); // <-- AJOUT DU LOG
       state.clients = action.payload;
       state.loading = false;
     },
