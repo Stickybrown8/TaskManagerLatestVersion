@@ -9,14 +9,14 @@ import { motion } from 'framer-motion';
 const Login: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email || !password) {
       dispatch(addNotification({
         message: 'Veuillez remplir tous les champs',
@@ -24,26 +24,31 @@ const Login: React.FC = () => {
       }));
       return;
     }
-    
+
     try {
       setLoading(true);
       dispatch(loginStart());
-      
+
       console.log("Avant appel API - Login");
       const response = await authService.login(email, password);
       console.log("Après appel API - Login:", response);
-      
+
+      // Stocke le token dans le localStorage pour la persistance
+      if (response.token) {
+        localStorage.setItem('token', response.token);
+      }
+
       dispatch(loginSuccess({
         user: response.user,
         token: response.token
       }));
-      
+
       dispatch(addNotification({
         message: 'Connexion réussie !',
         type: 'success'
       }));
-      
-      navigate('/');
+
+      navigate('/'); // Redirige vers la Home ou Dashboard
     } catch (error: any) {
       console.error("Erreur complète:", error);
       dispatch(loginFailure(error.response?.data?.message || 'Erreur de connexion'));
@@ -55,10 +60,10 @@ const Login: React.FC = () => {
       setLoading(false);
     }
   };
-  
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-secondary-50 dark:from-gray-900 dark:to-gray-800 p-4">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
@@ -69,7 +74,7 @@ const Login: React.FC = () => {
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Task Manager</h1>
             <p className="mt-2 text-gray-600 dark:text-gray-300">Connectez-vous pour gérer vos tâches</p>
           </div>
-          
+
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -85,7 +90,7 @@ const Login: React.FC = () => {
                 required
               />
             </div>
-            
+
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Mot de passe
@@ -100,7 +105,7 @@ const Login: React.FC = () => {
                 required
               />
             </div>
-            
+
             <div>
               <button
                 type="submit"
@@ -118,7 +123,7 @@ const Login: React.FC = () => {
               </button>
             </div>
           </form>
-          
+
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600 dark:text-gray-400">
               Vous n'avez pas de compte ?{' '}
