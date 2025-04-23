@@ -148,4 +148,8 @@ TimerSchema.methods.getCurrentDuration = function() {
   return totalDuration;
 };
 
+// Ajout d'index pour améliorer les performances
+TimerSchema.index({ startTime: 1 });
+TimerSchema.index({ userId: 1, isRunning: 1 });
+
 module.exports = mongoose.model('Timer', TimerSchema);
