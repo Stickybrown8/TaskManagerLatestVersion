@@ -17,11 +17,13 @@ const Clients: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('tous');
 
   // AJOUTE CE BLOC ICI, juste après les déclarations ci-dessus
+  // @ts-ignore
   console.log('window.dispatch avant assignation :', window.dispatch);
   // @ts-ignore
   window.dispatch = dispatch;
   // @ts-ignore
   window.fetchClientsSuccess = fetchClientsSuccess;
+  // @ts-ignore
   console.log('window.dispatch après assignation :', window.dispatch);
 
   // Charger les clients au chargement de la page
