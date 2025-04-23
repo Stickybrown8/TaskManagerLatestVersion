@@ -146,18 +146,6 @@ export const store = configureStore({
     profitability: profitabilityReducer,
     objectives: objectivesReducer
   },
-  // S'assurer que tous les états initiaux sont correctement définis
-  preloadedState: {
-    auth: initialAuthState,
-    timer: initialTimerState,
-    ui: initialUiState,
-    tasks: initialTasksState,
-    gamification: initialGamificationState,
-    clients: initialClientsState,
-    taskImpact: initialTaskImpactState,
-    profitability: initialProfitabilityState,
-    objectives: initialObjectivesState
-  }
 });
 
 // Export des types pour TypeScript
