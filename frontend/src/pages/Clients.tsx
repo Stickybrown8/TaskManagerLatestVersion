@@ -16,6 +16,14 @@ const Clients: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('tous');
 
+  // AJOUTE CE BLOC ICI, juste après les déclarations ci-dessus
+  console.log('window.dispatch avant assignation :', window.dispatch);
+  // @ts-ignore
+  window.dispatch = dispatch;
+  // @ts-ignore
+  window.fetchClientsSuccess = fetchClientsSuccess;
+  console.log('window.dispatch après assignation :', window.dispatch);
+
   // Charger les clients au chargement de la page
   useEffect(() => {
     const loadClients = async () => {
