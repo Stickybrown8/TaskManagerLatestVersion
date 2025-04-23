@@ -21,7 +21,13 @@ const Register: React.FC = () => {
 
     setLoading(true);
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/register`, {
+      // Log pour debug en prod/déploiement
+      console.log("REACT_APP_API_URL =", process.env.REACT_APP_API_URL);
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+      const url = `${apiUrl}/register`;
+      console.log("URL d'inscription appelée :", url);
+
+      const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, password }),
