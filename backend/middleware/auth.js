@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const config = require('../config/auth.config');
+const mongoose = require('mongoose');
 
 const verifyToken = (req, res, next) => {
   // DÉSACTIVATION TEMPORAIRE DE L'AUTHENTIFICATION
@@ -7,7 +8,7 @@ const verifyToken = (req, res, next) => {
   console.log("Authentification désactivée temporairement");
   
   // On simule un utilisateur connecté avec un ID factice
-  req.userId = "tempUserId123"; // Vous pouvez utiliser un ID réel si vous en connaissez un
+ req.userId = mongoose.Types.ObjectId("507f1f77bcf86cd799439011"); // Utilisez un ID hexadécimal valide
   
   // On passe à la route suivante sans vérifier le token
   next();
