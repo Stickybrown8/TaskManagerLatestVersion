@@ -8,6 +8,7 @@ import TimerPopup from './components/timer/TimerPopup';
 
 // Pages
 import Login from './pages/Login';
+import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Tasks from './pages/Tasks';
 import TaskDetail from './pages/TaskDetail';
@@ -30,6 +31,7 @@ const App: React.FC = () => {
       <Routes>
         {/* Routes publiques */}
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
         <Route path="/test-api" element={<TestApi />} />
         <Route path="/test-login" element={<TestLogin />} />
         <Route path="/admin-setup" element={<AdminSetup />} />
