@@ -71,4 +71,8 @@ const ClientSchema = new Schema({
   }
 });
 
+// Ajout d'index pour améliorer les performances
+ClientSchema.index({ name: 1 });
+ClientSchema.index({ userId: 1, status: 1 });
+
 module.exports = mongoose.model('Client', ClientSchema);
