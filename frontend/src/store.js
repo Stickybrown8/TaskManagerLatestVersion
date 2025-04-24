@@ -1,8 +1,7 @@
 import { configureStore } from '@reduxjs/toolkit';
-
 import authReducer from './store/slices/authSlice';
-import clientsReducer from './slices/authSlice';
-import tasksReducer from './slices/taskSlice';
+import clientsReducer from './store/slices/clientsSlice';
+import tasksReducer from './store/slices/tasksSlice';
 
 export const store = configureStore({
   reducer: {
@@ -11,3 +10,6 @@ export const store = configureStore({
     tasks: tasksReducer,
   },
 });
+
+export type RootState = ReturnType<typeof store.getState>;
+export type AppDispatch = typeof store.dispatch;
