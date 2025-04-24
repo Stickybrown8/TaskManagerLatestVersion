@@ -1,6 +1,6 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { useDispatch, useSelector, TypedUseSelectorHook } from 'react-redux';
-import authReducer from './store/slices/authSlice';
+import authReducer from './slices/authSlice';
 import uiReducer from './slices/uiSlice';
 import tasksReducer from './slices/tasksSlice';
 import clientsReducer from './slices/clientsSlice';
@@ -10,8 +10,7 @@ import taskImpactReducer from './slices/taskImpactSlice';
 import profitabilityReducer from './slices/profitabilitySlice';
 import objectivesReducer from './slices/objectivesSlice';
 
-// Plus d'état initial hacké ici : chaque slice gère son propre état initial !
-
+// Définir le store Redux
 export const store = configureStore({
   reducer: {
     auth: authReducer,
@@ -29,3 +28,30 @@ export const store = configureStore({
 // Export des types pour TypeScript
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
+
+// Définir des types explicites pour les états des slices
+export interface AuthState {
+  user?: {
+    name?: string;
+    email?: string;
+    profile?: {
+      avatar?: string;
+    };
+  } | null;
+  isAuthenticated?: boolean;
+  token?: string | null;
+  loading?: boolean;
+  error?: string | null;
+}
+
+export interface GamificationState {
+  level?: number;
+  experience?: number;
+  actionPoints?: number;
+  badges?: any[];
+}
+
+export interface UIState {
+  darkMode?: boolean;
+  sidebarOpen?: boolean;
+}
