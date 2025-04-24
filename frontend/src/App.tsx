@@ -1,12 +1,8 @@
 import React, { useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
-
-// Composants de mise en page
 import Layout from './components/Layout';
 import PrivateRoute from './components/PrivateRoute';
 import TimerPopup from './components/timer/TimerPopup';
-
-// Pages
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -21,8 +17,6 @@ import Profile from './pages/Profile';
 import TestApi from './pages/TestApi';
 import TestLogin from './TestLogin';
 import AdminSetup from './AdminSetup';
-
-// Redux
 import { useAppDispatch } from './hooks';
 import { loginSuccess, setRehydrated } from './store/slices/authSlice';
 
@@ -30,37 +24,36 @@ const App: React.FC = () => {
   const dispatch = useAppDispatch();
 
   useEffect(() => {
-  const token = localStorage.getItem('token');
-  const userRaw = localStorage.getItem('user');
-  let user = null;
-  try {
-    if (userRaw) {
-       user = JSON.parse(userRaw);
-     }
-  } catch (e) {
-    user = null;
-  }
-  if (token && user) {
-    dispatch(loginSuccess({ user, token }));
-  } else {
-    dispatch(setRehydrated());
-  }
-}, [dispatch]);
-  
+    const token = localStorage.getItem('token');
+    const userRaw = localStorage.getItem('user');
+    let user = null;
+    try {
+      if (userRaw) {
+        user = JSON.parse(userRaw);
+      }
+    } catch (e) {
+      user = null;
+    }
+    console.log("TOKEN found:", token);
+    console.log("USER parsed:", user);
+    if (token && user) {
+      console.log("DISPATCH loginSuccess");
+      dispatch(loginSuccess({ user, token }));
+    } else {
+      console.log("DISPATCH setRehydrated");
+      dispatch(setRehydrated());
+    }
+  }, [dispatch]);
+
   return (
     <>
-      {/* Le timer est toujours disponible, indépendamment des routes */}
       <TimerPopup />
-
       <Routes>
-        {/* Routes publiques */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/test-api" element={<TestApi />} />
         <Route path="/test-login" element={<TestLogin />} />
         <Route path="/admin-setup" element={<AdminSetup />} />
-
-        {/* Routes privées avec layout */}
         <Route element={<PrivateRoute />}>
           <Route element={<Layout />}>
             <Route path="/" element={<Dashboard />} />
