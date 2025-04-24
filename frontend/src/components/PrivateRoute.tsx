@@ -2,16 +2,10 @@ import React from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAppSelector } from '../hooks';
 
-interface PrivateRouteProps {
-  children?: React.ReactNode;
-}
-
-const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
+const PrivateRoute: React.FC = ({ children }) => {
   const location = useLocation();
-  const authState = useAppSelector(state => state.auth) || {};
-  const { isAuthenticated = false, loading = false } = authState;
+  const { isAuthenticated = false, loading = false, token } = useAppSelector(state => state.auth) || {};
 
-  // Loader si l'authentification est en cours
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -20,12 +14,10 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
     );
   }
 
-  // Si pas authentifié, redirige vers /login (en gardant la page d'origine)
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !token) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
-  // Sinon, affiche la page privée
   return children ? <>{children}</> : <Outlet />;
 };
 
