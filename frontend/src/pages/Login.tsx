@@ -28,8 +28,10 @@ const Login: React.FC = () => {
     try {
       setLoading(true);
       dispatch(loginStart());
+      console.log('Tentative de connexion avec :', { email, password: '***' });
 
       const response = await authService.login(email, password);
+      console.log('Réponse de connexion :', response);
 
       if (response.token && response.user) {
         localStorage.setItem('token', response.token);
@@ -39,6 +41,7 @@ const Login: React.FC = () => {
           message: 'Connexion réussie !',
           type: 'success'
         }));
+        console.log('Redirection vers la page d\'accueil...');
         navigate('/'); // Redirige vers la page d'accueil privée
       } else {
         throw new Error("Identification échouée, veuillez vérifier vos identifiants.");
@@ -82,6 +85,7 @@ const Login: React.FC = () => {
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
                 placeholder="votre@email.com"
                 required
+                disabled={loading}
               />
             </div>
 
@@ -97,6 +101,8 @@ const Login: React.FC = () => {
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
                 placeholder="••••••••"
                 required
+                disabled={loading}
+                onKeyDown={e => e.key === 'Enter' && handleSubmit(e as any)}
               />
             </div>
 
@@ -125,6 +131,7 @@ const Login: React.FC = () => {
                 type="button"
                 onClick={() => navigate('/register')}
                 className="font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300"
+                disabled={loading}
               >
                 Créer un compte
               </button>
