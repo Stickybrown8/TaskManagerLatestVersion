@@ -1,8 +1,12 @@
-import React from 'react';
+import React, { ReactNode } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAppSelector } from '../hooks';
 
-const PrivateRoute: React.FC = ({ children }) => {
+interface PrivateRouteProps {
+  children?: ReactNode;
+}
+
+const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
   const location = useLocation();
   const { isAuthenticated = false, loading = false, token } = useAppSelector(state => state.auth) || {};
 
