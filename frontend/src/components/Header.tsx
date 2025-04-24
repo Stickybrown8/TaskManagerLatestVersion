@@ -13,7 +13,7 @@ const Header: React.FC<HeaderProps> = ({ onLogout }) => {
   const { darkMode = false } = ui;
 
   const auth = useAppSelector(state => state.auth) || {};
-  const { user = null } = auth;
+  const { user = { name: 'Utilisateur', email: 'utilisateur@exemple.com' } } = auth;
 
   const gamification = useAppSelector(state => state.gamification) || {};
   const { actionPoints = 0, badges = [] } = gamification;
