@@ -1,18 +1,27 @@
 import React from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
-import { useAppSelector } from '../hooks';
+import { useAppSelector, useAppDispatch } from '../hooks';
+import { logout } from '../store/slices/authSlice';
 
 interface LayoutProps {
   children?: React.ReactNode;
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
-  // Utilisez l'opérateur nullish coalescing (??) pour fournir des valeurs par défaut
   const ui = useAppSelector(state => state.ui) || {};
-  const sidebarOpen = ui?.sidebarOpen ?? true; // Utiliser true comme valeur par défaut
-  const darkMode = ui?.darkMode ?? false; // Utiliser false comme valeur par défaut
+  const sidebarOpen = ui?.sidebarOpen ?? true;
+  const darkMode = ui?.darkMode ?? false;
+
+  const dispatch = useAppDispatch();
+  const navigate = useNavigate();
+
+  // Handler de déconnexion
+  const handleLogout = () => {
+    dispatch(logout());
+    navigate('/login');
+  };
 
   return (
     <div className={`flex h-screen ${darkMode ? 'dark' : ''}`}>
@@ -21,8 +30,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
       {/* Main Content */}
       <div className={`flex-1 flex flex-col transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-20'}`}>
-        {/* Header */}
-        <Header />
+        {/* Header (on passe handleLogout en prop) */}
+        <Header onLogout={handleLogout} />
 
         {/* Main Content Area */}
         <main className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900 p-4 md:p-6">
