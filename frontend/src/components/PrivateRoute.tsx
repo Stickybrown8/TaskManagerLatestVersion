@@ -8,9 +8,10 @@ interface PrivateRouteProps {
 
 const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
   const location = useLocation();
-  const { isAuthenticated = false, loading = false, token } = useAppSelector(state => state.auth) || {};
+  const { isAuthenticated = false, loading = false, token, rehydrated = false } = useAppSelector(state => state.auth) || {};
 
-  if (loading) {
+  // Attend que Redux soit bien réhydraté avant toute redirection
+  if (!rehydrated) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
