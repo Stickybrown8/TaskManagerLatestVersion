@@ -103,10 +103,10 @@ const Dashboard = () => {
         
         // Exemple: Premier jour du mois - vérification de la rentabilité
         if (dayOfMonth === 1) {
-          const profitabilityResult = await profitabilityRewardService.checkMonthlyProfitability();
-          if (profitabilityResult && profitabilityResult.success) {
+          const profitabilityResult = await profitabilityRewardService.checkMonthlyProfitabilityTargets();
+          if (profitabilityResult && profitabilityResult.targetsReached > 0) {
             dispatch(addNotification({
-              message: `Félicitations ! Vous avez atteint vos objectifs de rentabilité le mois dernier. Vous avez gagné ${profitabilityResult.pointsEarned} points !`,
+              message: `Félicitations ! ${profitabilityResult.targetsReached} clients ont atteint leurs objectifs de rentabilité. Vous avez gagné ${profitabilityResult.totalPointsEarned} points !`,
               type: 'success'
             }));
             
@@ -153,7 +153,8 @@ const Dashboard = () => {
       // Mettre à jour l'interface (dans une application réelle, cela serait géré par Redux)
       setTimeout(() => {
         setShowChallenges(false);
-      }, 1000);
+        setShowGlobalConfetti(false);
+      }, 3000);
     } catch (error) {
       dispatch(addNotification({
         message: 'Erreur lors de la réclamation de la récompense',
@@ -316,7 +317,7 @@ const Dashboard = () => {
         transition={{ duration: 0.5, delay: 0.15 }}
         className="mb-8"
       >
-        <MonthlyProfitabilityWidget />
+        <MonthlyProfitabilityWidget displayMode="full" />
       </motion.div>
       
       {/* Statistiques */}
