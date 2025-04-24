@@ -1,7 +1,6 @@
 import React from 'react';
 import { useAppSelector, useAppDispatch } from '../hooks';
 import { toggleDarkMode } from '../store/slices/uiSlice';
-import { logout } from '../store/slices/authSlice';
 
 interface HeaderProps {
   onLogout: () => void;
@@ -10,41 +9,35 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ onLogout }) => {
   const dispatch = useAppDispatch();
 
-  // Utilisation de l'opérateur nullish coalescing (??) pour fournir des valeurs par défaut
   const ui = useAppSelector(state => state.ui) || {};
   const { darkMode = false } = ui;
 
   const auth = useAppSelector(state => state.auth) || {};
-  const { user = { name: 'Utilisateur', profile: { avatar: '/default-avatar.png' } } } = auth;
+  const user = auth?.user;
 
   const gamification = useAppSelector(state => state.gamification) || {};
   const { actionPoints = 0, badges = [] } = gamification;
 
   return (
     <header className="bg-white dark:bg-gray-800 shadow-md h-16 flex items-center justify-between px-4 md:px-6">
-      {/* Titre de la page */}
       <h1 className="text-xl font-bold text-gray-800 dark:text-white">
         Task Manager
       </h1>
-
-      {/* Actions et informations utilisateur */}
       <div className="flex items-center space-x-4">
         {/* Points d'action */}
         <div className="hidden md:flex items-center bg-primary-100 dark:bg-primary-900 text-primary-800 dark:text-primary-200 px-3 py-1 rounded-full">
-          <svg className="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+          <svg className="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
           </svg>
           <span className="font-bold">{actionPoints}</span>
         </div>
-
         {/* Badges */}
         <div className="hidden md:flex items-center bg-secondary-100 dark:bg-secondary-900 text-secondary-800 dark:text-secondary-200 px-3 py-1 rounded-full">
-          <svg className="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+          <svg className="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 20 20">
             {/* ...svg paths pour les badges... */}
           </svg>
           <span className="font-bold">{badges.length}</span>
         </div>
-
         {/* Bouton dark mode */}
         <button
           onClick={() => dispatch(toggleDarkMode())}
@@ -61,17 +54,15 @@ const Header: React.FC<HeaderProps> = ({ onLogout }) => {
             </svg>
           )}
         </button>
-
         {/* Utilisateur */}
         <div className="flex items-center space-x-2">
           <img
-            src={user.profile.avatar}
-            alt={user.name}
+            src={user?.profile?.avatar || '/default-avatar.png'}
+            alt={user?.name || 'Utilisateur'}
             className="w-8 h-8 rounded-full"
           />
-          <span className="text-gray-800 dark:text-white">{user.name}</span>
+          <span className="text-gray-800 dark:text-white">{user?.name || 'Utilisateur'}</span>
         </div>
-
         {/* Bouton de déconnexion */}
         <button
           onClick={onLogout}
