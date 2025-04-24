@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useAppDispatch, useAppSelector } from '../hooks';
+import React, { useState, useEffect, useRef } from 'react';
+import { useAppDispatch, useAppSelector } from '../../hooks';
 import {
   toggleTimerPopup,
   hideTimerPopup,
@@ -10,8 +10,8 @@ import {
   pauseTimer,
   resumeTimer,
   stopTimer
-} from '../store/slices/timerSlice';
-import { addNotification } from '../store/slices/uiSlice';
+} from '../../store/slices/timerSlice';
+import { addNotification } from '../../store/slices/uiSlice';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 
@@ -20,7 +20,7 @@ const API_URL = process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.
 const TimerPopupFix: React.FC = () => {
   const dispatch = useAppDispatch();
   
-  // Accès sécurisé à l'état Redux avec des valeurs par défaut
+  // Accès sécurisé à l'état Redux
   const timerState = useAppSelector(state => state.timer || {});
   const {
     runningTimer = null,
@@ -43,6 +43,17 @@ const TimerPopupFix: React.FC = () => {
   const [profitability, setProfitability] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [billable, setBillable] = useState<boolean>(true);
+  
+  // États pour le drag-and-drop
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const popupRef = useRef<HTMLDivElement>(null);
+  
+  // États pour la rentabilité en temps réel
+  const [currentHourlyRate, setCurrentHourlyRate] = useState<number>(0);
+  const [isOverBudget, setIsOverBudget] = useState<boolean>(false);
+  const [hoursRemaining, setHoursRemaining] = useState<number>(0);
+  const [percentageUsed, setPercentageUsed] = useState<number>(0);
 
   // Charger les clients et les tâches
   useEffect(() => {
@@ -173,7 +184,17 @@ const TimerPopupFix: React.FC = () => {
           }
         });
         
-        setProfitability(profitabilityResponse.data);
+        const profitData = profitabilityResponse.data;
+        setProfitability(profitData);
+        setCurrentHourlyRate(profitData.hourlyRate || 0);
+        
+        // Calculer les heures restantes et le pourcentage utilisé
+        if (profitData.targetHours && profitData.spentHours) {
+          const remaining = profitData.targetHours - profitData.spentHours;
+          setHoursRemaining(remaining);
+          setPercentageUsed((profitData.spentHours / profitData.targetHours) * 100);
+          setIsOverBudget(remaining < 0);
+        }
       } catch (err) {
         console.log('Pas de données de rentabilité pour ce client');
         setProfitability(null);
@@ -204,6 +225,7 @@ const TimerPopupFix: React.FC = () => {
       
       // Si la tâche a un client, charger les détails du client
       if (response.data.clientId) {
+        setSelectedClientId(response.data.clientId);
         fetchClientDetails(response.data.clientId);
       }
       
@@ -226,12 +248,47 @@ const TimerPopupFix: React.FC = () => {
   useEffect(() => {
     if (isRunning) {
       const intervalId = setInterval(() => {
-        setTimerDuration(prev => prev + 1);
+        setTimerDuration(prev => {
+          const newDuration = prev + 1;
+          
+          // Mettre à jour la rentabilité en temps réel
+          if (profitability && profitability.targetHours) {
+            // Calculer les heures passées, y compris le timer actuel
+            const currentHoursSpent = profitability.spentHours + (newDuration / 3600);
+            const remaining = profitability.targetHours - currentHoursSpent;
+            const percentUsed = (currentHoursSpent / profitability.targetHours) * 100;
+            
+            setHoursRemaining(remaining);
+            setPercentageUsed(percentUsed);
+            setIsOverBudget(remaining < 0);
+            
+            // Calculer le taux horaire actuel
+            if (profitability.monthlyBudget && currentHoursSpent > 0) {
+              const rate = profitability.monthlyBudget / currentHoursSpent;
+              setCurrentHourlyRate(rate);
+            }
+            
+            // Alerte si on approche ou dépasse la limite
+            if (remaining <= 0 && !isOverBudget) {
+              dispatch(addNotification({
+                message: `Attention: Budget horaire dépassé pour ${selectedClient?.name}`,
+                type: 'warning'
+              }));
+            } else if (remaining <= 1 && remaining > 0) {
+              dispatch(addNotification({
+                message: `Attention: Il reste moins d'une heure de budget pour ${selectedClient?.name}`,
+                type: 'info'
+              }));
+            }
+          }
+          
+          return newDuration;
+        });
       }, 1000);
       
       return () => clearInterval(intervalId);
     }
-  }, [isRunning]);
+  }, [isRunning, profitability, selectedClient, dispatch, isOverBudget]);
 
   // Fonction pour démarrer un timer
   const handleStartTimer = async () => {
@@ -473,6 +530,15 @@ const TimerPopupFix: React.FC = () => {
       setSelectedTask(null);
     }
   };
+  
+  // Fonctions pour le drag-and-drop
+  const onDragStart = () => {
+    setIsDragging(true);
+  };
+  
+  const onDragEnd = () => {
+    setIsDragging(false);
+  };
 
   // Afficher uniquement le bouton flottant si la popup n'est pas visible
   if (!showTimerPopup) {
@@ -489,244 +555,321 @@ const TimerPopupFix: React.FC = () => {
     );
   }
 
-  // Déterminer les classes CSS en fonction de la taille et de la position
+  // Déterminer les classes CSS en fonction de la taille
   const sizeClasses = {
     small: 'w-64 h-auto',
     medium: 'w-80 h-auto',
     large: 'w-96 h-auto'
   };
+  
+  // Définir les classes selon que le client soit sur ou sous le budget
+  const getRentabilityStatusColor = () => {
+    if (!profitability) return "";
+    
+    if (isOverBudget) {
+      return "border-red-500 bg-red-50 dark:bg-red-900/30";
+    } else if (percentageUsed > 80) {
+      return "border-yellow-500 bg-yellow-50 dark:bg-yellow-900/30";
+    } else {
+      return "border-green-500 bg-green-50 dark:bg-green-900/30";
+    }
+  };
 
-  const positionClasses = {
-    'top-right': 'top-4 right-4',
-    'bottom-right': 'bottom-4 right-4',
-    'center': 'top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2'
+  // Définir les classes pour le taux horaire affiché
+  const getRateColor = () => {
+    if (!currentHourlyRate || !profitability) return "";
+    
+    const targetRate = profitability.hourlyRate || 0;
+    
+    if (currentHourlyRate < targetRate * 0.8) {
+      return "text-red-600 dark:text-red-400";
+    } else if (currentHourlyRate < targetRate) {
+      return "text-yellow-600 dark:text-yellow-400";
+    } else {
+      return "text-green-600 dark:text-green-400";
+    }
   };
 
   return (
     <motion.div
+      ref={popupRef}
+      drag
+      dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
+      dragElastic={0.2}
+      dragMomentum={false}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
-      className={`fixed ${positionClasses[timerPopupPosition as keyof typeof positionClasses]} ${
+      className={`fixed z-50 ${
         sizeClasses[timerPopupSize as keyof typeof sizeClasses]
-      } bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 z-50 border border-gray-200 dark:border-gray-700`}
+      } bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 border border-gray-200 dark:border-gray-700 cursor-move`}
+      style={{ 
+        top: timerPopupPosition === 'top-right' ? '1rem' : 
+             timerPopupPosition === 'center' ? '50%' : 'auto',
+        right: timerPopupPosition === 'top-right' || timerPopupPosition === 'bottom-right' ? '1rem' : 'auto',
+        bottom: timerPopupPosition === 'bottom-right' ? '1rem' : 'auto',
+        left: timerPopupPosition === 'center' ? '50%' : 'auto',
+        transform: timerPopupPosition === 'center' ? 'translate(-50%, -50%)' : 'none'
+      }}
     >
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
-          {selectedClient && selectedClient.logo && (
-            <div className="w-6 h-6 mr-2 rounded-sm overflow-hidden">
-              <img 
-                src={selectedClient.logo} 
-                alt={`Logo de ${selectedClient.name}`} 
-                className="w-full h-full object-contain"
+      <div className="cursor-default">
+        <div className="flex justify-between items-center mb-2">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center truncate max-w-[180px]">
+            {selectedClient && selectedClient.logo && (
+              <div className="w-6 h-6 mr-2 rounded-sm overflow-hidden flex-shrink-0">
+                <img 
+                  src={selectedClient.logo} 
+                  alt={`Logo de ${selectedClient.name}`} 
+                  className="w-full h-full object-contain"
+                />
+              </div>
+            )}
+            <span className="truncate">
+              {selectedClient ? selectedClient.name : (selectedTask ? selectedTask.title : 'Chronomètre')}
+            </span>
+          </h3>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => dispatch(setTimerPopupSize('small'))}
+              className={`w-4 h-4 rounded-full ${timerPopupSize === 'small' ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+              title="Petit"
+            />
+            <button
+              onClick={() => dispatch(setTimerPopupSize('medium'))}
+              className={`w-4 h-4 rounded-full ${timerPopupSize === 'medium' ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+              title="Moyen"
+            />
+            <button
+              onClick={() => dispatch(setTimerPopupSize('large'))}
+              className={`w-4 h-4 rounded-full ${timerPopupSize === 'large' ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+              title="Grand"
+            />
+            <button
+              onClick={() => dispatch(hideTimerPopup())}
+              className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              title="Fermer"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Afficher les infos de rentabilité si disponibles */}
+        {selectedClient && profitability && (
+          <div className={`mb-4 p-3 rounded-md text-sm border ${getRentabilityStatusColor()}`}>
+            <div className="space-y-1">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-700 dark:text-gray-300">Taux horaire cible:</span>
+                <span className="font-medium">{profitability.hourlyRate}€/h</span>
+              </div>
+              
+              <div className="flex justify-between items-center">
+                <span className="text-gray-700 dark:text-gray-300">Taux horaire actuel:</span>
+                <span className={`font-medium ${getRateColor()}`}>
+                  {currentHourlyRate > 0 ? Math.round(currentHourlyRate) : profitability.hourlyRate}€/h
+                </span>
+              </div>
+              
+              <div className="flex justify-between items-center">
+                <span className="text-gray-700 dark:text-gray-300">Budget mensuel:</span>
+                <span className="font-medium">{profitability.monthlyBudget}€</span>
+              </div>
+              
+              <div className="flex justify-between items-center">
+                <span className="text-gray-700 dark:text-gray-300">Heures restantes:</span>
+                <span className={`font-medium ${isOverBudget ? 'text-red-600 dark:text-red-400' : ''}`}>
+                  {hoursRemaining.toFixed(1)}h
+                </span>
+              </div>
+              
+              <div className="mt-2">
+                <div className="flex justify-between text-xs mb-1">
+                  <span>Progression</span>
+                  <span>{Math.min(100, Math.round(percentageUsed))}%</span>
+                </div>
+                <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full rounded-full ${
+                      isOverBudget ? 'bg-red-500 dark:bg-red-600' : 
+                      percentageUsed > 80 ? 'bg-yellow-500 dark:bg-yellow-600' : 
+                      'bg-green-500 dark:bg-green-600'
+                    }`}
+                    style={{ width: `${Math.min(100, percentageUsed)}%` }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="flex flex-col items-center justify-center mb-4">
+          <div className={`text-3xl font-bold mb-2 ${isOverBudget ? 'text-red-600 dark:text-red-400 animate-pulse' : 'text-gray-900 dark:text-white'}`}>
+            {formatDuration(timerDuration)}
+          </div>
+          <div className="flex space-x-2">
+            {isRunning ? (
+              <button
+                onClick={handlePauseTimer}
+                disabled={loading}
+                className="px-3 py-1 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-opacity-50 disabled:opacity-50"
+              >
+                {loading ? (
+                  <div className="flex items-center">
+                    <svg className="animate-spin h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Pause
+                  </div>
+                ) : 'Pause'}
+              </button>
+            ) : timerId ? (
+              <button
+                onClick={handleResumeTimer}
+                disabled={loading}
+                className="px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 disabled:opacity-50"
+              >
+                {loading ? (
+                  <div className="flex items-center">
+                    <svg className="animate-spin h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Reprendre
+                  </div>
+                ) : 'Reprendre'}
+              </button>
+            ) : (
+              <button
+                onClick={handleStartTimer}
+                disabled={(!selectedClientId && !selectedTaskId) || loading}
+                className="px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 disabled:opacity-50"
+              >
+                {loading ? (
+                  <div className="flex items-center">
+                    <svg className="animate-spin h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Démarrer
+                  </div>
+                ) : 'Démarrer'}
+              </button>
+            )}
+            {(isRunning || timerId) && (
+              <button
+                onClick={handleStopTimer}
+                disabled={loading}
+                className="px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 disabled:opacity-50"
+              >
+                {loading ? (
+                  <div className="flex items-center">
+                    <svg className="animate-spin h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Arrêter
+                  </div>
+                ) : 'Arrêter'}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {!isRunning && !timerId && (
+          <div className="mt-4">
+            <div className="mb-3">
+              <label htmlFor="client" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Client
+              </label>
+              <select
+                id="client"
+                value={selectedClientId}
+                onChange={handleClientChange}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
+                disabled={loading}
+              >
+                <option value="">Sélectionner un client</option>
+                {clients.map(client => (
+                  <option key={client._id} value={client._id}>{client.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="mb-3">
+              <label htmlFor="task" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Tâche
+              </label>
+              <select
+                id="task"
+                value={selectedTaskId}
+                onChange={handleTaskChange}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
+                disabled={loading}
+              >
+                <option value="">Sélectionner une tâche</option>
+                {tasks
+                  .filter(task => !selectedClientId || task.clientId === selectedClientId)
+                  .map(task => (
+                    <option key={task._id} value={task._id}>{task.title}</option>
+                  ))
+                }
+              </select>
+            </div>
+
+            <div className="mb-3">
+              <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Description
+              </label>
+              <input
+                type="text"
+                id="description"
+                name="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
+                placeholder="Que faites-vous ?"
+                disabled={loading}
               />
             </div>
-          )}
-          {selectedClient ? selectedClient.name : (selectedTask ? selectedTask.title : 'Chronomètre')}
-        </h3>
-        <div className="flex space-x-2">
-          <button
-            onClick={() => dispatch(setTimerPopupSize('small'))}
-            className={`w-4 h-4 rounded-full ${timerPopupSize === 'small' ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'}`}
-            title="Petit"
-          />
-          <button
-            onClick={() => dispatch(setTimerPopupSize('medium'))}
-            className={`w-4 h-4 rounded-full ${timerPopupSize === 'medium' ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'}`}
-            title="Moyen"
-          />
-          <button
-            onClick={() => dispatch(setTimerPopupSize('large'))}
-            className={`w-4 h-4 rounded-full ${timerPopupSize === 'large' ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'}`}
-            title="Grand"
-          />
-          <button
-            onClick={() => dispatch(hideTimerPopup())}
-            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-            title="Fermer"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      {/* Afficher les infos de rentabilité si disponibles */}
-      {selectedClient && profitability && (
-        <div className="mb-4 bg-blue-50 dark:bg-blue-900/30 p-2 rounded-md text-xs">
-          <div className="flex justify-between items-center">
-            <span className="text-blue-700 dark:text-blue-300">Taux horaire:</span>
-            <span className="font-medium">{profitability.hourlyRate}€/h</span>
+            
+            <div className="mb-2 flex items-center">
+              <input
+                type="checkbox"
+                id="billable"
+                checked={billable}
+                onChange={(e) => setBillable(e.target.checked)}
+                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                disabled={loading}
+              />
+              <label htmlFor="billable" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+                Facturable
+              </label>
+            </div>
           </div>
-          <div className="flex justify-between items-center mt-1">
-            <span className="text-blue-700 dark:text-blue-300">Rentabilité:</span>
-            <span className={`font-medium ${profitability.profitabilityPercentage >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {profitability.profitabilityPercentage >= 0 ? '+' : ''}{profitability.profitabilityPercentage.toFixed(1)}%
-            </span>
-          </div>
-        </div>
-      )}
+        )}
 
-      <div className="flex flex-col items-center justify-center mb-4">
-        <div className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-          {formatDuration(timerDuration)}
-        </div>
-        <div className="flex space-x-2">
-          {isRunning ? (
+        <div className="absolute bottom-2 right-2">
+          <div className="flex space-x-1">
             <button
-              onClick={handlePauseTimer}
-              disabled={loading}
-              className="px-3 py-1 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-opacity-50 disabled:opacity-50"
-            >
-              {loading ? (
-                <div className="flex items-center">
-                  <svg className="animate-spin h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Pause
-                </div>
-              ) : 'Pause'}
-            </button>
-          ) : timerId ? (
+              onClick={() => dispatch(setTimerPopupPosition('top-right'))}
+              className={`w-4 h-4 rounded-sm ${timerPopupPosition === 'top-right' ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+              title="En haut à droite"
+            />
             <button
-              onClick={handleResumeTimer}
-              disabled={loading}
-              className="px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 disabled:opacity-50"
-            >
-              {loading ? (
-                <div className="flex items-center">
-                  <svg className="animate-spin h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Reprendre
-                </div>
-              ) : 'Reprendre'}
-            </button>
-          ) : (
+              onClick={() => dispatch(setTimerPopupPosition('bottom-right'))}
+              className={`w-4 h-4 rounded-sm ${timerPopupPosition === 'bottom-right' ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+              title="En bas à droite"
+            />
             <button
-              onClick={handleStartTimer}
-              disabled={(!selectedClientId && !selectedTaskId) || loading}
-              className="px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 disabled:opacity-50"
-            >
-              {loading ? (
-                <div className="flex items-center">
-                  <svg className="animate-spin h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Démarrer
-                </div>
-              ) : 'Démarrer'}
-            </button>
-          )}
-          {(isRunning || timerId) && (
-            <button
-              onClick={handleStopTimer}
-              disabled={loading}
-              className="px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 disabled:opacity-50"
-            >
-              {loading ? (
-                <div className="flex items-center">
-                  <svg className="animate-spin h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Arrêter
-                </div>
-              ) : 'Arrêter'}
-            </button>
-          )}
-        </div>
-      </div>
-
-      {!isRunning && !timerId && (
-        <div className="mt-4">
-          <div className="mb-3">
-            <label htmlFor="client" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Client
-            </label>
-            <select
-              id="client"
-              value={selectedClientId}
-              onChange={handleClientChange}
-              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
-              disabled={loading}
-            >
-              <option value="">Sélectionner un client</option>
-              {clients.map(client => (
-                <option key={client._id} value={client._id}>{client.name}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="mb-3">
-            <label htmlFor="task" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Tâche
-            </label>
-            <select
-              id="task"
-              value={selectedTaskId}
-              onChange={handleTaskChange}
-              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
-              disabled={loading}
-            >
-              <option value="">Sélectionner une tâche</option>
-              {tasks.map(task => (
-                <option key={task._id} value={task._id}>{task.title}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="mb-3">
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Description
-            </label>
-            <input
-              type="text"
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
-              placeholder="Que faites-vous ?"
-              disabled={loading}
+              onClick={() => dispatch(setTimerPopupPosition('center'))}
+              className={`w-4 h-4 rounded-sm ${timerPopupPosition === 'center' ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+              title="Au centre"
             />
           </div>
-          
-          <div className="mb-2 flex items-center">
-            <input
-              type="checkbox"
-              id="billable"
-              checked={billable}
-              onChange={(e) => setBillable(e.target.checked)}
-              className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-              disabled={loading}
-            />
-            <label htmlFor="billable" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
-              Facturable
-            </label>
-          </div>
-        </div>
-      )}
-
-      <div className="absolute bottom-2 right-2">
-        <div className="flex space-x-1">
-          <button
-            onClick={() => dispatch(setTimerPopupPosition('top-right'))}
-            className={`w-4 h-4 rounded-sm ${timerPopupPosition === 'top-right' ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'}`}
-            title="En haut à droite"
-          />
-          <button
-            onClick={() => dispatch(setTimerPopupPosition('bottom-right'))}
-            className={`w-4 h-4 rounded-sm ${timerPopupPosition === 'bottom-right' ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'}`}
-            title="En bas à droite"
-          />
-          <button
-            onClick={() => dispatch(setTimerPopupPosition('center'))}
-            className={`w-4 h-4 rounded-sm ${timerPopupPosition === 'center' ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'}`}
-            title="Au centre"
-          />
         </div>
       </div>
     </motion.div>
