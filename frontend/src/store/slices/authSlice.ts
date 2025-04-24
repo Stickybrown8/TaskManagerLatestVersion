@@ -7,6 +7,7 @@ interface AuthState {
   token: string | null;
   loading: boolean;
   error: string | null;
+  rehydrated: boolean; // Ajouté
 }
 
 interface User {
@@ -35,13 +36,14 @@ interface LoginPayload {
   token: string;
 }
 
-// État initial propre (aucune donnée factice)
+// État initial
 const initialState: AuthState = {
   isAuthenticated: false,
   user: null,
   token: null,
   loading: false,
   error: null,
+  rehydrated: false, // Ajouté
 };
 
 const authSlice = createSlice({
@@ -58,6 +60,7 @@ const authSlice = createSlice({
       state.token = action.payload.token;
       state.loading = false;
       state.error = null;
+      state.rehydrated = true; // Ajouté
       localStorage.setItem('token', action.payload.token);
       localStorage.setItem('user', JSON.stringify(action.payload.user));
     },
@@ -67,6 +70,7 @@ const authSlice = createSlice({
       state.token = null;
       state.loading = false;
       state.error = action.payload;
+      state.rehydrated = true; // Ajouté
     },
     logout: (state) => {
       state.isAuthenticated = false;
@@ -74,6 +78,7 @@ const authSlice = createSlice({
       state.token = null;
       state.loading = false;
       state.error = null;
+      state.rehydrated = true; // Ajouté
       localStorage.removeItem('token');
       localStorage.removeItem('user');
     },
@@ -87,6 +92,9 @@ const authSlice = createSlice({
         state.user.gamification = { ...state.user.gamification, ...action.payload };
       }
     },
+    setRehydrated: (state) => { // Ajouté
+      state.rehydrated = true;
+    }
   },
 });
 
@@ -98,6 +106,7 @@ export const {
   logout,
   updateUserProfile,
   updateUserGamification,
+  setRehydrated, // Ajouté
 } = authSlice.actions;
 
 // Reducer
