@@ -24,20 +24,21 @@ import AdminSetup from './AdminSetup';
 
 // Redux
 import { useAppDispatch } from './hooks';
-import { loginSuccess } from './store/slices/authSlice';
+import { loginSuccess, setRehydrated } from './store/slices/authSlice';
 
 const App: React.FC = () => {
   const dispatch = useAppDispatch();
 
   useEffect(() => {
-    // Persistance du token et de l'utilisateur depuis le localStorage si présents
     const token = localStorage.getItem('token');
     const user = localStorage.getItem('user');
-    if (token) {
+    if (token && user) {
       dispatch(loginSuccess({
-        user: user ? JSON.parse(user) : null,
+        user: JSON.parse(user),
         token,
       }));
+    } else {  
+      dispatch(setRehydrated()); // <--- AJOUT
     }
   }, [dispatch]);
 
