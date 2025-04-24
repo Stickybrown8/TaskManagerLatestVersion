@@ -10,7 +10,10 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
   const location = useLocation();
   const { isAuthenticated = false, loading = false, token, rehydrated = false } = useAppSelector(state => state.auth) || {};
 
-  // Attend que Redux soit bien réhydraté avant toute redirection
+  // Debug temporaire
+  // console.log({ isAuthenticated, token, rehydrated, loading });
+  console.log({ isAuthenticated, token, rehydrated, loading });
+
   if (!rehydrated) {
     return (
       <div className="flex items-center justify-center h-screen">
