@@ -1,8 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '../hooks';
 import { motion } from 'framer-motion';
 import { addNotification } from '../store/slices/uiSlice';
 import { gamificationService } from '../services/api';
+import MonthlyProfitabilityWidget from '../components/profitability/MonthlyProfitabilityWidget';
+import ConfettiEffect from '../components/gamification/ConfettiEffect';
+import { profitabilityRewardService } from '../services/profitabilityRewardService';
+import { soundService } from '../services/soundService';
 
 // Définition de l'interface Challenge pour résoudre l'erreur TypeScript
 interface Challenge {
@@ -38,6 +42,7 @@ const Dashboard = () => {
   const { clients = [] } = clientsState;
   
   const [showChallenges, setShowChallenges] = useState(false);
+  const [showGlobalConfetti, setShowGlobalConfetti] = useState(false);
   
   // Calculer les statistiques
   const completedTasks = tasks.filter(task => task.status === 'terminée').length || 0;
@@ -74,8 +79,51 @@ const Dashboard = () => {
     }
   ];
   
+  // Vérification des événements spéciaux (anniversaire, premier jour du mois, etc.)
+  useEffect(() => {
+    const checkSpecialEvents = async () => {
+      try {
+        // Vérifier s'il y a des événements spéciaux aujourd'hui
+        const today = new Date();
+        const dayOfMonth = today.getDate();
+        const month = today.getMonth() + 1;
+        
+        // Exemple: Anniversaire de l'utilisateur
+        if (user && user.birthDate) {
+          const birthDate = new Date(user.birthDate);
+          if (birthDate.getDate() === dayOfMonth && birthDate.getMonth() + 1 === month) {
+            setShowGlobalConfetti(true);
+            soundService.play('celebration');
+            dispatch(addNotification({
+              message: 'Joyeux anniversaire ! 🎉',
+              type: 'success'
+            }));
+          }
+        }
+        
+        // Exemple: Premier jour du mois - vérification de la rentabilité
+        if (dayOfMonth === 1) {
+          const profitabilityResult = await profitabilityRewardService.checkMonthlyProfitability();
+          if (profitabilityResult && profitabilityResult.success) {
+            dispatch(addNotification({
+              message: `Félicitations ! Vous avez atteint vos objectifs de rentabilité le mois dernier. Vous avez gagné ${profitabilityResult.pointsEarned} points !`,
+              type: 'success'
+            }));
+            
+            // Déclencher les confettis si l'objectif est atteint
+            setShowGlobalConfetti(true);
+            soundService.play('monthly_reward');
+          }
+        }
+      } catch (error) {
+        console.error('Erreur lors de la vérification des événements spéciaux:', error);
+      }
+    };
+    
+    checkSpecialEvents();
+  }, [dispatch, user]);
+  
   // Réclamer la récompense d'un défi
-  // Ajout du type Challenge pour corriger l'erreur TypeScript
   const handleClaimReward = async (challenge: Challenge) => {
     if (!challenge.completed) {
       dispatch(addNotification({
@@ -98,6 +146,10 @@ const Dashboard = () => {
         type: 'success'
       }));
       
+      // Déclencher les confettis
+      setShowGlobalConfetti(true);
+      soundService.play('challenge_complete');
+      
       // Mettre à jour l'interface (dans une application réelle, cela serait géré par Redux)
       setTimeout(() => {
         setShowChallenges(false);
@@ -112,6 +164,14 @@ const Dashboard = () => {
   
   return (
     <div className="container mx-auto">
+      {/* Effet de confettis global */}
+      <ConfettiEffect 
+        show={showGlobalConfetti} 
+        duration={5000} 
+        particleCount={200} 
+        onComplete={() => setShowGlobalConfetti(false)}
+      />
+      
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Tableau de bord</h1>
         <p className="text-gray-600 dark:text-gray-300 mt-1">Bienvenue, {user?.name || 'Utilisateur'} !</p>
@@ -248,6 +308,16 @@ const Dashboard = () => {
           </div>
         </motion.div>
       </div>
+      
+      {/* Widget de rentabilité mensuelle */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.15 }}
+        className="mb-8"
+      >
+        <MonthlyProfitabilityWidget />
+      </motion.div>
       
       {/* Statistiques */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
