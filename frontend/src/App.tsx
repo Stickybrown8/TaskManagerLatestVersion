@@ -30,15 +30,23 @@ const App: React.FC = () => {
   const dispatch = useAppDispatch();
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const user = localStorage.getItem('user');
-    if (token && user) {
-      dispatch(loginSuccess({ user: JSON.parse(user), token }));
-    } else {  
-      dispatch(setRehydrated()); // <--- AJOUT
-    }
-  }, [dispatch]);
-
+  const token = localStorage.getItem('token');
+  const userRaw = localStorage.getItem('user');
+  let user = null;
+  try {
+    if (userRaw) {
+       user = JSON.parse(userRaw);
+     }
+  } catch (e) {
+    user = null;
+  }
+  if (token && user) {
+    dispatch(loginSuccess({ user, token }));
+  } else {
+    dispatch(setRehydrated());
+  }
+}, [dispatch]);
+  
   return (
     <>
       {/* Le timer est toujours disponible, indépendamment des routes */}
