@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 
 // Composants de mise en page
@@ -22,7 +22,25 @@ import TestApi from './pages/TestApi';
 import TestLogin from './TestLogin';
 import AdminSetup from './AdminSetup';
 
+// Redux
+import { useAppDispatch } from './hooks';
+import { loginSuccess } from './store/slices/authSlice';
+
 const App: React.FC = () => {
+  const dispatch = useAppDispatch();
+
+  useEffect(() => {
+    // Persistance du token et de l'utilisateur depuis le localStorage si présents
+    const token = localStorage.getItem('token');
+    const user = localStorage.getItem('user');
+    if (token) {
+      dispatch(loginSuccess({
+        user: user ? JSON.parse(user) : null,
+        token,
+      }));
+    }
+  }, [dispatch]);
+
   return (
     <>
       {/* Le timer est toujours disponible, indépendamment des routes */}
