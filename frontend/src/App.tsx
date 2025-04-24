@@ -1,8 +1,8 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import PrivateRoute from './components/PrivateRoute';
-import TimerPopup from './components/timer/TimerPopup';
+import TimerPopupFix from './components/timer/TimerPopupFix';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -11,43 +11,20 @@ import TaskDetail from './pages/TaskDetail';
 import TaskForm from './pages/TaskForm';
 import Clients from './pages/Clients';
 import ClientForm from './pages/ClientForm';
+import ClientDetail from './pages/ClientDetail';
+import ClientProfitability from './pages/ClientProfitability';
 import ClientDashboard from './pages/ClientDashboard';
 import Gamification from './pages/Gamification';
 import Profile from './pages/Profile';
 import TestApi from './pages/TestApi';
 import TestLogin from './TestLogin';
 import AdminSetup from './AdminSetup';
-import { useAppDispatch } from './hooks';
-import { loginSuccess, setRehydrated } from './store/slices/authSlice';
 
-const App: React.FC = () => {
-  const dispatch = useAppDispatch();
-
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    const userRaw = localStorage.getItem('user');
-    let user = null;
-    try {
-      if (userRaw) {
-        user = JSON.parse(userRaw);
-      }
-    } catch (e) {
-      user = null;
-    }
-    console.log("TOKEN found:", token);
-    console.log("USER parsed:", user);
-    if (token && user) {
-      console.log("DISPATCH loginSuccess");
-      dispatch(loginSuccess({ user, token }));
-    } else {
-      console.log("DISPATCH setRehydrated");
-      dispatch(setRehydrated());
-    }
-  }, [dispatch]);
-
+// Ce composant remplacera l'ancien App.tsx
+const AppRouterUpdated: React.FC = () => {
   return (
     <>
-      <TimerPopup />
+      <TimerPopupFix />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
@@ -59,6 +36,8 @@ const App: React.FC = () => {
             <Route path="/" element={<Dashboard />} />
             <Route path="/clients" element={<Clients />} />
             <Route path="/clients/new" element={<ClientForm />} />
+            <Route path="/clients/:id" element={<ClientDetail />} />
+            <Route path="/clients/:id/profitability" element={<ClientProfitability />} />
             <Route path="/tasks" element={<Tasks />} />
             <Route path="/tasks/new" element={<TaskForm />} />
             <Route path="/tasks/:id" element={<TaskDetail />} />
@@ -73,4 +52,4 @@ const App: React.FC = () => {
   );
 };
 
-export default App;
+export default AppRouterUpdated;
