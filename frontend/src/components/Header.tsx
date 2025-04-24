@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAppSelector, useAppDispatch } from '../hooks';
 import { toggleDarkMode } from '../store/slices/uiSlice';
+import { RootState, AuthState, GamificationState, UIState } from '../store';
 
 interface HeaderProps {
   onLogout: () => void;
@@ -8,15 +9,17 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ onLogout }) => {
   const dispatch = useAppDispatch();
-
-  const ui = useAppSelector(state => state.ui) || {};
+  
+  // Utiliser les types explicites pour les états
+  const ui = useAppSelector((state: RootState) => state.ui) as UIState || {};
   const { darkMode = false } = ui;
-
-  const auth = useAppSelector(state => state.auth) || {};
-  const { user = { name: 'Utilisateur', email: 'utilisateur@exemple.com' } } = auth;
-
-  const gamification = useAppSelector(state => state.gamification) || {};
-  const { actionPoints = 0, badges = [] } = gamification;
+  
+  const auth = useAppSelector((state: RootState) => state.auth) as AuthState || {};
+  const user = auth.user || { name: 'Utilisateur', email: 'utilisateur@exemple.com' };
+  
+  const gamification = useAppSelector((state: RootState) => state.gamification) as GamificationState || {};
+  const actionPoints = gamification.actionPoints || 0;
+  const badges = gamification.badges || [];
 
   return (
     <header className="bg-white dark:bg-gray-800 shadow-md h-16 flex items-center justify-between px-4 md:px-6">
@@ -46,7 +49,7 @@ const Header: React.FC<HeaderProps> = ({ onLogout }) => {
         >
           {darkMode ? (
             <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 0010.586 10.586z" />
+              <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 0110.586 10.586z" />
             </svg>
           ) : (
             <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
