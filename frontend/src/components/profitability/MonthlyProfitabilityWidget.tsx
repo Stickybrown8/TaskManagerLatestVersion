@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useAppDispatch } from '../../hooks';
+import { useAppDispatch, useAppSelector } from '../../hooks';
 import { addNotification } from '../../store/slices/uiSlice';
 import ConfettiEffect from '../gamification/ConfettiEffect';
 import { profitabilityRewardService } from '../../services/profitabilityRewardService';
+import { soundService } from '../../services/soundService';
 
 interface MonthlyProfitabilityWidgetProps {
   displayMode?: 'compact' | 'full';
@@ -59,6 +60,9 @@ const MonthlyProfitabilityWidget: React.FC<MonthlyProfitabilityWidgetProps> = ({
     setLoading(true);
     setError(null);
     
+    // Récupérer l'état de l'audio depuis le store
+    const { soundEnabled } = useAppSelector(state => state.ui || { soundEnabled: true });
+    
     try {
       const result = await profitabilityRewardService.checkMonthlyProfitabilityTargets();
       
@@ -69,9 +73,20 @@ const MonthlyProfitabilityWidget: React.FC<MonthlyProfitabilityWidgetProps> = ({
         lastChecked: new Date().toISOString()
       });
       
-      // Si des points ont été gagnés, afficher l'animation de confettis
+      // Si des points ont été gagnés, afficher l'animation de confettis et jouer un son
       if (result.targetsReached > 0) {
         setShowConfetti(true);
+        
+        // Jouer le son de récompense mensuelle
+        if (soundEnabled) {
+          // Pour une récompense importante, jouons une séquence de sons
+          if (result.targetsReached >= 3) {
+            soundService.playSequence(['success', 'monthly_reward', 'celebration'], 0.7);
+          } else {
+            soundService.play('monthly_reward', 0.6);
+          }
+        }
+        
         setTimeout(() => setShowConfetti(false), 5000);
         
         dispatch(addNotification({
@@ -79,6 +94,10 @@ const MonthlyProfitabilityWidget: React.FC<MonthlyProfitabilityWidgetProps> = ({
           type: 'success'
         }));
       } else {
+        if (soundEnabled) {
+          soundService.play('notification', 0.4);
+        }
+        
         dispatch(addNotification({
           message: 'Vérification terminée. Aucun client n\'a atteint son objectif de rentabilité ce mois-ci.',
           type: 'info'
@@ -87,6 +106,10 @@ const MonthlyProfitabilityWidget: React.FC<MonthlyProfitabilityWidgetProps> = ({
     } catch (error: any) {
       console.error('Erreur lors de la vérification de la rentabilité mensuelle:', error);
       setError(error.message || 'Une erreur est survenue lors de la vérification');
+      
+      if (soundEnabled) {
+        soundService.play('error', 0.5);
+      }
       
       dispatch(addNotification({
         message: 'Erreur lors de la vérification de la rentabilité mensuelle',
