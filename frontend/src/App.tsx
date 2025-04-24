@@ -33,10 +33,7 @@ const App: React.FC = () => {
     const token = localStorage.getItem('token');
     const user = localStorage.getItem('user');
     if (token && user) {
-      dispatch(loginSuccess({
-        user: JSON.parse(user),
-        token,
-      }));
+      dispatch(loginSuccess({ user: JSON.parse(user), token }));
     } else {  
       dispatch(setRehydrated()); // <--- AJOUT
     }
