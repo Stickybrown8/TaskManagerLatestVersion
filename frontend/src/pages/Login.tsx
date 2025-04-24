@@ -36,6 +36,9 @@ const Login: React.FC = () => {
       // Stocke le token dans le localStorage pour la persistance
       if (response.token) {
         localStorage.setItem('token', response.token);
+        localStorage.setItem('user', JSON.stringify(response.user));
+        dispatch(loginSuccess({ user: response.user, token: response.token }));
+        navigate('/'); // ou navigate vers la page d'accueil privée
       }
 
       dispatch(loginSuccess({
