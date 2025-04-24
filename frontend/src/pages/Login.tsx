@@ -29,34 +29,25 @@ const Login: React.FC = () => {
       setLoading(true);
       dispatch(loginStart());
 
-      console.log("Avant appel API - Login");
       const response = await authService.login(email, password);
-      console.log("Après appel API - Login:", response);
 
-      // Stocke le token dans le localStorage pour la persistance
-      if (response.token) {
+      if (response.token && response.user) {
         localStorage.setItem('token', response.token);
         localStorage.setItem('user', JSON.stringify(response.user));
         dispatch(loginSuccess({ user: response.user, token: response.token }));
-        navigate('/'); // ou navigate vers la page d'accueil privée
+        dispatch(addNotification({
+          message: 'Connexion réussie !',
+          type: 'success'
+        }));
+        navigate('/'); // Redirige vers la page d'accueil privée
+      } else {
+        throw new Error("Identification échouée, veuillez vérifier vos identifiants.");
       }
-
-      dispatch(loginSuccess({
-        user: response.user,
-        token: response.token
-      }));
-
-      dispatch(addNotification({
-        message: 'Connexion réussie !',
-        type: 'success'
-      }));
-
-      navigate('/'); // Redirige vers la Home ou Dashboard
     } catch (error: any) {
       console.error("Erreur complète:", error);
-      dispatch(loginFailure(error.response?.data?.message || 'Erreur de connexion'));
+      dispatch(loginFailure(error.response?.data?.message || error.message || 'Erreur de connexion'));
       dispatch(addNotification({
-        message: error.response?.data?.message || 'Erreur de connexion',
+        message: error.response?.data?.message || error.message || 'Erreur de connexion',
         type: 'error'
       }));
     } finally {
@@ -131,6 +122,7 @@ const Login: React.FC = () => {
             <p className="text-sm text-gray-600 dark:text-gray-400">
               Vous n'avez pas de compte ?{' '}
               <button
+                type="button"
                 onClick={() => navigate('/register')}
                 className="font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300"
               >
