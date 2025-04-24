@@ -35,35 +35,15 @@ interface LoginPayload {
   token: string;
 }
 
-// État initial MODIFIÉ avec des données factices pour permettre à l'application de fonctionner
+// État initial propre (aucune donnée factice)
 const initialState: AuthState = {
-  isAuthenticated: true, // Forcé à true pour contourner la connexion
-  user: {
-    id: "fake-user-id",
-    name: "Utilisateur Test",
-    email: "test@example.com",
-    profile: {
-      avatar: "/default-avatar.png",
-      theme: "default",
-      settings: {
-        notifications: true,
-        language: "fr",
-        soundEffects: true
-      }
-    },
-    gamification: {
-      level: 1,
-      experience: 0,
-      actionPoints: 10,
-      badges: []
-    }
-  },
-  token: "fake-token-for-testing",
+  isAuthenticated: false,
+  user: null,
+  token: null,
   loading: false,
   error: null,
 };
 
-// Slice
 const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -79,10 +59,12 @@ const authSlice = createSlice({
       state.loading = false;
       state.error = null;
       localStorage.setItem('token', action.payload.token);
+      localStorage.setItem('user', JSON.stringify(action.payload.user));
     },
     loginFailure: (state, action: PayloadAction<string>) => {
       state.isAuthenticated = false;
       state.user = null;
+      state.token = null;
       state.loading = false;
       state.error = action.payload;
     },
@@ -90,7 +72,10 @@ const authSlice = createSlice({
       state.isAuthenticated = false;
       state.user = null;
       state.token = null;
+      state.loading = false;
+      state.error = null;
       localStorage.removeItem('token');
+      localStorage.removeItem('user');
     },
     updateUserProfile: (state, action: PayloadAction<Partial<User>>) => {
       if (state.user) {
