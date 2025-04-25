@@ -1,7 +1,11 @@
+// server.js
 const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
+const fs = require('fs');
+const path = require('path');
 const connectDB = require('./config/db');
+const chatRoutes = require('./routes/chat');
 
 // Routes imports
 const registerRoute = require('./routes/register');
@@ -11,10 +15,10 @@ const taskRoutes = require('./routes/tasks');
 const badgeRoutes = require('./routes/badges');
 const gamificationRoutes = require('./routes/gamification');
 
-// Chargement des variables d'environnement
+// Load environment variables
 dotenv.config({ path: process.env.NODE_ENV === 'production' ? '.env.production' : '.env' });
 
-// Connexion à la base de données
+// Connect to database
 connectDB();
 
 const app = express();
@@ -22,36 +26,63 @@ const app = express();
 // Middleware
 app.use(express.json());
 app.use(cors({ origin: '*' }));
+app.use(express.static('public'));
 
-// Route de debug qui affiche toutes les routes montées, préfixes inclus (API-friendly)
-app.get('/debug/routes', (req, res) => {
-  const getRoutes = (stack, parent = '') => {
-    let routes = [];
-    stack.forEach((middleware) => {
-      if (middleware.route) {
-        routes.push(parent + middleware.route.path);
-      } else if (middleware.name === 'router' && middleware.handle.stack) {
-        // Extraction du préfixe du router
-        const prefix = middleware.regexp && middleware.regexp.source
-          ? middleware.regexp.source
-              .replace(/^\\^\\/, '/')
-              .replace(/\\\/\?\(\?=\\\/\|\$\)/, '')
-              .replace(/\\\//g, '/')
-          : '';
-        routes = routes.concat(getRoutes(middleware.handle.stack, parent + prefix));
+// Recursive function to read directory structure
+function readDirRecursive(dir, depth = 3) {
+  const name = path.basename(dir);
+  if (depth < 0) return { name, type: 'dir', children: [] };
+  const children = fs.readdirSync(dir, { withFileTypes: true })
+    .filter(d => !['node_modules', '.git'].includes(d.name))
+    .map(d => {
+      const fullPath = path.join(dir, d.name);
+      if (d.isDirectory()) {
+        return { name: d.name, type: 'dir', children: readDirRecursive(fullPath, depth - 1).children };
       }
+      return { name: d.name, type: 'file' };
     });
-    return routes;
-  };
-  res.json(getRoutes(app._router.stack));
+  return { name, type: 'dir', children };
+}
+
+// Route to get project file tree
+app.get('/api/file-tree', (req, res) => {
+  const rootDir = path.resolve(__dirname, '..');
+  const tree = readDirRecursive(rootDir, 3);
+  res.json(tree);
 });
 
-// Route de test simple
+// Route to get full file content
+app.get('/api/file', (req, res) => {
+  const relPath = req.query.path;
+  if (!relPath) return res.status(400).send('Missing path query parameter');
+  const filePath = path.resolve(__dirname, '..', relPath);
+  if (!filePath.startsWith(path.resolve(__dirname, '..'))) {
+    return res.status(400).send('Invalid path');
+  }
+  if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+    return res.status(404).send('File not found');
+  }
+  const content = fs.readFileSync(filePath, 'utf8');
+  res.type('text/plain').send(content);
+});
+
+// Simple debug: list all registered routes
+app.get('/debug/routes', (req, res) => {
+  const routes = app._router.stack
+    .filter(layer => layer.route)
+    .map(layer => ({
+      path: layer.route.path,
+      methods: Object.keys(layer.route.methods).join(',').toUpperCase()
+    }));
+  res.json(routes);
+});
+
+// Simple test
 app.get('/api/test', (req, res) => {
   res.json({ message: 'Route de test fonctionnelle' });
 });
 
-// Route pour vérifier les variables d’environnement
+// Environment debug
 app.get('/debug/env', (req, res) => {
   res.json({
     nodeEnv: process.env.NODE_ENV,
@@ -61,42 +92,28 @@ app.get('/debug/env', (req, res) => {
   });
 });
 
-// ROUTES API
+// API routes
 app.use('/api/register', registerRoute);
 app.use('/api/users', userRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/badges', badgeRoutes);
 app.use('/api/gamification', gamificationRoutes);
+app.use('/api/chat', chatRoutes);
 
-// Route de base pour vérifier que l’API fonctionne
+// Base route
 app.get('/', (req, res) => {
   res.json({ message: 'API Task Manager fonctionnelle' });
 });
 
-// --- Affichage en console des routes exposées (pour Render logs/debug) ---
-function printRoutes(stack, parent = '') {
-  stack.forEach(middleware => {
-    if (middleware.route) {
-      const methods = Object.keys(middleware.route.methods);
-      console.log(`Route: ${parent}${middleware.route.path} [${methods.join(', ')}]`);
-    } else if (middleware.name === 'router' && middleware.handle.stack) {
-      const prefix = middleware.regexp && middleware.regexp.source
-        ? middleware.regexp.source
-            .replace(/^\\^\\/, '/')
-            .replace(/\\\/\?\(\?=\\\/\|\$\)/, '')
-            .replace(/\\\//g, '/')
-        : '';
-      printRoutes(middleware.handle.stack, parent + prefix);
-    }
-  });
-}
+// Print routes to console
+const routes = app._router.stack
+  .filter(layer => layer.route)
+  .map(layer => `${layer.route.stack[0].method.toUpperCase()} ${layer.route.path}`);
+routes.forEach(r => console.log('Route:', r));
 
-printRoutes(app._router.stack);
-
-// Port
+// Start server
 const PORT = process.env.PORT || 5000;
-
 app.listen(PORT, () => {
   console.log(`Serveur démarré sur le port ${PORT}`);
 });
