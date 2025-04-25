@@ -1,4 +1,4 @@
-// server.js
+// server.js - Ajout des routes pour les images
 const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
@@ -14,6 +14,7 @@ const clientRoutes = require('./routes/clients');
 const taskRoutes = require('./routes/tasks');
 const badgeRoutes = require('./routes/badges');
 const gamificationRoutes = require('./routes/gamification');
+const imageRoutes = require('./routes/images'); // Nouvelle importation
 
 // Load environment variables
 dotenv.config({ path: process.env.NODE_ENV === 'production' ? '.env.production' : '.env' });
@@ -24,7 +25,7 @@ connectDB();
 const app = express();
 
 // Middleware
-app.use(express.json());
+app.use(express.json({ limit: '10mb' })); // Augmenter la limite pour permettre l'upload d'images
 app.use(cors({ origin: '*' }));
 app.use(express.static('public'));
 
@@ -100,6 +101,7 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/badges', badgeRoutes);
 app.use('/api/gamification', gamificationRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/images', imageRoutes); // Nouvelle route pour les images
 
 // Base route
 app.get('/', (req, res) => {
