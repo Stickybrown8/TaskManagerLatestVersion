@@ -30,6 +30,7 @@
     .image-preview button { margin-top: 0.5rem; background: #dc3545; }
     .paste-info { color: #6c757d; font-size: 0.8rem; margin-top: 0.25rem; }
     .clear-btn { background: #6c757d; }
+    .buttons { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
@@ -39,14 +40,16 @@
   <div id="controls">
     <textarea id="input" placeholder="Écris ton message... (Entrée = envoyer, Maj+Entrée = saut de ligne)" autocomplete="off"></textarea>
     <button id="send">Envoyer</button>
-    <button id="clear" class="clear-btn">Effacer</button>
   </div>
   <div id="image-preview" class="image-preview">
     <img id="preview-img" src="" alt="Aperçu de l'image">
     <button id="remove-image">Supprimer l'image</button>
   </div>
   <div class="paste-info">Coller une image (Ctrl+V) pour l'intégrer à votre message</div>
-  <button id="show-tree">Afficher arbre</button>
+  <div class="buttons">
+    <button id="clear" class="clear-btn">Effacer l'historique</button>
+    <button id="show-tree">Afficher arbre</button>
+  </div>
   <pre id="file-tree"></pre>
   <script>
     const chatEl = document.getElementById('chat');
@@ -59,9 +62,14 @@
     const previewImgEl = document.getElementById('preview-img');
     const removeImgBtn = document.getElementById('remove-image');
     
+    // Générer un ID unique pour chaque session de chat
+    const chatId = localStorage.getItem('chatId') || `chat_${Date.now()}`;
+    localStorage.setItem('chatId', chatId);
+    
     let history = [];
     let treeVisible = false;
     let currentImageData = null;
+    let currentImageType = null;
     
     // Chargement de l'historique de conversation depuis le localStorage
     function loadHistory() {
@@ -78,6 +86,24 @@
           }
         });
       }
+      
+      // Charger aussi les images précédentes
+      loadImages();
+    }
+
+    // Chargement des images depuis le serveur
+    async function loadImages() {
+      try {
+        const res = await fetch(`/api/images/chat/${chatId}`);
+        if (res.ok) {
+          const images = await res.json();
+          images.forEach(image => {
+            appendImage('user', image.data);
+          });
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement des images:', error);
+      }
     }
 
     // Sauvegarder l'historique dans le localStorage
@@ -91,6 +117,8 @@
         history = [];
         localStorage.removeItem('chatHistory');
         chatEl.innerHTML = '';
+        // Générer un nouveau chatId
+        localStorage.setItem('chatId', `chat_${Date.now()}`);
       }
     });
 
@@ -164,6 +192,30 @@
       chatEl.scrollTop = chatEl.scrollHeight;
     }
 
+    // Télécharger une image vers le serveur
+    async function uploadImage(imageData, imageType) {
+      try {
+        const res = await fetch('/api/images/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            imageData,
+            chatId,
+            mimeType: imageType
+          })
+        });
+        
+        if (!res.ok) {
+          throw new Error('Erreur lors du téléchargement de l\'image');
+        }
+        
+        return await res.json();
+      } catch (error) {
+        console.error('Erreur:', error);
+        return null;
+      }
+    }
+
     async function send() {
       const message = inputEl.value.trim();
       
@@ -176,6 +228,9 @@
       
       if (currentImageData) {
         appendImage('user', currentImageData);
+        
+        // Télécharger l'image vers le serveur
+        await uploadImage(currentImageData, currentImageType);
       }
       
       inputEl.value = '';
@@ -184,6 +239,7 @@
       if (currentImageData) {
         imagePreviewEl.style.display = 'none';
         currentImageData = null;
+        currentImageType = null;
       }
       
       // Ne pas envoyer au serveur si uniquement une image
@@ -237,6 +293,7 @@
           reader.onload = function(event) {
             // Récupérer les données de l'image
             currentImageData = event.target.result;
+            currentImageType = item.type;
             
             // Afficher l'aperçu de l'image
             previewImgEl.src = currentImageData;
@@ -253,6 +310,7 @@
     removeImgBtn.addEventListener('click', () => {
       imagePreviewEl.style.display = 'none';
       currentImageData = null;
+      currentImageType = null;
     });
     
     sendBtn.addEventListener('click', send);
