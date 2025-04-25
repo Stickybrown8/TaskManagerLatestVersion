@@ -61,17 +61,33 @@ router.post('/', async (req, res) => {
       console.warn('⚠️ README non trouvé ou illisible à', readmePath, err.message);
     }
 
-    // 5) Prépare les messages, en injectant le contenu du README en premier
+    // 5) Prépare les messages avec ton style débutant
     const messages = [];
+
+    // Instruction système pour le ton débutant
+    messages.push({
+      role: 'system',
+      content:
+        'Tu es un assistant qui explique comme à un enfant de 10 ans. ' +
+        'Pour chaque erreur, indique toujours le fichier et la ligne. ' +
+        'Explique pas à pas chaque commande et fournis le code complet dans un bloc markdown ' +
+        'avec le chemin du fichier. Utilise un langage simple et bienveillant.'
+    });
+
+    // Contexte global du README
     if (readmeContent) {
-      messages.push({ role: 'system', content: `CONTEXTE GLOBAL DU PROJET (lire README.md) :\n${readmeContent}` });
+      messages.push({
+        role: 'system',
+        content: `CONTEXTE GLOBAL DU PROJET (README.md) :\n${readmeContent}`
+      });
     }
-    messages.push(
-      { role: 'system', content: 'Tu es un assistant expert en code JavaScript/TypeScript/React/Node.js.' },
-      { role: 'system', content: `Extraits pertinents :\n${context}` },
-      ...history,
-      { role: 'user', content: message }
-    );
+
+    // Contexte des extraits pertinents
+    messages.push({ role: 'system', content: `Extraits pertinents :\n${context}` });
+
+    // Historique et question utilisateur
+    messages.push(...history);
+    messages.push({ role: 'user', content: message });
 
     // 6) Appel à GPT-4.1
     const completion = await openai.chat.completions.create({

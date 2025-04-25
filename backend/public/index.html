@@ -13,8 +13,8 @@
     .bot     { background: #e9ecef; color: #333; align-self: flex-start; }
     .typing  { font-style: italic; opacity: 0.7; }
     #controls { display: flex; width: 100%; max-width: 600px; gap: 0.5rem; box-sizing: border-box; }
-    #input   { flex: 1; padding: 0.75rem; border-radius: 8px; border: 1px solid #ccc; font-size: 1rem; box-sizing: border-box; }
-    button   { padding: 0.75rem 1rem; border: none; border-radius: 8px; background: #28a745; color: #fff; font-size: 1rem; cursor: pointer; transition: background 0.2s; }
+    textarea { flex: 1; padding: 0.75rem; border-radius: 8px; border: 1px solid #ccc; font-size: 1rem; resize: vertical; min-height: 50px; max-height: 150px; box-sizing: border-box; }
+    button   { padding: 0.75rem 1rem; border: none; border-radius: 8px; background: #28a745; color: #fff; font-size: 1rem; cursor: pointer; transition: background 0.2s; white-space: nowrap; }
     button:hover { background: #218838; }
     pre      { background: #f1f1f1; border-radius: 8px; padding: 1rem; overflow-x: auto; font-family: monospace; margin-top: 1rem; white-space: pre-wrap; }
     code     { background: #eee; padding: 2px 4px; border-radius: 4px; }
@@ -26,7 +26,7 @@
   <h1>Chat GPT-4.1 RAG</h1>
   <div id="chat"></div>
   <div id="controls">
-    <input id="input" placeholder="Écris ton message..." autocomplete="off" />
+    <textarea id="input" placeholder="Écris ton message... (Entrée = saut de ligne, Ctrl+Entrée = envoyer)" autocomplete="off"></textarea>
     <button id="send">Envoyer</button>
     <button id="show-tree">Afficher arbre</button>
   </div>
@@ -39,26 +39,22 @@
     const fileTreeEl = document.getElementById('file-tree');
     let history = [];
 
-    // Ajoute un indicateur de saisie
     let typingEl = null;
     function showTyping() {
       typingEl = document.createElement('div');
       typingEl.classList.add('message', 'bot', 'typing');
-      typingEl.textContent = '...' ;
+      typingEl.textContent = '...';
       chatEl.appendChild(typingEl);
       chatEl.scrollTop = chatEl.scrollHeight;
     }
     function hideTyping() {
-      if (typingEl) {
-        chatEl.removeChild(typingEl);
-        typingEl = null;
-      }
+      if (typingEl) chatEl.removeChild(typingEl);
+      typingEl = null;
     }
 
     function appendMessage(who, text) {
       const div = document.createElement('div');
       div.classList.add('message', who);
-      // Convertit markdown en HTML
       div.innerHTML = marked.parse(text);
       chatEl.appendChild(div);
       chatEl.scrollTop = chatEl.scrollHeight;
@@ -70,7 +66,6 @@
       appendMessage('user', `**Moi:** ${message}`);
       inputEl.value = '';
       showTyping();
-
       try {
         const res = await fetch('/api/chat', {
           method: 'POST',
@@ -88,21 +83,25 @@
       }
     }
 
-    async function showTree() {
+    // Ctrl+Enter pour envoyer, Enter pour saut de ligne
+    inputEl.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && e.ctrlKey) {
+        e.preventDefault();
+        send();
+      }
+    });
+    sendBtn.addEventListener('click', send);
+    showTreeBtn.addEventListener('click', async () => {
       try {
         const res = await fetch('/api/file-tree');
         const tree = await res.json();
         fileTreeEl.textContent = JSON.stringify(tree, null, 2);
         fileTreeEl.style.display = 'block';
-      } catch (err) {
+      } catch {
         fileTreeEl.textContent = 'Erreur récupération arborescence';
         fileTreeEl.style.display = 'block';
       }
-    }
-
-    sendBtn.addEventListener('click', send);
-    inputEl.addEventListener('keydown', e => e.key === 'Enter' && send());
-    showTreeBtn.addEventListener('click', showTree);
+    });
   </script>
 </body>
 </html>

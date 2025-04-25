@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+// src/components/profitability/MonthlyProfitabilityWidget.tsx
+
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAppDispatch, useAppSelector } from '../../hooks';
 import { addNotification } from '../../store/slices/uiSlice';
@@ -29,20 +31,20 @@ const MonthlyProfitabilityWidget: React.FC<MonthlyProfitabilityWidgetProps> = ({
   });
   const [showConfetti, setShowConfetti] = useState(false);
 
+  // 🟢 Hook utilisé DIRECTEMENT dans le composant :
+  const { soundEnabled } = useAppSelector(state => state.ui || { soundEnabled: true });
+
   // Vérifier si nous sommes à la fin du mois pour afficher un badge de notification
   const isEndOfMonth = () => {
     const today = new Date();
     const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
     const daysUntilEnd = lastDayOfMonth.getDate() - today.getDate();
-    
-    // Retourner vrai si nous sommes dans les 3 derniers jours du mois
     return daysUntilEnd <= 3;
   };
 
   // Formater la date de dernier contrôle
   const formatLastChecked = (dateStr: string | null) => {
     if (!dateStr) return 'Jamais';
-    
     try {
       const date = new Date(dateStr);
       return date.toLocaleDateString('fr-FR', {
@@ -55,40 +57,34 @@ const MonthlyProfitabilityWidget: React.FC<MonthlyProfitabilityWidgetProps> = ({
     }
   };
 
-  // Vérifier la rentabilité mensuelle
-  const checkMonthlyProfitability = async () => {
+  // ⚠️ Fix: soundEnabled passé en argument !
+  const checkMonthlyProfitability = async (soundEnabled: boolean) => {
     setLoading(true);
     setError(null);
-    
-    // Récupérer l'état de l'audio depuis le store
-    const { soundEnabled } = useAppSelector(state => state.ui || { soundEnabled: true });
-    
+
     try {
       const result = await profitabilityRewardService.checkMonthlyProfitabilityTargets();
-      
+
       setProfitabilityData({
         targetsReached: result.targetsReached,
         totalClients: result.totalClients,
         totalPointsEarned: result.totalPointsEarned,
         lastChecked: new Date().toISOString()
       });
-      
-      // Si des points ont été gagnés, afficher l'animation de confettis et jouer un son
+
       if (result.targetsReached > 0) {
         setShowConfetti(true);
-        
-        // Jouer le son de récompense mensuelle
+
         if (soundEnabled) {
-          // Pour une récompense importante, jouons une séquence de sons
           if (result.targetsReached >= 3) {
             soundService.playSequence(['success', 'monthly_reward', 'celebration'], 0.7);
           } else {
             soundService.play('monthly_reward', 0.6);
           }
         }
-        
+
         setTimeout(() => setShowConfetti(false), 5000);
-        
+
         dispatch(addNotification({
           message: `Félicitations ! ${result.targetsReached} clients ont atteint leurs objectifs de rentabilité. Vous avez gagné ${result.totalPointsEarned} points !`,
           type: 'success'
@@ -97,7 +93,7 @@ const MonthlyProfitabilityWidget: React.FC<MonthlyProfitabilityWidgetProps> = ({
         if (soundEnabled) {
           soundService.play('notification', 0.4);
         }
-        
+
         dispatch(addNotification({
           message: 'Vérification terminée. Aucun client n\'a atteint son objectif de rentabilité ce mois-ci.',
           type: 'info'
@@ -106,11 +102,11 @@ const MonthlyProfitabilityWidget: React.FC<MonthlyProfitabilityWidgetProps> = ({
     } catch (error: any) {
       console.error('Erreur lors de la vérification de la rentabilité mensuelle:', error);
       setError(error.message || 'Une erreur est survenue lors de la vérification');
-      
+
       if (soundEnabled) {
         soundService.play('error', 0.5);
       }
-      
+
       dispatch(addNotification({
         message: 'Erreur lors de la vérification de la rentabilité mensuelle',
         type: 'error'
@@ -120,7 +116,7 @@ const MonthlyProfitabilityWidget: React.FC<MonthlyProfitabilityWidgetProps> = ({
     }
   };
 
-  // Si nous sommes en mode compact, afficher une version simplifiée
+  // Version compacte
   if (displayMode === 'compact') {
     return (
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
@@ -134,10 +130,9 @@ const MonthlyProfitabilityWidget: React.FC<MonthlyProfitabilityWidgetProps> = ({
             </span>
           )}
         </div>
-        
         <div className="mt-2">
           <button
-            onClick={checkMonthlyProfitability}
+            onClick={() => checkMonthlyProfitability(soundEnabled)}
             disabled={loading}
             className="w-full px-3 py-1 bg-primary-600 text-white text-sm rounded hover:bg-primary-700 transition-colors disabled:opacity-50"
           >
@@ -156,7 +151,7 @@ const MonthlyProfitabilityWidget: React.FC<MonthlyProfitabilityWidgetProps> = ({
         particleCount={150}
         onComplete={() => setShowConfetti(false)}
       />
-      
+
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
         <div className="flex items-start justify-between mb-4">
           <div>
@@ -167,7 +162,6 @@ const MonthlyProfitabilityWidget: React.FC<MonthlyProfitabilityWidgetProps> = ({
               Vérifiez si vos clients atteignent leurs objectifs de rentabilité
             </p>
           </div>
-          
           {isEndOfMonth() && (
             <motion.div
               initial={{ opacity: 0, scale: 0.8 }}
@@ -179,7 +173,6 @@ const MonthlyProfitabilityWidget: React.FC<MonthlyProfitabilityWidgetProps> = ({
             </motion.div>
           )}
         </div>
-        
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <div className="bg-primary-50 dark:bg-primary-900/30 p-4 rounded-lg">
             <div className="text-sm text-primary-600 dark:text-primary-400 mb-1">Clients rentables</div>
@@ -187,14 +180,12 @@ const MonthlyProfitabilityWidget: React.FC<MonthlyProfitabilityWidgetProps> = ({
               {profitabilityData.targetsReached} / {profitabilityData.totalClients}
             </div>
           </div>
-          
           <div className="bg-green-50 dark:bg-green-900/30 p-4 rounded-lg">
             <div className="text-sm text-green-600 dark:text-green-400 mb-1">Points gagnés</div>
             <div className="text-2xl font-bold text-gray-900 dark:text-white">
               {profitabilityData.totalPointsEarned}
             </div>
           </div>
-          
           <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg">
             <div className="text-sm text-blue-600 dark:text-blue-400 mb-1">Dernière vérification</div>
             <div className="text-lg font-medium text-gray-900 dark:text-white">
@@ -202,16 +193,14 @@ const MonthlyProfitabilityWidget: React.FC<MonthlyProfitabilityWidgetProps> = ({
             </div>
           </div>
         </div>
-        
         {error && (
           <div className="mb-4 p-3 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 rounded-md">
             {error}
           </div>
         )}
-        
         <div className="flex justify-end">
           <button
-            onClick={checkMonthlyProfitability}
+            onClick={() => checkMonthlyProfitability(soundEnabled)}
             disabled={loading}
             className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors disabled:opacity-50"
           >
