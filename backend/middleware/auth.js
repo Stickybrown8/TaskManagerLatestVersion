@@ -8,7 +8,8 @@ const verifyToken = (req, res, next) => {
   console.log("Authentification désactivée temporairement");
   
   // On simule un utilisateur connecté avec un ID factice
- req.userId = new mongoose.Types.ObjectId("507f1f77bcf86cd799439011");
+  req.userId = new mongoose.Types.ObjectId("507f1f77bcf86cd799439011");
+  console.log("ID utilisateur simulé:", req.userId);
   
   // On passe à la route suivante sans vérifier le token
   next();
