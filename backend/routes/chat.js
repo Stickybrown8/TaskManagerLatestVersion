@@ -40,7 +40,41 @@ let vectorStore;
   }
 })();
 
-// Fonction pour traiter les data URLs d'images
+// NOUVELLE FONCTION: Extraire les infos d'erreur pour mieux cibler la recherche
+function extractErrorInfo(errorLog) {
+  const result = {
+    errorType: '',
+    fileName: '',
+    lineNumber: null,
+    errorMessage: '',
+    exactError: ''
+  };
+  
+  // Rechercher les erreurs TypeScript (très courant avec Netlify)
+  const tsErrorMatch = errorLog.match(/TS(\d+):\s*(.*)/);
+  if (tsErrorMatch) {
+    result.errorType = `TypeScript Error TS${tsErrorMatch[1]}`;
+    result.errorMessage = tsErrorMatch[2];
+    result.exactError = tsErrorMatch[0];
+  }
+  
+  // Rechercher les références de fichiers et lignes
+  const fileLineMatch = errorLog.match(/(\S+\.[a-zA-Z0-9]+):(\d+)(?::(\d+))?/);
+  if (fileLineMatch) {
+    result.fileName = fileLineMatch[1];
+    result.lineNumber = parseInt(fileLineMatch[2]);
+  }
+  
+  // Rechercher la ligne de code problématique
+  const codeLineMatch = errorLog.match(/>([^>]*\n[^>]*\^+[^>]*)/);
+  if (codeLineMatch) {
+    result.codeLine = codeLineMatch[1].trim();
+  }
+  
+  return result;
+}
+
+// Fonction pour traiter les data URLs d'images (identique)
 function prepareImageForGPT4Vision(dataURL) {
   if (!dataURL) return null;
   
@@ -66,12 +100,20 @@ function prepareImageForGPT4Vision(dataURL) {
 router.post('/', async (req, res) => {
   try {
     console.log("===== DÉBUT TRAITEMENT REQUÊTE CHAT =====");
-    const { message, history = [], imageData, modelChoice = 'gpt-4.1' } = req.body;
+    const { 
+      message, 
+      history = [], 
+      imageData, 
+      modelChoice = 'gpt-4.1',
+      errorLog = null,           // NOUVEAU: Pour passer un log d'erreur
+      isDeploymentError = false  // NOUVEAU: Mode analyse d'erreur
+    } = req.body;
     
     console.log(`📩 Requête reçue: ${message && message.length} caractères, modèle: ${modelChoice}`);
     console.log(`📚 ${history.length} messages dans l'historique`);
+    console.log(`🔍 Mode analyse d'erreur: ${isDeploymentError}`);
     
-    // Vérification et préparation de l'image
+    // Vérification et préparation de l'image (identique)
     const hasImage = !!imageData;
     console.log(`🖼️ Image présente: ${hasImage}`, hasImage ? `(~${Math.round(imageData.length / 1024)}KB)` : '');
     
@@ -86,11 +128,47 @@ router.post('/', async (req, res) => {
       return res.status(503).json({ error: 'Vector Store non prêt, patientez quelques instants' });
     }
 
-    // 3) Recherche des 5 meilleurs chunks
-    const docs = await vectorStore.similaritySearch(message, 5);
-    const context = docs.map(d => d.pageContent).join('\n---\n');
+    // 3) Recherche des chunks pertinents - MODIFIÉ POUR LES ERREURS
+    let docs = [];
+    let context = "";
+    
+    if (isDeploymentError && errorLog) {
+      // Mode analyse d'erreur: extraire les infos pour cibler la recherche
+      const errorInfo = extractErrorInfo(errorLog);
+      console.log("📊 Infos d'erreur extraites:", errorInfo);
+      
+      // Construire une requête ciblée
+      const targetedQuery = `${errorInfo.errorType} ${errorInfo.errorMessage} ${errorInfo.fileName} ligne ${errorInfo.lineNumber}`;
+      console.log(`🔎 Requête ciblée: ${targetedQuery}`);
+      
+      // Recherche spécifique avec plus de résultats pour le contexte d'erreur
+      docs = await vectorStore.similaritySearch(targetedQuery, 8);
+      
+      // Si on a un nom de fichier, tenter de trouver des chunks contenant ce fichier spécifique
+      if (errorInfo.fileName) {
+        const fileNameQuery = `filename:${errorInfo.fileName}`;
+        const fileSpecificDocs = await vectorStore.similaritySearch(fileNameQuery, 3);
+        
+        // Combiner les résultats en éliminant les doublons
+        const allDocs = [...docs, ...fileSpecificDocs];
+        const uniqueDocs = allDocs.filter((doc, index, self) => 
+          index === self.findIndex(d => d.pageContent === doc.pageContent)
+        );
+        
+        docs = uniqueDocs.slice(0, 10); // Limiter à 10 résultats max
+      }
+    } else {
+      // Mode normal: recherche basée sur le message
+      docs = await vectorStore.similaritySearch(message, 5);
+    }
+    
+    // Formatter le contexte
+    context = docs.map(d => {
+      const source = d.metadata?.source ? `Source: ${d.metadata.source}` : '';
+      return `${source}\n${d.pageContent}\n---\n`;
+    }).join('\n');
 
-    // 4) Charger le README.md au niveau de la racine du repo
+    // 4) Charger le README.md (identique)
     const readmePath = path.resolve(__dirname, '../../README.md');
     let readmeContent = '';
     try {
@@ -99,16 +177,47 @@ router.post('/', async (req, res) => {
       console.warn('⚠️ README non trouvé ou illisible à', readmePath, err.message);
     }
 
-    // 5) Prépare les messages
+    // 5) Prépare les messages - MODIFIÉ POUR LES ERREURS
     const messages = [];
 
-    // Instruction système
-    messages.push({
-      role: 'system',
-      content: hasImage 
-        ? 'Tu es un assistant qui aide à analyser des images et du code. Examine attentivement l\'image et réponds aux questions de l\'utilisateur. Décris exactement ce que tu vois dans l\'image.'
-        : 'Tu es un assistant qui explique comme à un enfant de 10 ans. Pour chaque erreur, indique toujours le fichier et la ligne. Explique pas à pas chaque commande et fournis le code complet dans un bloc markdown avec le chemin du fichier. Utilise un langage simple et bienveillant.'
-    });
+    // Instruction système - adaptée pour les erreurs de déploiement
+    if (isDeploymentError) {
+      messages.push({
+        role: 'system',
+        content: `Tu es un expert en déploiement et debugging de code. Tu vas analyser une erreur de déploiement Netlify.
+        
+INSTRUCTIONS IMPORTANTES:
+1. Donne le fichier et la ligne exacte où se trouve l'erreur
+2. Explique clairement la cause de l'erreur en termes simples
+3. Propose une solution COMPLÈTE avec le code corrigé
+4. Indique TOUJOURS les étapes précises à suivre pour corriger l'erreur
+
+Format pour ta réponse:
+1. Identification précise de l'erreur: [Type d'erreur et explication]
+2. Fichier concerné: [chemin/vers/le/fichier:ligne]
+3. Cause fondamentale: [explication pour débutant]
+4. Solution proposée: [code complet pour corriger]
+5. Étapes pour appliquer la correction: [étapes numérotées]
+
+N'oublie pas: Je suis débutant, sois très clair et précis!`
+      });
+      
+      // Ajouter le log d'erreur en contexte prioritaire
+      if (errorLog) {
+        messages.push({
+          role: 'system',
+          content: `LOG D'ERREUR NETLIFY:\n${errorLog}`
+        });
+      }
+    } else {
+      // Mode normal
+      messages.push({
+        role: 'system',
+        content: hasImage 
+          ? 'Tu es un assistant qui aide à analyser des images et du code. Examine attentivement l\'image et réponds aux questions de l\'utilisateur. Décris exactement ce que tu vois dans l\'image.'
+          : 'Tu es un assistant qui explique comme à un enfant de 10 ans. Pour chaque erreur, indique toujours le fichier et la ligne. Explique pas à pas chaque commande et fournis le code complet dans un bloc markdown avec le chemin du fichier. Utilise un langage simple et bienveillant.'
+      });
+    }
 
     // Contexte global du README
     if (readmeContent) {
@@ -121,9 +230,8 @@ router.post('/', async (req, res) => {
     // Contexte des extraits pertinents
     messages.push({ role: 'system', content: `Extraits pertinents :\n${context}` });
 
-    // Ajouter l'historique des messages
+    // Ajouter l'historique des messages (identique)
     if (Array.isArray(history)) {
-      // S'assurer que les messages sont au bon format
       const formattedHistory = history.map(msg => ({
         role: msg.role,
         content: msg.content
@@ -131,9 +239,9 @@ router.post('/', async (req, res) => {
       messages.push(...formattedHistory);
     }
     
-    // CORRIGER LE FORMAT POUR LES MESSAGES AVEC IMAGES
+    // Message de l'utilisateur
     if (hasImage && processedImageData && modelChoice === 'gpt-4o') {
-      // Format correct pour GPT-4o avec Vision
+      // Format pour message avec image (identique)
       console.log("📸 Ajout d'une image au message avec GPT-4o Vision");
       messages.push({
         role: 'user',
@@ -149,25 +257,34 @@ router.post('/', async (req, res) => {
         ]
       });
     } else {
-      // Format standard pour les messages texte uniquement
+      // Message texte standard
       console.log("✉️ Ajout d'un message texte uniquement");
-      messages.push({ role: 'user', content: message });
+      
+      // Si mode erreur et pas de message spécifique, utiliser une demande par défaut
+      const userMessage = isDeploymentError && !message.trim() 
+        ? "Analyse cette erreur de déploiement et dis-moi comment la corriger"
+        : message;
+        
+      messages.push({ role: 'user', content: userMessage });
     }
 
-    // Déterminer le bon modèle à utiliser
-    const finalModel = hasImage ? 'gpt-4o' : modelChoice;
+    // Déterminer le modèle à utiliser - Pour les erreurs, toujours utiliser GPT-4
+    const finalModel = hasImage ? 'gpt-4o' : (isDeploymentError ? 'gpt-4.1' : modelChoice);
     console.log(`🚀 Envoi à l'API OpenAI avec le modèle: ${finalModel}`);
     
     // 6) Appel à l'API d'OpenAI avec le modèle sélectionné
     const completion = await openai.chat.completions.create({
       model: finalModel,
       messages,
-      temperature: 0.7,
+      temperature: isDeploymentError ? 0.2 : 0.7, // Température réduite pour les erreurs
       max_tokens: 2000
     });
 
     console.log(`✅ Réponse reçue: ${completion.choices[0].message.content.length} caractères`);
-    return res.json({ reply: completion.choices[0].message.content });
+    return res.json({ 
+      reply: completion.choices[0].message.content,
+      mode: isDeploymentError ? 'error_analysis' : 'chat'
+    });
   } catch (err) {
     console.error('❌ Erreur chat détaillée:', err);
     

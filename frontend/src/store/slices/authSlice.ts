@@ -1,4 +1,7 @@
+// frontend/src/store/slices/authSlice.ts
+
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { User } from '../../types/User'; // On utilise le type global User
 
 // Types
 interface AuthState {
@@ -7,28 +10,7 @@ interface AuthState {
   token: string | null;
   loading: boolean;
   error: string | null;
-  rehydrated: boolean; // Ajouté
-}
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  profile?: {
-    avatar: string;
-    theme: string;
-    settings: {
-      notifications: boolean;
-      language: string;
-      soundEffects: boolean;
-    };
-  };
-  gamification?: {
-    level: number;
-    experience: number;
-    actionPoints: number;
-    badges: any[];
-  };
+  rehydrated: boolean;
 }
 
 interface LoginPayload {
@@ -43,7 +25,7 @@ const initialState: AuthState = {
   token: null,
   loading: false,
   error: null,
-  rehydrated: false, // Ajouté
+  rehydrated: false,
 };
 
 const authSlice = createSlice({
@@ -60,7 +42,7 @@ const authSlice = createSlice({
       state.token = action.payload.token;
       state.loading = false;
       state.error = null;
-      state.rehydrated = true; // Ajouté
+      state.rehydrated = true;
       localStorage.setItem('token', action.payload.token);
       localStorage.setItem('user', JSON.stringify(action.payload.user));
     },
@@ -70,7 +52,7 @@ const authSlice = createSlice({
       state.token = null;
       state.loading = false;
       state.error = action.payload;
-      state.rehydrated = true; // Ajouté
+      state.rehydrated = true;
     },
     logout: (state) => {
       state.isAuthenticated = false;
@@ -78,7 +60,7 @@ const authSlice = createSlice({
       state.token = null;
       state.loading = false;
       state.error = null;
-      state.rehydrated = true; // Ajouté
+      state.rehydrated = true;
       localStorage.removeItem('token');
       localStorage.removeItem('user');
     },
@@ -92,7 +74,7 @@ const authSlice = createSlice({
         state.user.gamification = { ...state.user.gamification, ...action.payload };
       }
     },
-    setRehydrated: (state) => { // Ajouté
+    setRehydrated: (state) => {
       state.rehydrated = true;
     }
   },
@@ -106,7 +88,7 @@ export const {
   logout,
   updateUserProfile,
   updateUserGamification,
-  setRehydrated, // Ajouté
+  setRehydrated,
 } = authSlice.actions;
 
 // Reducer

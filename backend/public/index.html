@@ -140,7 +140,8 @@
 
     .message-container {
       display: flex;
-      margin-bottom: 10px;
+      margin-bottom: 3px;
+      /* Réduit de 4px à 3px */
       animation: fadeIn 0.3s;
     }
 
@@ -150,7 +151,8 @@
 
     .message {
       max-width: 80%;
-      padding: 12px 16px;
+      padding: 8px 10px;
+      /* Réduit de 8px 12px à 8px 10px */
       border-radius: 18px;
       line-height: 1.3;
       overflow-wrap: break-word;
@@ -167,32 +169,42 @@
       background: #f1f0f0;
       color: #222;
       border-bottom-left-radius: 4px;
-      font-size: 15px;
-      line-height: 1.3;
+      font-size: 14px;
+      /* Réduit de 15px à 14px */
+      line-height: 1.2;
+      /* Réduit de 1.3 à 1.2 */
+    }
+
+    /* Suppression des espaces redondants */
+    .message.bot>* {
+      margin: 1px 0 !important;
+      padding: 0 !important;
     }
 
     .message.bot p {
-      margin: 2px 0;
-      line-height: 1.3;
+      margin: 1px 0 !important;
+      /* Réduit de 2px à 1px */
+      line-height: 1.2 !important;
     }
 
     .message.bot ul,
     .message.bot ol {
-      margin: 2px 0 2px 14px;
-      padding-left: 6px;
+      margin: 1px 0 1px 12px !important;
+      /* Réduit la marge */
+      padding-left: 4px;
     }
 
     .message.bot li {
-      margin-bottom: 1px;
-      line-height: 1.3;
+      margin-bottom: 0 !important;
+      line-height: 1.2 !important;
     }
 
     .message.bot h1,
     .message.bot h2,
     .message.bot h3 {
       color: #0366d6;
-      margin-top: 5px;
-      margin-bottom: 3px;
+      margin-top: 3px !important;
+      margin-bottom: 2px !important;
       border-bottom: 1px solid #eaecef;
       padding-bottom: 2px;
       line-height: 1.2;
@@ -201,17 +213,17 @@
     .message.bot h4,
     .message.bot h5,
     .message.bot h6 {
-      margin-top: 4px;
-      margin-bottom: 2px;
+      margin-top: 3px !important;
+      margin-bottom: 1px !important;
       line-height: 1.2;
     }
 
     /* Styles spécifiques pour les blocs de code */
     .code-block {
       position: relative;
-      margin: 5px 0;
+      margin: 3px 0 !important;
       background: #f8f9fa;
-      border: 1px solid #e0e0e0;
+      border: 1px solid #ddd !important;
       border-radius: 6px;
       overflow: hidden;
     }
@@ -220,37 +232,41 @@
       position: absolute;
       top: 0;
       left: 0;
-      background: #e0e0e0;
+      background: #e0e0e0 !important;
       color: #333;
-      font-size: 12px;
-      padding: 2px 8px;
+      font-size: 11px !important;
+      padding: 1px 6px !important;
       border-bottom-right-radius: 6px;
+      z-index: 2;
     }
 
     .copy-btn {
       position: absolute;
-      top: 5px;
-      right: 5px;
+      top: 3px;
+      right: 3px;
       background: #6c757d;
       color: white;
       border: none;
       border-radius: 4px;
-      padding: 3px 8px;
-      font-size: 12px;
+      padding: 2px 6px;
+      font-size: 11px;
       cursor: pointer;
       z-index: 5;
-      transition: background-color 0.2s;
+      opacity: 0.8;
+      transition: all 0.2s;
     }
 
     .copy-btn:hover {
       opacity: 1;
       background: #5a6268;
+      transform: scale(1.05);
     }
 
     pre {
-      background: #f8f9fa;
-      padding: 8px 12px;
-      margin: 0;
+      margin: 0 !important;
+      padding: 22px 10px 8px 10px !important;
+      /* Ajusté pour l'indicateur de langage */
+      background-color: #f6f8fa !important;
       overflow-x: auto;
     }
 
@@ -264,12 +280,33 @@
     .message.bot pre {
       background-color: #f6f8fa;
       border-radius: 5px;
-      margin: 4px 0;
+      margin: 2px 0 !important;
     }
 
     .message.bot code {
       font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
       font-size: 85%;
+    }
+
+    /* Style pour les petits blocs code inline */
+    .message.bot code {
+      background: #f1f1f1;
+      padding: 1px 3px;
+      border-radius: 3px;
+      font-family: monospace;
+      font-size: 0.9em;
+      white-space: nowrap;
+    }
+
+    /* Styles pour mise en évidence du texte */
+    .message.bot strong {
+      color: #0366d6;
+      font-weight: 600;
+    }
+
+    .message.bot em {
+      font-style: italic;
+      color: #444;
     }
 
     .typing {
@@ -284,7 +321,7 @@
       max-width: 100%;
       max-height: 300px;
       border-radius: 8px;
-      margin: 8px 0;
+      margin: 6px 0;
     }
 
     /* Contrôles d'input */
@@ -387,11 +424,8 @@
     .input-wrapper {
       position: relative;
       max-height: 300px;
-      /* Hauteur maximum pour ne pas trop envahir l'écran */
       min-height: 60px;
-      /* Hauteur minimum pour avoir une bonne taille initiale */
       overflow-y: auto;
-      /* Permet d'avoir une barre de défilement si besoin */
       margin-bottom: 10px;
       border-radius: 18px;
       border: 1px solid #ced4da;
@@ -404,7 +438,6 @@
       max-height: none;
       padding: 15px;
       padding-right: 50px;
-      /* Espace pour le bouton d'envoi */
       border: none;
       border-radius: 18px;
       font-size: 15px;
@@ -412,7 +445,6 @@
       resize: none;
       outline: none;
       overflow-y: hidden;
-      /* Cache la barre de défilement de la textarea */
       font-family: Arial, sans-serif;
     }
 
@@ -431,7 +463,6 @@
       justify-content: center;
       cursor: pointer;
       z-index: 2;
-      /* Au-dessus de la textarea */
     }
 
     #send:hover {
@@ -763,6 +794,19 @@
       <!-- Les messages seront ajoutés ici dynamiquement -->
     </div>
 
+    <!-- Mode d'analyse d'erreur de déploiement -->
+    <div id="error-analysis-container" class="error-analysis-container" style="display: none;">
+      <div class="error-analysis-header">
+        <h3>Mode Analyse d'Erreur de Déploiement</h3>
+        <button id="close-error-mode" class="footer-btn">Revenir au chat</button>
+      </div>
+      <div class="error-log-input">
+        <textarea id="error-log" placeholder="Collez ici le log d'erreur Netlify complet..." rows="10"
+          style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px; margin-bottom: 10px;"></textarea>
+        <button id="analyze-error" class="footer-btn" style="background-color: #dc3545;">Analyser l'erreur</button>
+      </div>
+    </div>
+
     <div class="input-container">
       <div class="model-selector-container">
         <div class="model-selector">
@@ -808,6 +852,7 @@
       <div class="footer-buttons">
         <button id="clear" class="footer-btn">Effacer l'historique</button>
         <button id="show-tree" class="footer-btn">Afficher arbre</button>
+        <button id="error-mode" class="footer-btn" style="background-color: #dc3545;">Mode Analyse d'Erreur</button>
       </div>
     </div>
   </div>
@@ -1132,164 +1177,167 @@
     // Préserver les espaces et indentations exactes dans le code
     function preserveCodeFormatting(code) {
       return code
-        .replace(/ /g, '&nbsp;') // Remplacer les espaces par &nbsp;
-        .replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;') // Remplacer les tabulations
-        .replace(/\n/g, '<br>'); // Remplacer les sauts de ligne
+        .replace(/ /g, '&nbsp;')
+        .replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\n/g, '<br>');
     }
 
-    // Fonction de formatage Markdown personnalisée avec espacement compact
+    // Version corrigée sans backticks problématiques
     function formatMarkdown(text) {
       if (!text) return '';
 
-      // Échapper les caractères HTML pour éviter l'injection
+      // Échapper les caractères HTML mais conserver le texte original
+      let originalText = text;
       let formatted = escapeHtml(text);
 
-      // Mettre en évidence les numéros des étapes (ex: "1. Texte")
-      formatted = formatted.replace(/^(\d+)\.\s+(.*?)$/gm, function (match, number, content) {
-        return `<div style="display:flex; margin:1px 0;">
-          <div style="color:#0366d6; font-weight:bold; margin-right:5px;">${number}.</div>
-          <div style="flex:1;">${content}</div>
-        </div>`;
+      // ID unique pour cette session
+      const sessionId = Math.random().toString(36).substring(2, 8);
+      let codeBlockCount = 0;
+
+      // TRAITEMENT DES INTRODUCTIONS
+      formatted = formatted.replace(/(Bien sûr.*?étape par étape.*?)/i,
+        '<div style="font-weight:bold; margin:8px 0 5px 0;">$1</div>');
+
+      // CORRECTION DES TITRES AVEC ##
+      formatted = formatted.replace(/^##\s+(\d+)\.\s+(.*?)$/gm, function (match, number, title) {
+        return '<div style="display:flex; align-items:center; margin:12px 0 6px 0; font-weight:bold; color:#0366d6; font-size:15px;">' +
+          '<span style="color:#0366d6;">' + number + '.</span>' +
+          '<span style="margin-left:5px;">' + title + '</span>' +
+          '</div>';
       });
 
-      // Formater les blocs de code (```) avec préservation exacte du formatage
+      // BLOCS DE CODE - AVEC PADDING SUPPLÉMENTAIRE POUR ÉVITER CHEVAUCHEMENT
       formatted = formatted.replace(/```(\w*)\n([\s\S]*?)\n```/g, function (match, language, code) {
-        language = language || 'text';
-        const uniqueId = 'code-' + Math.random().toString(36).substr(2, 9);
+        codeBlockCount++;
+        const blockId = 'code-' + sessionId + '-' + codeBlockCount;
 
-        // Préserver exactement l'indentation et le formatage pour l'affichage
-        const formattedCode = preserveCodeFormatting(code);
+        // Stocker le code ORIGINAL pour la copie
+        if (!window.markdownCodeBlocks) window.markdownCodeBlocks = {};
 
-        // Stocker le code original dans le stockage global
-        window.codeStorage[uniqueId] = code;
-
-        return `
-        <div class="code-block">
-          <div class="language-indicator">${language}</div>
-          <button onclick="copyCodeToClipboard('${uniqueId}')" class="copy-btn">Copier</button>
-          <pre style="background: #f8f9fa; padding: 8px 12px; margin: 0; overflow-x: auto;">
-            <code id="${uniqueId}" style="white-space: pre; tab-size: 4;">${formattedCode}</code>
-          </pre>
-        </div>
-        `;
-      });
-
-      // Titres spéciaux avec emojis (## 🔵 Titre)
-      formatted = formatted.replace(/^(#{1,6})\s+([\p{Emoji}])??\s*(.*?)$/gmu, function (match, hashes, emoji, content) {
-        const level = hashes.length;
-        const fontSize = 24 - (level * 2);
-        const emojiHtml = emoji ? `<span style="margin-right:5px;">${emoji}</span>` : '';
-        return `<h${level} style="font-size: ${fontSize}px; font-weight: bold; margin-top: 4px; margin-bottom: 2px; color: #000; line-height: 1.2;">
-          ${emojiHtml}${content}</h${level}>`;
-      });
-
-      // Formater le texte en gras (**)
-      formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong style="font-weight: 700; color: #000;">$1</strong>');
-
-      // Formater le texte en italique (*)
-      formatted = formatted.replace(/\*(.*?)\*/g, '<em style="font-style: italic; color: #333;">$1</em>');
-
-      // Formater les séparateurs horizontaux (---)
-      formatted = formatted.replace(/^---+$/gm, '<hr style="height: 1px; background-color: #ddd; border: none; margin: 4px 0;">');
-
-      // Icônes de puces personnalisées avec couleurs
-      formatted = formatted.replace(/^- (.*?)$/gm, '<div style="display:flex; margin:1px 0; align-items:flex-start;"><span style="display:inline-block; width:8px; height:8px; background-color:#0366d6; border-radius:50%; margin:6px 6px 0 0; flex-shrink:0;"></span><div style="flex:1; line-height:1.3;">$1</div></div>');
-
-      // Mettre en évidence les chemins de fichiers
-      formatted = formatted.replace(/`([^`]+)`/g, function (match, content) {
-        // Si ça ressemble à un chemin de fichier ou code, le styliser différemment
-        if (content.includes('/') || content.includes('.') || content.includes('()')) {
-          return `<code style="background-color:#f1f1f1; padding:1px 4px; border-radius:3px; font-family:monospace; color:#e83e8c; font-size:0.9em;">${content}</code>`;
+        // Extraction du code original (non échappé)
+        const codeMatches = originalText.match(/```(\w*)\n([\s\S]*?)\n```/g);
+        if (codeMatches && codeMatches[codeBlockCount - 1]) {
+          const originalCode = codeMatches[codeBlockCount - 1]
+            .replace(/```(\w*)\n/, '')
+            .replace(/\n```$/, '');
+          window.markdownCodeBlocks[blockId] = originalCode;
+        } else {
+          window.markdownCodeBlocks[blockId] = code; // fallback
         }
-        return `<code style="background-color:#f1f1f1; padding:1px 4px; border-radius:3px; font-family:monospace; font-size:0.9em;">${content}</code>`;
+
+        // Style amélioré avec padding-top pour éviter le chevauchement
+        return '<div style="position:relative; margin:6px 0; border:1px solid #ddd; border-radius:5px; overflow:hidden;">' +
+          '<div style="position:absolute; top:0; left:0; background:#e0e0e0; color:#333; font-size:12px; padding:2px 6px; border-bottom-right-radius:4px; z-index:2;">' +
+          (language || 'code') + '</div>' +
+          '<button onclick="copyCode(\'' + blockId + '\')" style="position:absolute; top:2px; right:2px; background:#6c757d; color:white; border:none; border-radius:4px; padding:1px 6px; font-size:11px; cursor:pointer; z-index:2;">Copier</button>' +
+          '<pre style="margin:0; padding:30px 8px 8px 8px; background:#f6f8fa; overflow-x:auto;"><code id="' +
+          blockId + '" style="font-family:monospace; font-size:13px; white-space:pre;">' +
+          preserveCodeFormatting(code) + '</code></pre>' +
+          '</div>';
       });
 
-      // Formater les paragraphes avec espacement réduit
-      formatted = formatted.replace(/^(?!<[h|u|o|p|d|l|b|c|s|e|d])(.+)$/gm, '<p style="margin: 1px 0; line-height: 1.3;">$1</p>');
+      // PUCES
+      formatted = formatted.replace(/^\s*[•*-]\s+(.*?)$/gm, function (match, content) {
+        // Détection spéciale pour les instructions importantes
+        if (content.includes("Va dans") ||
+          content.includes("Ouvre") ||
+          content.includes("Tape") ||
+          content.includes("Enregistre") ||
+          content.includes("Attends")) {
 
-      // Éviter les doubles espaces entre paragraphes
-      formatted = formatted.replace(/<\/p>\s*<p /g, '</p><p ');
+          return '<div style="display:flex; align-items:flex-start; margin:3px 0;">' +
+            '<div style="color:#0366d6; margin-right:6px; min-width:5px;">•</div>' +
+            '<div style="flex:1;">' + content + '</div></div>';
+        }
 
-      // Formater les émojis (pour 💡 et autres)
-      formatted = formatted.replace(/([\u{1F300}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}])/gu, '<span style="font-size: 1.2em; vertical-align: middle;">$1</span>');
+        return '<div style="display:flex; align-items:flex-start; margin:3px 0;">' +
+          '<div style="color:#0366d6; margin-right:6px; min-width:5px;">•</div>' +
+          '<div style="flex:1;">' + content + '</div></div>';
+      });
+
+      // MISE EN ÉVIDENCE DES NOMS DE FICHIERS
+      formatted = formatted.replace(/`([^`]+)`/g, function (match, content) {
+        // Si c'est un nom de fichier ou un dossier
+        if (content.includes('.json') || content.includes('frontend') || content.includes('install')) {
+          return '<code style="background:#f1f1f1; padding:1px 3px; border-radius:3px; font-family:monospace; font-size:0.9em;">' + content + '</code>';
+        }
+        return '<code style="background:#f1f1f1; padding:1px 3px; border-radius:3px; font-family:monospace; font-size:0.9em;">' + content + '</code>';
+      });
+
+      // TEXTE EN GRAS
+      formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong style="font-weight:bold; color:#000;">$1</strong>');
+
+      // MISE EN ÉVIDENCE DE "copie-colle"
+      formatted = formatted.replace(/(copie-colle)/g, '<strong style="font-weight:bold; color:#0366d6;">$1</strong>');
+
+      // SÉPARATEURS
+      formatted = formatted.replace(/^--$/gm,
+        '<hr style="border:none; border-top:1px solid #eee; margin:8px 0;">');
+
+      // LIGNES NORMALES - ESPACEMENT RÉDUIT
+      formatted = formatted.replace(/^(?!<div|<hr|<pre|<code|<strong|<em)(.*?)$/gm,
+        '<div style="margin:1px 0; line-height:1.3;">$1</div>');
 
       return formatted;
     }
 
-    // Fonction pour copier le code avec une meilleure gestion des erreurs
-    window.copyCodeToClipboard = function (elementId) {
-      // Récupérer le code depuis le stockage global
-      if (window.codeStorage && window.codeStorage[elementId]) {
-        const originalCode = window.codeStorage[elementId];
-
-        // Copier le code
-        const textarea = document.createElement('textarea');
-        textarea.value = originalCode;
-        document.body.appendChild(textarea);
-        textarea.select();
-
-        try {
-          const successful = document.execCommand('copy');
-          // Feedback visuel
-          const button = document.querySelector(`button[onclick="copyCodeToClipboard('${elementId}')"]`);
-          if (button) {
-            button.style.backgroundColor = successful ? '#28a745' : '#dc3545';
-            button.textContent = successful ? 'Copié !' : 'Erreur';
-            setTimeout(() => {
-              button.style.backgroundColor = '#6c757d';
-              button.textContent = 'Copier';
-            }, 2000);
-          }
-        } catch (err) {
-          console.error('Erreur lors de la copie:', err);
-        } finally {
-          document.body.removeChild(textarea);
-        }
+    // Ajoutez cette fonction juste après votre fonction formatMarkdown
+    function copyCode(blockId) {
+      if (!window.markdownCodeBlocks || !window.markdownCodeBlocks[blockId]) {
+        console.error("Code non trouvé pour blockId:", blockId);
         return;
       }
 
-      // Fallback si le code n'est pas dans le stockage global
-      const codeElement = document.getElementById(elementId);
-      if (!codeElement) {
-        console.error('Élément code non trouvé:', elementId);
-        return;
+      const text = window.markdownCodeBlocks[blockId];
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text)
+          .then(() => {
+            const btn = document.querySelector(`button[onclick="copyCode('${blockId}')"]`);
+            if (btn) {
+              btn.textContent = "Copié!";
+              btn.style.backgroundColor = "#28a745";
+              setTimeout(() => {
+                btn.textContent = "Copier";
+                btn.style.backgroundColor = "#6c757d";
+              }, 1500);
+            }
+          })
+          .catch(err => {
+            console.error('Erreur de copie:', err);
+            fallbackCopyMethod(text, blockId);
+          });
+      } else {
+        fallbackCopyMethod(text, blockId);
       }
+    }
 
-      // Nettoyer directement le contenu du code
-      let content = codeElement.innerHTML;
-      content = content
-        .replace(/<br\s*\/?>/gi, '\n')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&amp;/g, '&')
-        .replace(/&quot;/g, '"')
-        .replace(/&#39;/g, "'")
-        .replace(/&nbsp;/g, ' ')
-        .replace(/<\/?[^>]+(>|$)/g, '');
-
-      // Copier le code nettoyé
+    function fallbackCopyMethod(text, blockId) {
       const textarea = document.createElement('textarea');
-      textarea.value = content;
+      textarea.value = text;
+      textarea.style.position = 'fixed';
       document.body.appendChild(textarea);
       textarea.select();
 
       try {
-        const successful = document.execCommand('copy');
-        const button = document.querySelector(`button[onclick="copyCodeToClipboard('${elementId}')"]`);
-        if (button) {
-          button.style.backgroundColor = successful ? '#28a745' : '#dc3545';
-          button.textContent = successful ? 'Copié !' : 'Erreur';
+        const success = document.execCommand('copy');
+        const btn = document.querySelector(`button[onclick="copyCode('${blockId}')"]`);
+        if (btn) {
+          btn.textContent = success ? "Copié!" : "Erreur";
+          btn.style.backgroundColor = success ? "#28a745" : "#dc3545";
           setTimeout(() => {
-            button.style.backgroundColor = '#6c757d';
-            button.textContent = 'Copier';
-          }, 2000);
+            btn.textContent = "Copier";
+            btn.style.backgroundColor = "#6c757d";
+          }, 1500);
         }
       } catch (err) {
-        console.error('Erreur lors de la copie (fallback):', err);
+        console.error('Erreur lors de la copie:', err);
       } finally {
         document.body.removeChild(textarea);
       }
-    };
+    }
 
     // Ajouter un message au chat - fonction améliorée pour corriger le rendu Markdown
     function appendMessage(who, content) {
@@ -2000,6 +2048,104 @@
 
     // Désactiver le bouton d'envoi par défaut (jusqu'à ce qu'il y ait du texte ou une image)
     toggleSendButton();
+    // Éléments pour le mode d'analyse d'erreur
+    const errorModeBtn = document.getElementById('error-mode');
+    const closeErrorModeBtn = document.getElementById('close-error-mode');
+    const errorAnalysisContainer = document.getElementById('error-analysis-container');
+    const errorLogInput = document.getElementById('error-log');
+    const analyzeErrorBtn = document.getElementById('analyze-error');
+
+    // Activation du mode analyse d'erreur
+    errorModeBtn.addEventListener('click', function () {
+      // Cacher l'interface normale
+      document.querySelector('.input-wrapper').style.display = 'none';
+      document.querySelector('.model-selector-container').style.display = 'none';
+      document.querySelector('.footer-buttons').style.display = 'none';
+
+      // Afficher l'interface d'analyse d'erreur
+      errorAnalysisContainer.style.display = 'block';
+    });
+
+    // Fermeture du mode analyse d'erreur
+    closeErrorModeBtn.addEventListener('click', function () {
+      // Réafficher l'interface normale
+      document.querySelector('.input-wrapper').style.display = 'block';
+      document.querySelector('.model-selector-container').style.display = 'flex';
+      document.querySelector('.footer-buttons').style.display = 'flex';
+
+      // Cacher l'interface d'analyse d'erreur
+      errorAnalysisContainer.style.display = 'none';
+    });
+
+    // Analyse d'erreur
+    analyzeErrorBtn.addEventListener('click', async function () {
+      const errorLog = errorLogInput.value.trim();
+
+      if (!errorLog) {
+        alert("Veuillez coller un log d'erreur avant d'analyser");
+        return;
+      }
+
+      // Afficher un message utilisateur
+      appendMessage('user', "Analyse de l'erreur de déploiement Netlify");
+
+      // Afficher l'indicateur de chargement
+      showTyping();
+
+      try {
+        // Appel à l'API avec le mode spécial d'analyse d'erreur
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: "Analyse cette erreur de déploiement Netlify",
+            history: [], // Pas d'historique pour rester concentré sur l'erreur
+            errorLog: errorLog,
+            isDeploymentError: true,
+            modelChoice: 'gpt-4.1'
+          })
+        });
+
+        if (!res.ok) {
+          throw new Error(`Erreur serveur: ${res.status}`);
+        }
+
+        const responseData = await res.json();
+        hideTyping();
+
+        // Afficher la réponse
+        appendMessage('bot', responseData.reply);
+
+        // Mettre à jour la conversation
+        const currentConversation = conversations.find(c => c.id === currentConversationId);
+        if (currentConversation) {
+          currentConversation.messages.push({
+            role: 'user',
+            content: "Analyse de l'erreur de déploiement Netlify"
+          });
+
+          currentConversation.messages.push({
+            role: 'assistant',
+            content: responseData.reply
+          });
+
+          // Définir un titre s'il n'y en a pas
+          if (!currentConversation.title) {
+            currentConversation.title = "Analyse d'erreur Netlify";
+          }
+
+          saveConversations();
+          updateConversationList();
+        }
+
+        // Revenir au mode chat normal après l'analyse
+        closeErrorModeBtn.click();
+
+      } catch (error) {
+        hideTyping();
+        appendMessage('bot', `Erreur lors de l'analyse: ${error.message}`);
+      }
+    });  
   </script>
 </body>
 
