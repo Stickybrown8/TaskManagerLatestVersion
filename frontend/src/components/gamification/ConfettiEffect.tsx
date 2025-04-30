@@ -1,6 +1,6 @@
 // frontend/src/components/gamification/ConfettiEffect.tsx
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppSelector } from '../../hooks';
 
@@ -11,7 +11,6 @@ interface ConfettiProps {
   onComplete?: () => void;
 }
 
-// On définit le type d'une particule de confetti
 type ConfettiParticle = {
   x: number;
   delay: number;
@@ -37,46 +36,55 @@ const ConfettiEffect: React.FC<ConfettiProps> = ({
   const { soundEnabled } = useAppSelector(state => state.ui || { soundEnabled: true });
   const [particles, setParticles] = useState<ConfettiParticle[]>([]);
 
-  // Préparer les particules côté client seulement
+  // Limite le nombre max de particules à 150 pour la performance
+  const safeParticleCount = Math.min(particleCount, 150);
+
+  // Génère les particules (extraction dans une fonction pour la réutiliser)
+  const generateParticles = useCallback(() => {
+    if (typeof window === 'undefined') return [];
+    const width = window.innerWidth;
+    return Array.from({ length: safeParticleCount }).map(() => {
+      let shape: React.CSSProperties;
+      const r = Math.random();
+      if (r > 0.7) {
+        shape = { borderRadius: '0%', transform: 'rotate(45deg)' }; // Carré
+      } else if (r > 0.5) {
+        shape = { borderRadius: '50%' }; // Cercle
+      } else {
+        shape = { borderRadius: '50% 0 50% 0' }; // Forme spéciale
+      }
+      return {
+        x: Math.random() * width,
+        delay: Math.random() * 0.5,
+        duration: Math.random() * 2 + 1,
+        rotate: Math.random() * 360,
+        scale: Math.random() * 0.5 + 0.5,
+        color: confettiColors[Math.floor(Math.random() * confettiColors.length)],
+        shape
+      };
+    });
+  }, [safeParticleCount]);
+
+  // Mets à jour les particules quand show ou la taille de l'écran change
   useEffect(() => {
     if (show && typeof window !== 'undefined') {
-      const width = window.innerWidth;
-      const newParticles: ConfettiParticle[] = Array.from({ length: particleCount }).map(() => {
-        // On prépare la forme ici pour la garder constante
-        let shape: React.CSSProperties;
-        const r = Math.random();
-        if (r > 0.7) {
-          shape = { borderRadius: '0%', transform: 'rotate(45deg)' }; // Carré
-        } else if (r > 0.5) {
-          shape = { borderRadius: '50%' }; // Cercle
-        } else {
-          shape = { borderRadius: '50% 0 50% 0' }; // Forme spéciale
-        }
-        return {
-          x: Math.random()  width,
-          delay: Math.random()  0.5,
-          duration: Math.random()  2 + 1,
-          rotate: Math.random()  360,
-          scale: Math.random()  0.5 + 0.5,
-          color: confettiColors[Math.floor(Math.random()  confettiColors.length)],
-          shape
-        };
-      });
-      setParticles(newParticles);
+      setParticles(generateParticles());
     }
-  }, [show, particleCount]);
+    // Ajoute un écouteur pour resize
+    const handleResize = () => {
+      if (show) setParticles(generateParticles());
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [show, generateParticles]);
 
-  // Gérer l'affichage et la disparition automatique des confettis
   useEffect(() => {
     setIsVisible(show);
 
     if (show) {
-      // Jouer un son de célébration si le son est activé
       if (soundEnabled) {
         playConfettiSound();
       }
-
-      // Masquer les confettis après la durée spécifiée
       const timer = setTimeout(() => {
         setIsVisible(false);
         if (onComplete) onComplete();
@@ -101,8 +109,11 @@ const ConfettiEffect: React.FC<ConfettiProps> = ({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
-        {/ Génération des particules de confettis /}
+      <div
+        className="fixed inset-0 pointer-events-none z-50 overflow-hidden"
+        aria-hidden="true"
+      >
+        {/* Génération des particules de confettis */}
         {particles.map((p, i) => (
           <motion.div
             key={i}
