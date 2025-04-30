@@ -1,6 +1,11 @@
 // frontend/src/components/gamification/ConfettiEffect.tsx
 
-import React, { useEffect, useState, useCallback } from 'react';
+/**
+ * Composant ConfettiEffect
+ * ATTENTION : Le nombre de particules est limité à 150 par sécurité pour la performance.
+ */
+
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppSelector } from '../../hooks';
 
@@ -65,18 +70,26 @@ const ConfettiEffect: React.FC<ConfettiProps> = ({
     });
   }, [safeParticleCount]);
 
-  // Mets à jour les particules quand show ou la taille de l'écran change
+  // Debounce pour le resize
+  const resizeTimeout = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
     if (show && typeof window !== 'undefined') {
       setParticles(generateParticles());
     }
-    // Ajoute un écouteur pour resize
+    // Ajoute un écouteur pour resize avec debounce
     const handleResize = () => {
-      if (show) setParticles(generateParticles());
+      if (resizeTimeout.current) clearTimeout(resizeTimeout.current);
+      resizeTimeout.current = setTimeout(() => {
+        if (show) setParticles(generateParticles());
+      }, 150); // attend 150ms après le dernier resize
     };
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [show, generateParticles]);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (resizeTimeout.current) clearTimeout(resizeTimeout.current);
+    };
+  }, [show, generateParticles, safeParticleCount]); // Ajout de safeParticleCount ici
 
   useEffect(() => {
     setIsVisible(show);
@@ -99,9 +112,11 @@ const ConfettiEffect: React.FC<ConfettiProps> = ({
     try {
       const audio = new Audio('/sounds/celebration.mp3');
       audio.volume = 0.5;
-      audio.play().catch(e => console.log('Impossible de jouer le son:', e));
+      audio.play().catch(e =>
+        console.log('[ConfettiEffect] Impossible de jouer le son :', e)
+      );
     } catch (error) {
-      console.log('Erreur lors de la lecture du son:', error);
+      console.log('[ConfettiEffect] Erreur lors de la lecture du son :', error);
     }
   };
 
