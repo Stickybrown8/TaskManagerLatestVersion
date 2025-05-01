@@ -70,6 +70,7 @@ const Clients: React.FC = () => {
   // Debug logs pour vérifier les données du store et du filtre
   console.log('clients du store :', clients);
   console.log('filteredClients :', filteredClients);
+  console.log("filteredClients à afficher :", filteredClients);
 
   // Naviguer vers la page de détail du client
   const handleClientClick = (clientId: string) => {
@@ -229,7 +230,7 @@ const Clients: React.FC = () => {
                 </motion.div>
               );
             } catch (e) {
-              console.error("Erreur lors du rendu d'un client :", client, e);
+              console.error("Erreur lors du rendu d'un client :", client, e, JSON.stringify(client));
               return <div key={client._id} style={{ color: 'red' }}>Erreur de rendu client</div>;
             }
           })}
