@@ -195,20 +195,31 @@ const Clients: React.FC = () => {
                   <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
-                  <span>Dernière activité: {new Date(client.metrics.lastActivity).toLocaleDateString()}</span>
+                  <span>
+                    Dernière activité:{" "}
+                    {client.metrics && client.metrics.lastActivity
+                      ? new Date(client.metrics.lastActivity).toLocaleDateString()
+                      : "N/A"}
+                  </span>
                 </div>
                 
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <div className="bg-primary-50 dark:bg-primary-900 p-2 rounded-md">
-                    <div className="text-lg font-bold text-primary-600 dark:text-primary-400">{client.metrics.tasksCompleted}</div>
+                    <div className="text-lg font-bold text-primary-600 dark:text-primary-400">
+                      {client.metrics?.tasksCompleted ?? 0}
+                    </div>
                     <div className="text-xs text-primary-800 dark:text-primary-200">Terminées</div>
                   </div>
                   <div className="bg-yellow-50 dark:bg-yellow-900 p-2 rounded-md">
-                    <div className="text-lg font-bold text-yellow-600 dark:text-yellow-400">{client.metrics.tasksInProgress}</div>
+                    <div className="text-lg font-bold text-yellow-600 dark:text-yellow-400">
+                      {client.metrics?.tasksInProgress ?? 0}
+                    </div>
                     <div className="text-xs text-yellow-800 dark:text-yellow-200">En cours</div>
                   </div>
                   <div className="bg-gray-50 dark:bg-gray-700 p-2 rounded-md">
-                    <div className="text-lg font-bold text-gray-600 dark:text-gray-300">{client.metrics.tasksPending}</div>
+                    <div className="text-lg font-bold text-gray-600 dark:text-gray-300">
+                      {client.metrics?.tasksPending ?? 0}
+                    </div>
                     <div className="text-xs text-gray-800 dark:text-gray-200">À faire</div>
                   </div>
                 </div>
