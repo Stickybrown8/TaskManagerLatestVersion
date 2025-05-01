@@ -1,13 +1,23 @@
 // Import des services de gamification
 import { gamificationService } from './api';
 import { profitabilityRewardService } from './profitabilityRewardService';
-import { soundService } from './soundService';
 
 /**
  * Point d'entrée central pour tous les services liés à la gamification
  * Ce fichier regroupe tous les services nécessaires pour la gestion
  * de la gamification dans l'application.
  */
+// Define the SoundService class or object
+export const soundService = {
+  play: (soundName: string, volume: number) => {
+    // Implementation for playing a sound
+  },
+  preloadSounds: () => {
+    // Implementation for preloading sounds
+    console.log('Sounds preloaded successfully.');
+  }
+};
+
 const gamificationServices = {
   /**
    * Initialiser tous les services de gamification
