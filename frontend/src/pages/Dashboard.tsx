@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAppDispatch, useAppSelector } from '../hooks';
 import { motion } from 'framer-motion';
 import { addNotification } from '../store/slices/uiSlice';
@@ -18,6 +18,12 @@ interface Challenge {
   completed: boolean;
 }
 
+// Interface pour les notifications
+interface Notification {
+  message: string;
+  type: 'success' | 'warning' | 'error' | 'info';
+}
+
 // Composant pour afficher un tableau de bord ludique
 const Dashboard = () => {
   const dispatch = useAppDispatch();
@@ -25,6 +31,9 @@ const Dashboard = () => {
   // Utilisation de valeurs par défaut pour tous les états
   const auth = useAppSelector(state => state.auth) || {};
   const { user = { name: 'Utilisateur', email: 'utilisateur@exemple.com' } } = auth;
+  
+  // Mémoiser l'utilisateur pour éviter des re-renders inutiles
+  const memoizedUser = useMemo(() => user, [user]);
   
   const gamification = useAppSelector(state => state.gamification) || {};
   const { 
@@ -43,76 +52,304 @@ const Dashboard = () => {
   
   const [showChallenges, setShowChallenges] = useState(false);
   const [showGlobalConfetti, setShowGlobalConfetti] = useState(false);
+  const [dailyChallenges, setDailyChallenges] = useState<Challenge[]>([]);
+  const [notificationQueue, setNotificationQueue] = useState<Notification[]>([]);
   
-  // Calculer les statistiques
-  const completedTasks = tasks.filter(task => task.status === 'terminée').length || 0;
-  const pendingTasks = tasks.filter(task => task.status === 'à faire').length || 0;
-  const inProgressTasks = tasks.filter(task => task.status === 'en cours').length || 0;
-  const totalTasks = tasks.length || 0;
+  // S'assurer que tasks est un tableau et que chaque tâche a un statut valide
+  const isValidTask = (task: any): boolean => 
+    task && typeof task === 'object' && 'status' in task && 
+    ['terminée', 'à faire', 'en cours'].includes(task.status);
+    
+  const validTasks = Array.isArray(tasks) ? tasks.filter(isValidTask) : [];
+  const completedTasks = validTasks.filter(task => task.status === 'terminée').length;
+  const pendingTasks = validTasks.filter(task => task.status === 'à faire').length;
+  const inProgressTasks = validTasks.filter(task => task.status === 'en cours').length;
+  const totalTasks = validTasks.length;
   const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
   
-  // Défis quotidiens (simulés)
-  const dailyChallenges = [
-    {
-      id: 1,
-      title: 'Complétez 3 tâches aujourd\'hui',
-      description: "Terminez 3 tâches pour gagner 15 points d'action supplémentaires",
-      progress: completedTasks >= 3 ? 100 : Math.round((completedTasks / 3) * 100),
-      reward: 15,
-      completed: completedTasks >= 3
-    },
-    {
-      id: 2,
-      title: 'Mettez à jour le statut de 5 tâches',
-      description: "Changez le statut de 5 tâches pour gagner 10 points d'action",
-      progress: 60, // Simulé
-      reward: 10,
-      completed: false
-    },
-    {
-      id: 3,
-      title: 'Ajoutez un nouveau client',
-      description: "Créez un nouveau profil client pour gagner 20 points d'action",
-      progress: 0,
-      reward: 20,
-      completed: false
+  // Vérifier que badges est un tableau et filtrer les badges valides
+  const recentBadges = Array.isArray(badges) 
+    ? badges
+        .filter(badge => badge && typeof badge === 'object' && '_id' in badge && 'icon' in badge && 'name' in badge)
+        .slice(0, 4) 
+    : [];
+  
+  // Nombre de particules adaptatif selon la taille de l'écran
+  const [particleCount, setParticleCount] = useState(200);
+  
+  // Effet pour définir le nombre de particules en fonction de la taille de l'écran
+  useEffect(() => {
+    const handleResize = () => {
+      setParticleCount(window.innerWidth > 768 ? 200 : 100);
+    };
+    
+    // Initialisation
+    handleResize();
+    
+    // Écouter les changements de taille d'écran
+    window.addEventListener('resize', handleResize);
+    
+    // Nettoyage
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+  
+  // Fonction centralisée pour déclencher les confettis
+  const triggerConfetti = useCallback((soundEffect?: string) => {
+    if (!showGlobalConfetti) {
+      setShowGlobalConfetti(true);
+      if (soundEffect) {
+        soundService.play(soundEffect);
+      }
+      setTimeout(() => setShowGlobalConfetti(false), 5000);
     }
-  ];
+  }, [showGlobalConfetti]);
+  
+  // Fonction centralisée pour gérer les notifications avec priorisation
+  const addNotificationToQueue = useCallback((notification: Notification) => {
+    setNotificationQueue(prevQueue => {
+      // Prioriser les notifications d'erreur et d'avertissement
+      const isPriority = notification.type === 'error' || notification.type === 'warning';
+      
+      // Si c'est une notification prioritaire et que la file est pleine, on retire la notification la moins prioritaire
+      if (isPriority && prevQueue.length >= 3) {
+        // Trouver l'index de la première notification non prioritaire ('success' ou 'info')
+        const indexToRemove = prevQueue.findIndex(n => n.type === 'success' || n.type === 'info');
+        
+        if (indexToRemove !== -1) {
+          // Créer une nouvelle file d'attente en retirant la notification non prioritaire
+          const newQueue = [...prevQueue];
+          newQueue.splice(indexToRemove, 1);
+          return [...newQueue, notification];
+        }
+      }
+      
+      // Comportement standard: limiter le nombre de notifications à 3 maximum
+      const newQueue = [...prevQueue, notification].slice(-3);
+      return newQueue;
+    });
+    
+    // Note: Dans une application réelle, on pourrait également
+    // implémenter une limite dans le reducer Redux, par exemple:
+    // 
+    // Dans le slice Redux (uiSlice.js):
+    // reducers: {
+    //   addNotification: (state, action) => {
+    //     // Implémenter une logique similaire pour prioriser les notifications
+    //     const isPriority = action.payload.type === 'error' || action.payload.type === 'warning';
+    //     if (isPriority && state.notifications.length >= 5) {
+    //       // Chercher une notification non prioritaire à remplacer
+    //       const indexToRemove = state.notifications.findIndex(n => n.type === 'success' || n.type === 'info');
+    //       if (indexToRemove !== -1) {
+    //         const newNotifications = [...state.notifications];
+    //         newNotifications.splice(indexToRemove, 1);
+    //         state.notifications = [...newNotifications, action.payload];
+    //         return;
+    //       }
+    //     }
+    //     // Si aucune priorisation n'a été appliquée, comportement standard
+    //     state.notifications = [...state.notifications, action.payload].slice(-5);
+    //   }
+    // }
+  }, []);
+  
+  // Effet pour traiter la file d'attente des notifications
+  useEffect(() => {
+    if (notificationQueue.length > 0) {
+      const notification = notificationQueue[0];
+      dispatch(addNotification(notification));
+      
+      // Retirer la notification de la file d'attente
+      setTimeout(() => {
+        setNotificationQueue(prevQueue => prevQueue.slice(1));
+      }, 500); // Délai court pour éviter les notifications simultanées
+    }
+  }, [notificationQueue, dispatch]); // dispatch inclus comme dépendance
+  
+  // État pour suivre le chargement des défis
+  const [isChallengesLoading, setIsChallengesLoading] = useState(false);
+  const [challengesError, setChallengesError] = useState<string | null>(null);
+  
+  // Chargement des défis quotidiens avec gestion complète des erreurs
+  useEffect(() => {
+    // Fonction pour récupérer les défis avec rétentatives
+    const fetchChallengesWithRetry = async (retryCount = 0, maxRetries = 3) => {
+      setIsChallengesLoading(true);
+      setChallengesError(null);
+      
+      try {
+        // Simulation d'une pause pour représenter le temps réseau
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        // Dans une app réelle, appel API avec timeout:
+        // const controller = new AbortController();
+        // const timeoutId = setTimeout(() => controller.abort(), 5000);
+        // try {
+        //   const challenges = await gamificationService.getDailyChallenges({ signal: controller.signal });
+        //   clearTimeout(timeoutId);
+        //   // Traitement normal...
+        // } catch (err) {
+        //   if (err.name === 'AbortError') {
+        //     throw new Error('La requête a expiré, vérifiez votre connexion.');
+        //   }
+        //   throw err;
+        // }
+        
+        // Défis simulés pour le moment
+        const simulatedChallenges = [
+          {
+            id: 1,
+            title: 'Complétez 3 tâches aujourd\'hui',
+            description: "Terminez 3 tâches pour gagner 15 points d'action supplémentaires",
+            progress: completedTasks >= 3 ? 100 : Math.round((completedTasks / 3) * 100),
+            reward: 15,
+            completed: completedTasks >= 3
+          },
+          {
+            id: 2,
+            title: 'Mettez à jour le statut de 5 tâches',
+            description: "Changez le statut de 5 tâches pour gagner 10 points d'action",
+            progress: 60, // Simulé
+            reward: 10,
+            completed: false
+          },
+          {
+            id: 3,
+            title: 'Ajoutez un nouveau client',
+            description: "Créez un nouveau profil client pour gagner 20 points d'action",
+            progress: 0,
+            reward: 20,
+            completed: false
+          }
+        ];
+        
+        // Validation des données reçues
+        const validChallenges = simulatedChallenges.filter(challenge => 
+          challenge && 
+          typeof challenge === 'object' &&
+          'id' in challenge &&
+          'title' in challenge &&
+          'description' in challenge &&
+          'progress' in challenge &&
+          'reward' in challenge &&
+          'completed' in challenge
+        );
+        
+        if (validChallenges.length === 0) {
+          throw new Error('Format des défis invalide');
+        }
+        
+        setDailyChallenges(validChallenges);
+        setIsChallengesLoading(false);
+      } catch (error) {
+        console.error(`Erreur lors de la récupération des défis quotidiens (tentative ${retryCount + 1}/${maxRetries}):`, error);
+        
+        // Si moins de maxRetries tentatives, on réessaie avec backoff exponentiel
+        if (retryCount < maxRetries - 1) {
+          const backoffTime = Math.min(1000 * Math.pow(2, retryCount), 8000);
+          setTimeout(() => {
+            fetchChallengesWithRetry(retryCount + 1, maxRetries);
+          }, backoffTime);
+        } else {
+          // Après maxRetries tentatives échouées
+          setIsChallengesLoading(false);
+          setChallengesError(error instanceof Error ? error.message : 'Erreur inconnue');
+          
+          addNotificationToQueue({
+            message: `Impossible de charger les défis quotidiens: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
+            type: 'error'
+          });
+        }
+      }
+    };
+    
+    fetchChallengesWithRetry();
+    
+    // Nettoyage en cas de démontage du composant
+    return () => {
+      // Si on utilise abort controller dans le vrai code:
+      // if (controller) controller.abort();
+    };
+  }, [completedTasks, addNotificationToQueue]); // completedTasks pour la progression + addNotificationToQueue comme dépendance
   
   // Vérification des événements spéciaux (anniversaire, premier jour du mois, etc.)
   useEffect(() => {
+    // Éviter les multiples vérifications lors des re-rendus
+    const alreadyChecked = React.useRef(false);
+    
     const checkSpecialEvents = async () => {
+      // Si déjà vérifié et pas de changement significatif dans memoizedUser, on skip
+      if (alreadyChecked.current) return;
+      alreadyChecked.current = true;
+      
       try {
         // Vérifier s'il y a des événements spéciaux aujourd'hui
         const today = new Date();
         const dayOfMonth = today.getDate();
         const month = today.getMonth() + 1;
         
-        // Exemple: Anniversaire de l'utilisateur
-        if (user && user.birthDate) {
-          const birthDate = new Date(user.birthDate);
-          if (birthDate.getDate() === dayOfMonth && birthDate.getMonth() + 1 === month) {
-            setShowGlobalConfetti(true);
-            soundService.play('celebration');
-            dispatch(addNotification({
-              message: 'Joyeux anniversaire ! 🎉',
-              type: 'success'
-            }));
+        // Exemple: Anniversaire de l'utilisateur - avec validation de la date
+        if (memoizedUser && 
+            typeof memoizedUser === 'object' && 
+            'birthDate' in memoizedUser && 
+            memoizedUser.birthDate) {
+          try {
+            const birthDate = new Date(memoizedUser.birthDate);
+            
+            // Vérifier que la date est valide et correspond à aujourd'hui
+            if (!isNaN(birthDate.getTime()) && 
+                birthDate.getDate() === dayOfMonth && 
+                birthDate.getMonth() + 1 === month) {
+              triggerConfetti('celebration');
+              addNotificationToQueue({
+                message: 'Joyeux anniversaire ! 🎉',
+                type: 'success'
+              });
+            }
+          } catch (dateError) {
+            console.error('Erreur lors du traitement de la date d\'anniversaire:', dateError);
           }
         }
         
         // Exemple: Premier jour du mois - vérification de la rentabilité
         if (dayOfMonth === 1) {
-          const profitabilityResult = await profitabilityRewardService.checkMonthlyProfitabilityTargets();
-          if (profitabilityResult && profitabilityResult.targetsReached > 0) {
-            dispatch(addNotification({
-              message: `Félicitations ! ${profitabilityResult.targetsReached} clients ont atteint leurs objectifs de rentabilité. Vous avez gagné ${profitabilityResult.totalPointsEarned} points !`,
-              type: 'success'
-            }));
+          try {
+            // Ajouter un timeout pour éviter les blocages
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('La requête a expiré')), 10000)
+            );
             
-            // Déclencher les confettis si l'objectif est atteint
-            setShowGlobalConfetti(true);
-            soundService.play('monthly_reward');
+            // Course entre la requête et le timeout
+            const profitabilityResult = await Promise.race([
+              profitabilityRewardService.checkMonthlyProfitabilityTargets(),
+              timeoutPromise
+            ]);
+            
+            if (profitabilityResult && 
+                typeof profitabilityResult === 'object' &&
+                'targetsReached' in profitabilityResult && 
+                'totalPointsEarned' in profitabilityResult &&
+                profitabilityResult.targetsReached > 0) {
+              
+              addNotificationToQueue({
+                message: `Félicitations ! ${profitabilityResult.targetsReached} clients ont atteint leurs objectifs de rentabilité. Vous avez gagné ${profitabilityResult.totalPointsEarned} points !`,
+                type: 'success'
+              });
+              
+              // Déclencher les confettis si l'objectif est atteint
+              triggerConfetti('monthly_reward');
+            }
+          } catch (profitError) {
+            console.error('Erreur lors de la vérification de la rentabilité:', profitError);
+            
+            // Notification uniquement si c'est une erreur de timeout (pas pour les erreurs silencieuses)
+            if (profitError instanceof Error && profitError.message === 'La requête a expiré') {
+              addNotificationToQueue({
+                message: 'Impossible de vérifier les objectifs de rentabilité. Veuillez réessayer plus tard.',
+                type: 'error'
+              });
+            }
           }
         }
       } catch (error) {
@@ -121,19 +358,39 @@ const Dashboard = () => {
     };
     
     checkSpecialEvents();
-  }, [dispatch, user]);
+    
+    // Réinitialiser la vérification si memoizedUser change de manière significative
+    return () => {
+      alreadyChecked.current = false;
+    };
+  }, [dispatch, memoizedUser, triggerConfetti, addNotificationToQueue]); // Toutes les dépendances explicitées
   
-  // Réclamer la récompense d'un défi
+  // État pour traquer les récompenses réclamées
+  const [claimedRewardIds, setClaimedRewardIds] = useState<number[]>([]);
+  
+  // Réclamer la récompense d'un défi avec meilleure synchronisation des états
   const handleClaimReward = async (challenge: Challenge) => {
+    // Vérifier si déjà réclamé ou non complété
+    if (claimedRewardIds.includes(challenge.id)) {
+      addNotificationToQueue({
+        message: 'Vous avez déjà réclamé cette récompense !',
+        type: 'info'
+      });
+      return;
+    }
+    
     if (!challenge.completed) {
-      dispatch(addNotification({
+      addNotificationToQueue({
         message: 'Vous devez d\'abord compléter ce défi !',
         type: 'warning'
-      }));
+      });
       return;
     }
     
     try {
+      // Marquer comme réclamé immédiatement pour éviter les doubles clics
+      setClaimedRewardIds(prev => [...prev, challenge.id]);
+      
       // Ajouter les points d'action à l'utilisateur
       const pointsResponse = await gamificationService.addActionPoints(
         challenge.reward,
@@ -141,41 +398,120 @@ const Dashboard = () => {
         `Défi complété: ${challenge.title}`
       );
       
-      dispatch(addNotification({
+      addNotificationToQueue({
         message: `Félicitations ! Vous avez gagné ${challenge.reward} points d'action.`,
         type: 'success'
-      }));
+      });
       
       // Déclencher les confettis
-      setShowGlobalConfetti(true);
-      soundService.play('challenge_complete');
+      triggerConfetti('challenge_complete');
       
-      // Mettre à jour l'interface (dans une application réelle, cela serait géré par Redux)
-      setTimeout(() => {
-        setShowChallenges(false);
-        setShowGlobalConfetti(false);
+      // Mettre à jour les défis (simulation)
+      setDailyChallenges(prevChallenges =>
+        prevChallenges.map(c => 
+          c.id === challenge.id 
+            ? { ...c, completed: true, progress: 100 } 
+            : c
+        )
+      );
+      
+      // Utiliser une référence au state actuel pour éviter les problèmes de fermeture
+      let timerRef: ReturnType<typeof setTimeout>;
+      
+      // Mettre à jour l'interface après un délai
+      timerRef = setTimeout(() => {
+        // Vérifier si l'utilisateur est toujours sur cette page
+        if (document.body.contains(document.getElementById('challenges-container'))) {
+          setShowChallenges(false);
+        }
       }, 3000);
+      
+      // Nettoyer le timer si le composant est démonté
+      return () => {
+        if (timerRef) clearTimeout(timerRef);
+      };
     } catch (error) {
-      dispatch(addNotification({
+      // Permettre à l'utilisateur de réessayer en cas d'erreur
+      setClaimedRewardIds(prev => prev.filter(id => id !== challenge.id));
+      
+      console.error('Erreur lors de la réclamation de la récompense:', error);
+      addNotificationToQueue({
         message: 'Erreur lors de la réclamation de la récompense',
         type: 'error'
-      }));
+      });
     }
   };
+  
+  // Vérifier que nous avons les données nécessaires avant de rendre le composant
+  // et identifier les problèmes spécifiques
+  const dataStatus = useMemo(() => {
+    const issues: string[] = [];
+    
+    if (!memoizedUser) issues.push('Données utilisateur manquantes');
+    if (typeof level !== 'number') issues.push('Niveau utilisateur non défini');
+    if (!Array.isArray(tasks)) issues.push('Liste des tâches non disponible');
+    if (!Array.isArray(clients)) issues.push('Liste des clients non disponible');
+    
+    return {
+      isReady: issues.length === 0,
+      issues
+    };
+  }, [memoizedUser, level, tasks, clients]);
+  
+  const hasRequiredData = dataStatus.isReady;
+  
+  if (!hasRequiredData) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Chargement du tableau de bord</h1>
+          {dataStatus.issues.length > 0 && (
+            <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+              <h2 className="text-lg font-semibold text-yellow-800 dark:text-yellow-200 mb-2">
+                Certaines données ne sont pas disponibles :
+              </h2>
+              <ul className="list-disc list-inside text-yellow-700 dark:text-yellow-300">
+                {dataStatus.issues.map((issue, index) => (
+                  <li key={index}>{issue}</li>
+                ))}
+              </ul>
+              <p className="mt-2 text-yellow-600 dark:text-yellow-400 text-sm">
+                Les données manquantes seront chargées dès qu'elles seront disponibles.
+              </p>
+            </div>
+          )}
+        </div>
+        
+        <div className="animate-pulse flex flex-col space-y-4">
+          <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+          <div className="h-24 bg-gray-200 dark:bg-gray-700 rounded"></div>
+          <div className="h-32 bg-gray-200 dark:bg-gray-700 rounded"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="h-24 bg-gray-200 dark:bg-gray-700 rounded"></div>
+            <div className="h-24 bg-gray-200 dark:bg-gray-700 rounded"></div>
+            <div className="h-24 bg-gray-200 dark:bg-gray-700 rounded"></div>
+            <div className="h-24 bg-gray-200 dark:bg-gray-700 rounded"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="container mx-auto">
       {/* Effet de confettis global */}
-      <ConfettiEffect 
-        show={showGlobalConfetti} 
-        duration={5000} 
-        particleCount={200} 
-        onComplete={() => setShowGlobalConfetti(false)}
-      />
+      {showGlobalConfetti && (
+        <ConfettiEffect 
+          show={true}
+          duration={5000} 
+          particleCount={particleCount}
+          onComplete={() => setShowGlobalConfetti(false)}
+        />
+      )}
       
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Tableau de bord</h1>
-        <p className="text-gray-600 dark:text-gray-300 mt-1">Bienvenue, {user?.name || 'Utilisateur'} !</p>
+        <p className="text-gray-600 dark:text-gray-300 mt-1">Bienvenue, {memoizedUser?.name || 'Utilisateur'} !</p>
       </div>
       
       {/* Carte de profil */}
@@ -191,7 +527,7 @@ const Dashboard = () => {
               <div className="flex-shrink-0 mb-4 md:mb-0 md:mr-6">
                 <div className="relative">
                   <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary-500 to-secondary-500 flex items-center justify-center text-white text-3xl font-bold">
-                    {(user?.name || 'U').charAt(0).toUpperCase()}
+                    {(memoizedUser?.name || 'U').charAt(0).toUpperCase()}
                   </div>
                   <div className="absolute -bottom-2 -right-2 bg-secondary-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold">
                     {level}
@@ -200,8 +536,8 @@ const Dashboard = () => {
               </div>
               
               <div className="flex-1">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">{user?.name || 'Utilisateur'}</h2>
-                <p className="text-gray-600 dark:text-gray-300 mb-3">{user?.email || 'utilisateur@exemple.com'}</p>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">{memoizedUser?.name || 'Utilisateur'}</h2>
+                <p className="text-gray-600 dark:text-gray-300 mb-3">{memoizedUser?.email || 'utilisateur@exemple.com'}</p>
                 
                 <div className="grid grid-cols-3 gap-4 mb-4">
                   <div className="bg-primary-50 dark:bg-primary-900/30 p-3 rounded-lg text-center">
@@ -209,7 +545,7 @@ const Dashboard = () => {
                     <div className="text-xs text-primary-800 dark:text-primary-200">Points</div>
                   </div>
                   <div className="bg-secondary-50 dark:bg-secondary-900/30 p-3 rounded-lg text-center">
-                    <div className="text-2xl font-bold text-secondary-600 dark:text-secondary-400">{badges?.length || 0}</div>
+                    <div className="text-2xl font-bold text-secondary-600 dark:text-secondary-400">{Array.isArray(badges) ? badges.length : 0}</div>
                     <div className="text-xs text-secondary-800 dark:text-secondary-200">Badges</div>
                   </div>
                   <div className="bg-success-50 dark:bg-success-900/30 p-3 rounded-lg text-center">
@@ -242,49 +578,85 @@ const Dashboard = () => {
           transition={{ duration: 0.5, delay: 0.1 }}
           className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden"
         >
-          <div className="p-6">
+          <div className="p-6" id="challenges-container">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Défis quotidiens</h2>
             
-            {showChallenges ? (
+            {isChallengesLoading ? (
+              // État de chargement des défis
+              <div className="animate-pulse space-y-4">
+                <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded"></div>
+              </div>
+            ) : challengesError ? (
+              // Affichage des erreurs de chargement
+              <div className="p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg">
+                <p className="text-red-700 dark:text-red-300">{challengesError}</p>
+                <button
+                  onClick={() => {
+                    // Réinitialiser l'erreur et déclencher un nouveau chargement
+                    setChallengesError(null);
+                    // Cette ligne déclenchera un nouveau chargement via useEffect
+                  }}
+                  className="mt-3 w-full py-2 px-3 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm font-medium"
+                >
+                  Réessayer
+                </button>
+              </div>
+            ) : showChallenges ? (
               <div className="space-y-4">
-                {dailyChallenges.map(challenge => (
-                  <div key={challenge.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3">
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="font-medium text-gray-900 dark:text-white">{challenge.title}</h3>
-                      <span className="text-sm font-bold text-primary-600 dark:text-primary-400">+{challenge.reward}</span>
-                    </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">{challenge.description}</p>
-                    
-                    <div className="mb-3">
-                      <div className="flex justify-between text-xs text-gray-600 dark:text-gray-300 mb-1">
-                        <span>Progression</span>
-                        <span>{challenge.progress}%</span>
-                      </div>
-                      <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full">
-                        <div 
-                          className={`h-full rounded-full ${
-                            challenge.completed 
-                              ? 'bg-success-500' 
-                              : 'bg-primary-500'
-                          }`}
-                          style={{ width: `${challenge.progress}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                    
-                    <button
-                      onClick={() => handleClaimReward(challenge)}
-                      disabled={!challenge.completed}
-                      className={`w-full py-2 px-3 rounded-md text-sm font-medium ${
-                        challenge.completed
-                          ? 'bg-success-600 hover:bg-success-700 text-white'
-                          : 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400 cursor-not-allowed'
-                      }`}
-                    >
-                      {challenge.completed ? 'Réclamer' : 'En cours...'}
-                    </button>
+                {dailyChallenges.length === 0 ? (
+                  // Pas de défis disponibles
+                  <div className="text-center py-6">
+                    <p className="text-gray-600 dark:text-gray-400">Aucun défi disponible pour le moment.</p>
                   </div>
-                ))}
+                ) : (
+                  // Liste des défis
+                  dailyChallenges.map(challenge => (
+                    <div key={challenge.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="font-medium text-gray-900 dark:text-white">{challenge.title}</h3>
+                        <span className="text-sm font-bold text-primary-600 dark:text-primary-400">+{challenge.reward}</span>
+                      </div>
+                      <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">{challenge.description}</p>
+                      
+                      <div className="mb-3">
+                        <div className="flex justify-between text-xs text-gray-600 dark:text-gray-300 mb-1">
+                          <span>Progression</span>
+                          <span>{challenge.progress}%</span>
+                        </div>
+                        <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full">
+                          <div 
+                            className={`h-full rounded-full ${
+                              challenge.completed 
+                                ? 'bg-success-500' 
+                                : 'bg-primary-500'
+                            }`}
+                            style={{ width: `${challenge.progress}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                      
+                      <button
+                        onClick={() => handleClaimReward(challenge)}
+                        disabled={!challenge.completed || claimedRewardIds.includes(challenge.id)}
+                        className={`w-full py-2 px-3 rounded-md text-sm font-medium ${
+                          claimedRewardIds.includes(challenge.id)
+                            ? 'bg-gray-400 dark:bg-gray-600 text-white cursor-not-allowed'
+                            : challenge.completed
+                              ? 'bg-success-600 hover:bg-success-700 text-white'
+                              : 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400 cursor-not-allowed'
+                        }`}
+                      >
+                        {claimedRewardIds.includes(challenge.id) 
+                          ? 'Récompense réclamée' 
+                          : challenge.completed 
+                            ? 'Réclamer' 
+                            : 'En cours...'}
+                      </button>
+                    </div>
+                  ))
+                )}
                 
                 <button
                   onClick={() => setShowChallenges(false)}
@@ -336,7 +708,7 @@ const Dashboard = () => {
             </div>
             <div>
               <div className="text-sm text-gray-500 dark:text-gray-400">Clients</div>
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">{clients.length}</div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">{Array.isArray(clients) ? clients.length : 0}</div>
             </div>
           </div>
         </motion.div>
@@ -441,7 +813,7 @@ const Dashboard = () => {
       </motion.div>
       
       {/* Badges récents */}
-      {badges.length > 0 && (
+      {recentBadges.length > 0 && (
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -459,7 +831,7 @@ const Dashboard = () => {
           </div>
           
           <div className="flex space-x-4 overflow-x-auto pb-2">
-            {badges.slice(0, 4).map((badge) => (
+            {recentBadges.map((badge) => (
               <div key={badge._id} className="flex-shrink-0 w-24 text-center">
                 <img 
                   src={badge.icon} 
