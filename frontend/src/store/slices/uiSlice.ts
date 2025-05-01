@@ -3,6 +3,8 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 // Types
 interface UIState {
+  settings: { soundEnabled: true; };
+  settings: { soundEnabled: boolean; };
   sidebarOpen: boolean;
   darkMode: boolean;
   currentTheme: string;

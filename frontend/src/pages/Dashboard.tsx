@@ -6,7 +6,7 @@ import { gamificationService } from '../services/api';
 import MonthlyProfitabilityWidget from '../components/profitability/MonthlyProfitabilityWidget';
 import ConfettiEffect from '../components/gamification/ConfettiEffect';
 import { profitabilityRewardService } from '../services/profitabilityRewardService';
-import { soundService } from '../services/soundService';
+import { soundService, SoundTypes, SoundType } from '../services/soundService';
 
 // Définition de l'interface Challenge pour résoudre l'erreur TypeScript
 interface Challenge {
@@ -102,8 +102,10 @@ const Dashboard = () => {
   const triggerConfetti = useCallback((soundEffect?: string) => {
     if (!showGlobalConfetti) {
       setShowGlobalConfetti(true);
-      if (soundEffect) {
-        soundService.play(soundEffect);
+      if (soundEffect && Object.values(SoundTypes).includes(soundEffect as SoundType)) {
+        soundService.play(soundEffect as SoundType);
+      } else if (soundEffect) {
+        console.warn(`Invalid sound effect: ${soundEffect}`);
       }
       setTimeout(() => setShowGlobalConfetti(false), 5000);
     }
@@ -317,7 +319,7 @@ const Dashboard = () => {
                 typeof profitabilityResult === 'object' &&
                 'targetsReached' in profitabilityResult && 
                 'totalPointsEarned' in profitabilityResult &&
-                profitabilityResult.targetsReached > 0) {
+                (profitabilityResult as { targetsReached: number; totalPointsEarned: number }).targetsReached > 0) {
               
               addNotificationToQueue({
                 message: `Félicitations ! ${profitabilityResult.targetsReached} clients ont atteint leurs objectifs de rentabilité. Vous avez gagné ${profitabilityResult.totalPointsEarned} points !`,
