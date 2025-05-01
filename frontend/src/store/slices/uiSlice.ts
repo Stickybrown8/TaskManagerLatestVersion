@@ -3,7 +3,6 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 // Types
 interface UIState {
-  settings: { soundEnabled: true; };
   settings: { soundEnabled: boolean; };
   sidebarOpen: boolean;
   darkMode: boolean;
@@ -34,6 +33,9 @@ interface Notification {
 
 // État initial - Exporté pour être utilisé dans initialStates.js
 export const initialUIState: UIState = {
+  settings: {
+    soundEnabled: true,
+  },
   sidebarOpen: true,
   darkMode: window.matchMedia('(prefers-color-scheme: dark)').matches,
   currentTheme: 'default',
