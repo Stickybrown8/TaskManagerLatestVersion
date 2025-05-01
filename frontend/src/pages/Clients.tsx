@@ -171,61 +171,68 @@ const Clients: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredClients.map((client) => (
-            <motion.div
-              key={client._id}
-              whileHover={{ y: -5, transition: { duration: 0.2 } }}
-              className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden cursor-pointer hover:shadow-lg transition-shadow"
-              onClick={() => handleClientClick(client._id)}
-            >
-              <div className="p-6">
-                <div className="flex justify-between items-start mb-4">
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white truncate">{client.name}</h2>
-                  <span className={`px-2 py-1 text-xs rounded-full ${
-                    client.status === 'actif' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                    client.status === 'inactif' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
-                    'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-                  }`}>
-                    {client.status.charAt(0).toUpperCase() + client.status.slice(1)}
-                  </span>
-                </div>
-                <p className="text-gray-600 dark:text-gray-300 mb-4 line-clamp-2">{client.description}</p>
-                
-                <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 mb-4">
-                  <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  <span>
-                    Dernière activité:{" "}
-                    {client.metrics && client.metrics.lastActivity
-                      ? new Date(client.metrics.lastActivity).toLocaleDateString()
-                      : "N/A"}
-                  </span>
-                </div>
-                
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="bg-primary-50 dark:bg-primary-900 p-2 rounded-md">
-                    <div className="text-lg font-bold text-primary-600 dark:text-primary-400">
-                      {client.metrics?.tasksCompleted ?? 0}
+          {filteredClients.map((client) => {
+            try {
+              return (
+                <motion.div
+                  key={client._id}
+                  whileHover={{ y: -5, transition: { duration: 0.2 } }}
+                  className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden cursor-pointer hover:shadow-lg transition-shadow"
+                  onClick={() => handleClientClick(client._id)}
+                >
+                  <div className="p-6">
+                    <div className="flex justify-between items-start mb-4">
+                      <h2 className="text-xl font-semibold text-gray-900 dark:text-white truncate">{client.name}</h2>
+                      <span className={`px-2 py-1 text-xs rounded-full ${
+                        client.status === 'actif' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                        client.status === 'inactif' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                        'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
+                      }`}>
+                        {client.status.charAt(0).toUpperCase() + client.status.slice(1)}
+                      </span>
                     </div>
-                    <div className="text-xs text-primary-800 dark:text-primary-200">Terminées</div>
-                  </div>
-                  <div className="bg-yellow-50 dark:bg-yellow-900 p-2 rounded-md">
-                    <div className="text-lg font-bold text-yellow-600 dark:text-yellow-400">
-                      {client.metrics?.tasksInProgress ?? 0}
+                    <p className="text-gray-600 dark:text-gray-300 mb-4 line-clamp-2">{client.description}</p>
+                    
+                    <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 mb-4">
+                      <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span>
+                        Dernière activité:{" "}
+                        {client.metrics && client.metrics.lastActivity
+                          ? new Date(client.metrics.lastActivity).toLocaleDateString()
+                          : "N/A"}
+                      </span>
                     </div>
-                    <div className="text-xs text-yellow-800 dark:text-yellow-200">En cours</div>
-                  </div>
-                  <div className="bg-gray-50 dark:bg-gray-700 p-2 rounded-md">
-                    <div className="text-lg font-bold text-gray-600 dark:text-gray-300">
-                      {client.metrics?.tasksPending ?? 0}
+                    
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div className="bg-primary-50 dark:bg-primary-900 p-2 rounded-md">
+                        <div className="text-lg font-bold text-primary-600 dark:text-primary-400">
+                          {client.metrics?.tasksCompleted ?? 0}
+                        </div>
+                        <div className="text-xs text-primary-800 dark:text-primary-200">Terminées</div>
+                      </div>
+                      <div className="bg-yellow-50 dark:bg-yellow-900 p-2 rounded-md">
+                        <div className="text-lg font-bold text-yellow-600 dark:text-yellow-400">
+                          {client.metrics?.tasksInProgress ?? 0}
+                        </div>
+                        <div className="text-xs text-yellow-800 dark:text-yellow-200">En cours</div>
+                      </div>
+                      <div className="bg-gray-50 dark:bg-gray-700 p-2 rounded-md">
+                        <div className="text-lg font-bold text-gray-600 dark:text-gray-300">
+                          {client.metrics?.tasksPending ?? 0}
+                        </div>
+                        <div className="text-xs text-gray-800 dark:text-gray-200">À faire</div>
+                      </div>
                     </div>
-                    <div className="text-xs text-gray-800 dark:text-gray-200">À faire</div>
                   </div>
-                </div>
-              </div>
-            </motion.div>
-          ))}
+                </motion.div>
+              );
+            } catch (e) {
+              console.error("Erreur lors du rendu d'un client :", client, e);
+              return <div key={client._id} style={{ color: 'red' }}>Erreur de rendu client</div>;
+            }
+          })}
         </div>
       )}
     </div>
