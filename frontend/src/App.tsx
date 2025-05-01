@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import PrivateRoute from './components/PrivateRoute';
 import TimerPopupFix from './components/timer/TimerPopupFix';
@@ -20,10 +20,9 @@ import TestApi from './pages/TestApi';
 import TestLogin from './TestLogin';
 import AdminSetup from './AdminSetup';
 
-// Ce composant remplacera l'ancien App.tsx
-const AppRouterUpdated: React.FC = () => {
+const App: React.FC = () => {
   return (
-    <>
+    <Router>
       <TimerPopupFix />
       <Routes>
         <Route path="/login" element={<Login />} />
@@ -48,8 +47,8 @@ const AppRouterUpdated: React.FC = () => {
           </Route>
         </Route>
       </Routes>
-    </>
+    </Router>
   );
 };
 
-export default AppRouterUpdated;
+export default App;
