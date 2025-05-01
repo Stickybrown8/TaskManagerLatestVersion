@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useAppDispatch, useAppSelector } from '../hooks';
 import { motion } from 'framer-motion';
 import { addNotification } from '../store/slices/uiSlice';
@@ -27,6 +27,9 @@ interface Notification {
 // Composant pour afficher un tableau de bord ludique
 const Dashboard = () => {
   const dispatch = useAppDispatch();
+  
+  // Référence pour stocker les timers
+  const timersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   
   // Utilisation de valeurs par défaut pour tous les états
   const auth = useAppSelector(state => state.auth) || {};
@@ -129,29 +132,6 @@ const Dashboard = () => {
       const newQueue = [...prevQueue, notification].slice(-3);
       return newQueue;
     });
-    
-    // Note: Dans une application réelle, on pourrait également
-    // implémenter une limite dans le reducer Redux, par exemple:
-    // 
-    // Dans le slice Redux (uiSlice.js):
-    // reducers: {
-    //   addNotification: (state, action) => {
-    //     // Implémenter une logique similaire pour prioriser les notifications
-    //     const isPriority = action.payload.type === 'error' || action.payload.type === 'warning';
-    //     if (isPriority && state.notifications.length >= 5) {
-    //       // Chercher une notification non prioritaire à remplacer
-    //       const indexToRemove = state.notifications.findIndex(n => n.type === 'success' || n.type === 'info');
-    //       if (indexToRemove !== -1) {
-    //         const newNotifications = [...state.notifications];
-    //         newNotifications.splice(indexToRemove, 1);
-    //         state.notifications = [...newNotifications, action.payload];
-    //         return;
-    //       }
-    //     }
-    //     // Si aucune priorisation n'a été appliquée, comportement standard
-    //     state.notifications = [...state.notifications, action.payload].slice(-5);
-    //   }
-    // }
   }, []);
   
   // Effet pour traiter la file d'attente des notifications
@@ -248,9 +228,12 @@ const Dashboard = () => {
         // Si moins de maxRetries tentatives, on réessaie avec backoff exponentiel
         if (retryCount < maxRetries - 1) {
           const backoffTime = Math.min(1000 * Math.pow(2, retryCount), 8000);
-          setTimeout(() => {
+          const timerId = setTimeout(() => {
             fetchChallengesWithRetry(retryCount + 1, maxRetries);
           }, backoffTime);
+          
+          // Stocker le timer dans la ref pour nettoyage
+          timersRef.current[`challenge-retry-${retryCount}`] = timerId;
         } else {
           // Après maxRetries tentatives échouées
           setIsChallengesLoading(false);
@@ -268,18 +251,22 @@ const Dashboard = () => {
     
     // Nettoyage en cas de démontage du composant
     return () => {
-      // Si on utilise abort controller dans le vrai code:
-      // if (controller) controller.abort();
+      // Nettoyer tous les timers stockés pour les retentatives
+      Object.keys(timersRef.current).forEach(key => {
+        if (key.startsWith('challenge-retry-')) {
+          clearTimeout(timersRef.current[key]);
+          delete timersRef.current[key];
+        }
+      });
     };
   }, [completedTasks, addNotificationToQueue]); // completedTasks pour la progression + addNotificationToQueue comme dépendance
   
+  // Référence pour vérifier si les événements spéciaux ont déjà été vérifiés
+  const alreadyChecked = useRef(false);
+
   // Vérification des événements spéciaux (anniversaire, premier jour du mois, etc.)
   useEffect(() => {
-    // Éviter les multiples vérifications lors des re-rendus
-    const alreadyChecked = React.useRef(false);
-    
     const checkSpecialEvents = async () => {
-      // Si déjà vérifié et pas de changement significatif dans memoizedUser, on skip
       if (alreadyChecked.current) return;
       alreadyChecked.current = true;
       
@@ -415,21 +402,16 @@ const Dashboard = () => {
         )
       );
       
-      // Utiliser une référence au state actuel pour éviter les problèmes de fermeture
-      let timerRef: ReturnType<typeof setTimeout>;
-      
-      // Mettre à jour l'interface après un délai
-      timerRef = setTimeout(() => {
+      // Utiliser un timer pour fermer les défis
+      const hideTimerId = setTimeout(() => {
         // Vérifier si l'utilisateur est toujours sur cette page
         if (document.body.contains(document.getElementById('challenges-container'))) {
           setShowChallenges(false);
         }
       }, 3000);
       
-      // Nettoyer le timer si le composant est démonté
-      return () => {
-        if (timerRef) clearTimeout(timerRef);
-      };
+      // Stocker le timer dans la ref pour le nettoyer si nécessaire
+      timersRef.current[`hide-challenges-${challenge.id}`] = hideTimerId;
     } catch (error) {
       // Permettre à l'utilisateur de réessayer en cas d'erreur
       setClaimedRewardIds(prev => prev.filter(id => id !== challenge.id));
@@ -441,6 +423,17 @@ const Dashboard = () => {
       });
     }
   };
+  
+  // Effet pour nettoyer tous les timers au démontage du composant
+  useEffect(() => {
+    return () => {
+      // Nettoyer tous les timers stockés dans timersRef
+      Object.values(timersRef.current).forEach(timer => {
+        clearTimeout(timer);
+      });
+      timersRef.current = {};
+    };
+  }, []);
   
   // Vérifier que nous avons les données nécessaires avant de rendre le composant
   // et identifier les problèmes spécifiques
