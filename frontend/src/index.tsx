@@ -30,6 +30,7 @@ if (container) {
       </Provider>
     </React.StrictMode>
   );
+  console.log("App React montée !");
 } else {
   console.error("L'élément avec l'ID 'root' n'a pas été trouvé dans le DOM");
 }

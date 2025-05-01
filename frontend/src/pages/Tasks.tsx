@@ -17,6 +17,7 @@ const Tasks: React.FC = () => {
 
   // Charger les tâches et les clients au chargement de la page
   useEffect(() => {
+    console.log("Chargement des tâches...");
     const loadData = async () => {
       try {
         // Charger les tâches
