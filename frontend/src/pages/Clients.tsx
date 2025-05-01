@@ -71,6 +71,9 @@ const Clients: React.FC = () => {
   console.log('clients du store :', clients);
   console.log('filteredClients :', filteredClients);
   console.log("filteredClients à afficher :", filteredClients);
+  if (filteredClients.length > 0) {
+    console.log("Premier client :", filteredClients[0]);
+  }
 
   // Naviguer vers la page de détail du client
   const handleClientClick = (clientId: string) => {
@@ -81,6 +84,8 @@ const Clients: React.FC = () => {
   const handleCreateClient = () => {
     navigate('/clients/new');
   };
+
+  console.log("Clients.tsx monté !");
 
   return (
     <div className="container mx-auto">
@@ -231,6 +236,9 @@ const Clients: React.FC = () => {
               );
             } catch (e) {
               console.error("Erreur lors du rendu d'un client :", client, e, JSON.stringify(client));
+              if (e instanceof Error) {
+                alert("Erreur JS : " + e.message);
+              }
               return <div key={client._id} style={{ color: 'red' }}>Erreur de rendu client</div>;
             }
           })}
