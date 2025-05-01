@@ -5,7 +5,7 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const connectDB = require('./config/db');
-const chatRoutes = require('./routes/chat');
+// const chatRoutes = require('./routes/chat');
 
 // Routes imports
 const registerRoute = require('./routes/register');
@@ -200,7 +200,7 @@ app.use('/api/clients', clientRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/badges', badgeRoutes);
 app.use('/api/gamification', gamificationRoutes);
-app.use('/api/chat', chatRoutes);
+// app.use('/api/chat', chatRoutes);
 app.use('/api/images', imageRoutes);
 
 // Route de base
