@@ -13,6 +13,7 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
   // Debug temporaire
   // console.log({ isAuthenticated, token, rehydrated, loading });
   console.log({ isAuthenticated, token, rehydrated, loading });
+  console.log("PrivateRoute.tsx rendu !");
 
   if (!rehydrated) {
     return (

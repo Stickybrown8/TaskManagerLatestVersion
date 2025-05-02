@@ -58,6 +58,8 @@ const Login: React.FC = () => {
     }
   };
 
+  console.log("Login.tsx rendu !");
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-secondary-50 dark:from-gray-900 dark:to-gray-800 p-4">
       <motion.div

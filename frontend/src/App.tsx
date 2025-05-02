@@ -21,6 +21,7 @@ import TestLogin from './TestLogin';
 import AdminSetup from './AdminSetup';
 
 const App: React.FC = () => {
+  console.log("App.tsx rendu !");
   return (
     <>
       <TimerPopupFix />
