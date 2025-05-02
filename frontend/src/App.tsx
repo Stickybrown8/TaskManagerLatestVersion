@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import PrivateRoute from './components/PrivateRoute';
 import TimerPopupFix from './components/timer/TimerPopupFix';
@@ -22,7 +22,7 @@ import AdminSetup from './AdminSetup';
 
 const App: React.FC = () => {
   return (
-    <Router>
+    <>
       <TimerPopupFix />
       <Routes>
         <Route path="/login" element={<Login />} />
@@ -47,7 +47,7 @@ const App: React.FC = () => {
           </Route>
         </Route>
       </Routes>
-    </Router>
+    </>
   );
 };
 
