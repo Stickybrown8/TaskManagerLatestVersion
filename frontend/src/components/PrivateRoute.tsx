@@ -15,13 +15,7 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
   console.log({ isAuthenticated, token, rehydrated, loading });
   console.log("PrivateRoute.tsx rendu !");
 
-  if (!rehydrated) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
-      </div>
-    );
-  }
+
 
   if (!isAuthenticated || !token) {
     return <Navigate to="/login" replace state={{ from: location }} />;
