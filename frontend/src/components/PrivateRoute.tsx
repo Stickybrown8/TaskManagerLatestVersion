@@ -16,7 +16,6 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
   console.log("PrivateRoute.tsx rendu !");
 
 
-
   if (!isAuthenticated || !token) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }

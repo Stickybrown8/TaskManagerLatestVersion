@@ -40,7 +40,7 @@ router.post('/', verifyToken, async (req, res) => {
       dueDate,
       priority,
       category,
-      status: 'pending',
+      status: 'à faire',
       estimatedTime,
       actualTime: 0,
       impactScore: impactScore || 0,
