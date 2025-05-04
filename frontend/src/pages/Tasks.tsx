@@ -369,7 +369,10 @@ const Tasks: React.FC = () => {
                           e.stopPropagation();
                           try {
                             // Appel API pour marquer comme terminée
-                            await tasksService.updateTask(task._id, { status: 'terminée' });
+                            await tasksService.updateTask(
+                              typeof task._id === 'object' ? (task._id as any)._id : task._id,
+                              { status: 'terminée' }
+                            );
                             dispatch(addNotification({ message: 'Tâche marquée comme terminée', type: 'success' }));
                             // Recharge la liste
                             dispatch(fetchTasksStart());

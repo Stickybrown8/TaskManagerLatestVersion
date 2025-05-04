@@ -544,7 +544,12 @@ const TimerPopupFix: React.FC = () => {
   if (!showTimerPopup) {
     return (
       <button
-        onClick={() => dispatch(toggleTimerPopup(true))}
+        onClick={() => {
+          console.log("Bouton de timer cliqué");
+          console.log("État actuel showTimerPopup:", showTimerPopup);
+          dispatch(toggleTimerPopup(true));
+          console.log("Action toggleTimerPopup dispatched");
+        }}
         className="fixed bottom-4 right-4 bg-primary-600 text-white p-3 rounded-full shadow-lg hover:bg-primary-700 transition-colors z-50"
         title="Ouvrir le chronomètre"
       >

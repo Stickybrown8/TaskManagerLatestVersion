@@ -131,8 +131,10 @@ const TaskDetail: React.FC = () => {
                 <button
                   onClick={async () => {
                     try {
-                      await tasksService.updateTask(task._id, { status: 'terminée' });
-                      setTask({ ...task, status: 'terminée' });
+                      await tasksService.updateTask(
+                        typeof task._id === 'object' ? (task._id as any)._id : task._id,
+                        { status: 'terminée' }
+                      );
                     } catch (error) {
                       alert("Erreur lors de la complétion de la tâche");
                     }
