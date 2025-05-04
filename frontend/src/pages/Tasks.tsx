@@ -70,7 +70,8 @@ const Tasks: React.FC = () => {
   };
 
   // Obtenir le nom du client à partir de son ID
-  const getClientName = (clientId: string) => {
+  const getClientName = (clientId: string | { _id: string; name: string }) => {
+    if (typeof clientId === 'object' && clientId !== null) return clientId.name;
     const client = clients.find(c => c._id === clientId);
     return client ? client.name : 'Client inconnu';
   };
@@ -116,7 +117,7 @@ const Tasks: React.FC = () => {
       case 'en cours':
         return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
       case 'terminée':
-        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+        return 'bg-green-100 text-green-800 dark:bg-green-200';
       default:
         return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
     }
@@ -318,7 +319,7 @@ const Tasks: React.FC = () => {
                     <p className="text-gray-600 dark:text-gray-300 mb-3 line-clamp-2">{task.description}</p>
                     <div className="flex flex-wrap items-center gap-2 mb-2">
                       <span className="text-sm text-gray-600 dark:text-gray-300">
-                        Client: <span className="font-medium">{getClientName(task.clientId)}</span>
+                        Client: <span>{getClientName(task.clientId)}</span>
                       </span>
                       <span className="mx-2 text-gray-300 dark:text-gray-600">•</span>
                       <span className="text-sm text-gray-600 dark:text-gray-300">

@@ -6,6 +6,12 @@ import { updateTask, deleteTask } from '../store/actions/taskActions';
 import { tasksService } from '../services/api';
 import { motion } from 'framer-motion';
 
+interface Client {
+  _id: string;
+  name: string;
+  // ...autres propriétés si besoin
+}
+
 const TaskDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -22,6 +28,8 @@ const TaskDetail: React.FC = () => {
     clientId: ''
   });
 
+  const clients: Client[] = useAppSelector(state => state.clients.clients);
+
   useEffect(() => {
     const loadTask = async () => {
       if (id) {
@@ -35,7 +43,9 @@ const TaskDetail: React.FC = () => {
             status: taskData.status,
             priority: taskData.priority,
             dueDate: taskData.dueDate ? new Date(taskData.dueDate).toISOString().split('T')[0] : '',
-            clientId: taskData.clientId
+            clientId: typeof taskData.clientId === 'object' && taskData.clientId !== null
+              ? taskData.clientId._id
+              : taskData.clientId
           });
           dispatch(fetchTasksSuccess(tasks));
         } catch (error: any) {
@@ -180,13 +190,16 @@ const TaskDetail: React.FC = () => {
             </div>
             <div>
               <label className="block mb-1">Client</label>
-              <input
-                type="text"
+              <select
                 name="clientId"
-                value={formData.clientId}
+                value={formData.clientId || ''}
                 onChange={handleChange}
-                className="w-full p-2 border rounded"
-              />
+              >
+                <option value="">Sélectionner un client</option>
+                {clients.map((client: Client) => (
+                  <option key={client._id} value={client._id}>{client.name}</option>
+                ))}
+              </select>
             </div>
           </div>
           <button

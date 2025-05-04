@@ -7,6 +7,12 @@ import { gamificationService } from '../../services/api';
 import ConfettiEffect from '../gamification/ConfettiEffect';
 import { soundService } from '../../services/soundService';
 
+interface Client {
+  _id: string;
+  name: string;
+  // autres propriétés si besoin
+}
+
 // Composant pour afficher une tâche avec des éléments ludiques
 const TaskCard: React.FC<{
   task: any;
@@ -14,6 +20,7 @@ const TaskCard: React.FC<{
 }> = ({ task, onClick }) => {
   const dispatch = useAppDispatch();
   const { soundEnabled } = useAppSelector(state => state.ui);
+  const clients = useAppSelector(state => state.clients.clients) as Client[];
   const [isHovered, setIsHovered] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -116,6 +123,12 @@ const TaskCard: React.FC<{
     }
   };
 
+  const getClientName = (clientId: string | { _id: string; name: string }) => {
+    if (typeof clientId === 'object' && clientId !== null) return clientId.name;
+    const client = clients.find((c: Client) => c._id === clientId);
+    return client ? client.name : 'Client inconnu';
+  };
+
   return (
     <>
       {/* Effet de confettis */}
@@ -145,6 +158,7 @@ const TaskCard: React.FC<{
                 <span className={`px-3 py-1 text-xs rounded-full ${getStatusColor(task.status)}`}>
                   {task.status.charAt(0).toUpperCase() + task.status.slice(1)}
                 </span>
+                <span>{getClientName(task.clientId)}</span>
               </div>
             </div>
 
