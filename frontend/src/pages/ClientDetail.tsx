@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../hooks';
 import { fetchClientStart, fetchClientSuccess, fetchClientFailure, updateClientStart, updateClientSuccess, updateClientFailure, deleteClientStart, deleteClientSuccess, deleteClientFailure } from '../store/slices/clientsSlice';
 import { clientsService } from '../services/api';
@@ -8,6 +8,15 @@ import { motion } from 'framer-motion';
 import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com';
+
+interface Task {
+  _id: string;
+  title: string;
+  description?: string;
+  status: string;
+  dueDate?: string;
+  clientId?: string | { _id: string; name?: string };
+}
 
 const ClientDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -31,6 +40,33 @@ const ClientDetail: React.FC = () => {
       monthlyBudget: 0
     }
   });
+
+  const tasksState = useAppSelector(state => state.tasks || {});
+  const allTasks = tasksState.tasks as Task[] || [];
+  const clientId = currentClient?._id || id;
+
+  // Variable pour stocker les tâches filtrées
+  const clientTasks = React.useMemo(() => {
+    // Si pas de client ID ou pas de tâches, retourner un tableau vide
+    if (!clientId || !allTasks.length) return [];
+    
+    // Filtrer les tâches de façon sécurisée
+    return allTasks.filter(task => {
+      // Vérifier que la tâche existe
+      if (!task) return false;
+      
+      // Vérifier si un clientId existe
+      if (!task.clientId) return false;
+      
+      // Gérer le cas où clientId est un objet
+      if (typeof task.clientId === 'object' && task.clientId !== null) {
+        return (task.clientId as { _id: string })._id === clientId;
+      }
+      
+      // Gérer le cas où clientId est une string
+      return task.clientId === clientId;
+    });
+  }, [clientId, allTasks]);
 
   // Charger les données du client
   useEffect(() => {
@@ -742,6 +778,71 @@ const ClientDetail: React.FC = () => {
                 </div>
               </div>
             </div>
+            {!isEditing && (
+              <div className="md:col-span-3 mt-6">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                    Tâches associées ({clientTasks.length})
+                  </h2>
+                  
+                  {clientTasks.length === 0 ? (
+                    <p className="text-gray-600 dark:text-gray-400">
+                      Aucune tâche associée à ce client pour le moment.
+                    </p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead>
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                              Titre
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                              Statut
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                              Échéance
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                              Actions
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                          {clientTasks.map(task => (
+                            <tr key={task._id} className="hover:bg-gray-50 dark:hover:bg-gray-750">
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                {task.title}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                  task.status === 'terminée' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                                  task.status === 'en cours' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                                  'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                }`}>
+                                  {task.status}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'Non définie'}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                                <Link 
+                                  to={`/tasks/${task._id}`}
+                                  className="text-primary-600 dark:text-primary-400 hover:text-primary-900 dark:hover:text-primary-300"
+                                >
+                                  Voir
+                                </Link>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </motion.div>
