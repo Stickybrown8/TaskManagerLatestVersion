@@ -3,7 +3,7 @@ import { useAppDispatch, useAppSelector } from '../../hooks';
 import { motion } from 'framer-motion';
 import { addNotification } from '../../store/slices/uiSlice';
 import { addActionPointsSuccess } from '../../store/slices/gamificationSlice';
-import { gamificationService } from '../../services/api';
+import { gamificationService, tasksService } from '../../services/api';
 import ConfettiEffect from '../gamification/ConfettiEffect';
 import { soundService } from '../../services/soundService';
 
@@ -108,6 +108,10 @@ const TaskCard: React.FC<{
       
       // Jouer le son de complétion
       playSound('task_complete');
+
+      // Mettre à jour le statut de la tâche
+      const taskId = typeof task._id === 'object' ? task._id._id : task._id;
+      await tasksService.updateTask(taskId, { status: 'terminée' });
 
       // Attendre la fin de l'animation avant de continuer
       setTimeout(() => {

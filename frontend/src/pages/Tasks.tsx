@@ -7,12 +7,30 @@ import { tasksService, clientsService } from '../services/api';
 import { addNotification } from '../store/slices/uiSlice';
 import { motion } from 'framer-motion';
 
+// Interfaces pour typer les données
+interface Client {
+  _id: string;
+  name: string;
+}
+
+interface Task {
+  _id: string;
+  title: string;
+  description: string;
+  clientId: string | { _id: string; name: string };
+  status: string;
+  priority: string;
+  dueDate: string;
+  category: string;
+  actionPoints: number;
+}
+
 const Tasks: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const tasksState = useAppSelector(state => state.tasks || {});
-  const { tasks = [], filteredTasks = [], filters = {}, loading = false, error = null } = tasksState;
-  const { clients } = useAppSelector(state => state.clients);
+  const { tasks = [], filteredTasks = [] as Task[], filters = {}, loading = false, error = null } = tasksState;
+  const { clients } = useAppSelector(state => state.clients) as { clients: Client[] };
   const [searchTerm, setSearchTerm] = useState('');
 
   // Charger les tâches et les clients au chargement de la page
@@ -52,16 +70,23 @@ const Tasks: React.FC = () => {
   };
 
   // Filtrer les tâches en fonction de la recherche
-  const displayedTasks = searchTerm
-    ? filteredTasks.filter(task => 
-        task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        task.description.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    : filteredTasks;
+  const displayedTasks: Task[] = searchTerm
+    ? filteredTasks.filter((task: Task) =>
+      task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      task.description.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    : filteredTasks.filter((task: Task) => {
+      if (filters.clientId) {
+        const taskClientId = typeof task.clientId === 'object' ? task.clientId._id : task.clientId;
+        if (taskClientId !== filters.clientId) return false;
+      }
+      return true;
+    });
 
   // Naviguer vers la page de détail de la tâche
-  const handleTaskClick = (taskId: string) => {
-    navigate(`/tasks/${taskId}`);
+  const handleTaskClick = (taskId: string | any) => {
+    const id = typeof taskId === 'object' ? taskId._id : taskId;
+    navigate(`/tasks/${id}`);
   };
 
   // Naviguer vers la page de création de tâche
@@ -82,7 +107,7 @@ const Tasks: React.FC = () => {
     const today = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
-    
+
     // Vérifier si la date est aujourd'hui, demain ou plus tard
     if (date.toDateString() === today.toDateString()) {
       return 'Aujourd\'hui';
@@ -117,7 +142,7 @@ const Tasks: React.FC = () => {
       case 'en cours':
         return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
       case 'terminée':
-        return 'bg-green-100 text-green-800 dark:bg-green-200';
+        return 'bg-green-100 text-green-800 dark:text-green-200';
       default:
         return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
     }
@@ -284,8 +309,8 @@ const Tasks: React.FC = () => {
           </svg>
           <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Aucune tâche trouvée</h3>
           <p className="text-gray-600 dark:text-gray-300 mb-6">
-            {searchTerm || Object.values(filters).some(v => v !== undefined) 
-              ? "Aucune tâche ne correspond à vos critères de recherche." 
+            {searchTerm || Object.values(filters).some(v => v !== undefined)
+              ? "Aucune tâche ne correspond à vos critères de recherche."
               : "Vous n'avez pas encore ajouté de tâches."}
           </p>
           <button
@@ -302,7 +327,7 @@ const Tasks: React.FC = () => {
         <div className="space-y-4">
           {displayedTasks.map((task) => (
             <motion.div
-              key={task._id}
+              key={typeof task._id === 'object' ? task._id._id : task._id}
               whileHover={{ y: -2, transition: { duration: 0.2 } }}
               className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden cursor-pointer hover:shadow-lg transition-shadow"
               onClick={() => handleTaskClick(task._id)}

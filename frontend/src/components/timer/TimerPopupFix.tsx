@@ -812,7 +812,10 @@ const TimerPopupFix: React.FC = () => {
               >
                 <option value="">Sélectionner une tâche</option>
                 {tasks
-                  .filter(task => !selectedClientId || task.clientId === selectedClientId)
+                  .filter(task => {
+                    const taskClientId = typeof task.clientId === 'object' ? task.clientId._id : task.clientId;
+                    return !selectedClientId || taskClientId === selectedClientId;
+                  })
                   .map(task => (
                     <option key={task._id} value={task._id}>{task.title}</option>
                   ))

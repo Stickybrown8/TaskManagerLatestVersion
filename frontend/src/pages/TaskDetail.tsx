@@ -222,7 +222,9 @@ const TaskDetail: React.FC = () => {
                 <p><span className="font-medium">Statut:</span> {task.status}</p>
                 <p><span className="font-medium">Priorité:</span> {task.priority}</p>
                 <p><span className="font-medium">Date d'échéance:</span> {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'Non définie'}</p>
-                <p><span className="font-medium">Client:</span> {task.clientId || 'Non assigné'}</p>
+                <p><span className="font-medium">Client:</span> 
+                  {typeof task.clientId === 'object' ? task.clientId.name : task.clientId || 'Non assigné'}
+                </p>
               </div>
             </div>
             <div className="bg-white p-4 rounded shadow">
