@@ -20,14 +20,11 @@ const API_URL = process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.
 const TimerPopupFix: React.FC = () => {
   const dispatch = useAppDispatch();
   
-  // Accès sécurisé à l'état Redux
-  const timerState = useAppSelector(state => state.timer || {});
-  const {
-    runningTimer = null,
-    showTimerPopup = false,
-    timerPopupSize = 'medium',
-    timerPopupPosition = 'bottom-right'
-  } = timerState;
+  // Accéder directement à chaque propriété pour une meilleure réactivité
+const showTimerPopup = useAppSelector(state => state.timer?.showTimerPopup) || false;
+const timerPopupSize = useAppSelector(state => state.timer?.timerPopupSize) || 'medium';
+const timerPopupPosition = useAppSelector(state => state.timer?.timerPopupPosition) || 'bottom-right';
+const runningTimer = useAppSelector(state => state.timer?.runningTimer) || null;
   
   // États locaux
   const [selectedClientId, setSelectedClientId] = useState<string>('');
