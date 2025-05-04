@@ -363,6 +363,27 @@ const Tasks: React.FC = () => {
                     <span className={`px-3 py-1 text-xs rounded-full ${getStatusColor(task.status)}`}>
                       {task.status.charAt(0).toUpperCase() + task.status.slice(1)}
                     </span>
+                    {task.status !== 'terminée' && (
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          try {
+                            // Appel API pour marquer comme terminée
+                            await tasksService.updateTask(task._id, { status: 'terminée' });
+                            dispatch(addNotification({ message: 'Tâche marquée comme terminée', type: 'success' }));
+                            // Recharge la liste
+                            dispatch(fetchTasksStart());
+                            const tasksData = await tasksService.getTasks();
+                            dispatch(fetchTasksSuccess(tasksData));
+                          } catch (error) {
+                            dispatch(addNotification({ message: "Erreur lors de la complétion", type: "error" }));
+                          }
+                        }}
+                        className="ml-2 px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-xs"
+                      >
+                        Terminer
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

@@ -15,8 +15,7 @@ const ClientDetail: React.FC = () => {
   const dispatch = useAppDispatch();
   
   const clientsState = useAppSelector(state => state.clients || {});
-  const { currentClient, loading, error } = clientsState;
-  
+  const { currentClient, loading, error } = clientsState;  
   const [isEditing, setIsEditing] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [formData, setFormData] = useState({

@@ -12,6 +12,20 @@ interface Client {
   // ...autres propriétés si besoin
 }
 
+function formatRemainingDays(dueDate: string) {
+  if (!dueDate) return "Pas d'échéance";
+  const now = new Date();
+  const end = new Date(dueDate);
+  const diff = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  if (diff < 0) return "En retard";
+  if (diff === 0) return "Aujourd'hui";
+  if (diff === 1) return "Demain";
+  if (diff < 30) return `${diff} jour${diff > 1 ? 's' : ''} restant${diff > 1 ? 's' : ''}`;
+  const months = Math.floor(diff / 30);
+  const days = diff % 30;
+  return `${months} mois${months > 1 ? 's' : ''}${days > 0 ? ` et ${days} jour${days > 1 ? 's' : ''}` : ''} restants`;
+}
+
 const TaskDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -113,6 +127,21 @@ const TaskDetail: React.FC = () => {
               >
                 Supprimer
               </button>
+              {!isEditing && task.status !== 'terminée' && (
+                <button
+                  onClick={async () => {
+                    try {
+                      await tasksService.updateTask(task._id, { status: 'terminée' });
+                      setTask({ ...task, status: 'terminée' });
+                    } catch (error) {
+                      alert("Erreur lors de la complétion de la tâche");
+                    }
+                  }}
+                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                >
+                  Marquer comme terminée
+                </button>
+              )}
             </>
           ) : (
             <button
@@ -220,10 +249,22 @@ const TaskDetail: React.FC = () => {
               <h2 className="text-lg font-semibold mb-2">Détails</h2>
               <div className="space-y-2">
                 <p><span className="font-medium">Statut:</span> {task.status}</p>
-                <p><span className="font-medium">Priorité:</span> {task.priority}</p>
-                <p><span className="font-medium">Date d'échéance:</span> {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'Non définie'}</p>
-                <p><span className="font-medium">Client:</span> 
-                  {typeof task.clientId === 'object' ? task.clientId.name : task.clientId || 'Non assigné'}
+                <p>
+                  <span className="font-medium">Date d'échéance:</span>
+                  <span className="ml-2">
+                    {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'Non définie'}
+                    {task.dueDate && (
+                      <span className="ml-2 text-sm text-gray-500">
+                        ({formatRemainingDays(task.dueDate)})
+                      </span>
+                    )}
+                  </span>
+                </p>
+                <p>
+                  <span className="font-medium">Client:</span>
+                  <span className="ml-2 text-lg font-bold text-primary-700">
+                    {typeof task.clientId === 'object' ? task.clientId.name : task.clientId || 'Non assigné'}
+                  </span>
                 </p>
               </div>
             </div>
@@ -231,7 +272,12 @@ const TaskDetail: React.FC = () => {
               <h2 className="text-lg font-semibold mb-2">Activité</h2>
               <div className="space-y-2">
                 <p><span className="font-medium">Créée le:</span> {new Date(task.createdAt).toLocaleDateString()}</p>
-                <p><span className="font-medium">Dernière mise à jour:</span> {new Date(task.updatedAt).toLocaleDateString()}</p>
+                <p>
+                  <span className="font-medium">Dernière mise à jour:</span>
+                  {task.updatedAt
+                    ? new Date(task.updatedAt).toLocaleDateString()
+                    : 'Non disponible'}
+                </p>
               </div>
             </div>
           </div>
