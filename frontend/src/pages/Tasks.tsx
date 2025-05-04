@@ -14,7 +14,7 @@ interface Client {
 }
 
 interface Task {
-  _id: string;
+  _id: string | { _id: string };
   title: string;
   description: string;
   clientId: string | { _id: string; name: string };
