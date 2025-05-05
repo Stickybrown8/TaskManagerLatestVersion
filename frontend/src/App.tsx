@@ -4,6 +4,7 @@ import Layout from './components/Layout';
 import PrivateRoute from './components/PrivateRoute';
 import TimerPopupFix from './components/timer/TimerPopupFix';
 import TimerDebug from './components/debug/TimerDebug';
+import TestTimer from './components/debug/TestTimer';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -50,6 +51,7 @@ const App: React.FC = () => {
         </Route>
       </Routes>
       {process.env.NODE_ENV !== 'production' && <TimerDebug />}
+      {process.env.NODE_ENV !== 'production' && <TestTimer />}
     </>
   );
 };

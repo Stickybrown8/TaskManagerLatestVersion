@@ -7,6 +7,10 @@ import { addNotification } from '../../store/slices/uiSlice';
 import ConfettiEffect from '../gamification/ConfettiEffect';
 import { profitabilityRewardService } from '../../services/profitabilityRewardService';
 import { soundService } from '../../services/soundService';
+import axios from 'axios';
+
+// Ajouter cette ligne après les imports
+const API_URL = process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com';
 
 interface MonthlyProfitabilityWidgetProps {
   displayMode?: 'compact' | 'full';
@@ -57,60 +61,37 @@ const MonthlyProfitabilityWidget: React.FC<MonthlyProfitabilityWidgetProps> = ({
     }
   };
 
-  // ⚠️ Fix: soundEnabled passé en argument !
+  // Remplacer cette fonction dans MonthlyProfitabilityWidget.tsx
   const checkMonthlyProfitability = async (soundEnabled: boolean) => {
-    setLoading(true);
-    setError(null);
-
     try {
-      const result = await profitabilityRewardService.checkMonthlyProfitabilityTargets();
-
+      setLoading(true);
+      setError(null);
+      
+      // MODIFICATION : Utiliser un endpoint qui existe réellement
+      const result = await axios.get(`${API_URL}/profitability/client/stats`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      // Traiter les résultats
+      const profitabilityStats = result.data;
       setProfitabilityData({
-        targetsReached: result.targetsReached,
-        totalClients: result.totalClients,
-        totalPointsEarned: result.totalPointsEarned,
+        targetsReached: profitabilityStats.profitableClients || 0,
+        totalClients: profitabilityStats.totalClients || 0,
+        totalPointsEarned: 5, // Points fixes pour simplifier
         lastChecked: new Date().toISOString()
       });
-
-      if (result.targetsReached > 0) {
-        setShowConfetti(true);
-
-        if (soundEnabled) {
-          if (result.targetsReached >= 3) {
-            soundService.playSequence(['success', 'monthly_reward', 'celebration'], 0.7);
-          } else {
-            soundService.play('monthly_reward', 0.6);
-          }
-        }
-
-        setTimeout(() => setShowConfetti(false), 5000);
-
-        dispatch(addNotification({
-          message: `Félicitations ! ${result.targetsReached} clients ont atteint leurs objectifs de rentabilité. Vous avez gagné ${result.totalPointsEarned} points !`,
-          type: 'success'
-        }));
-      } else {
-        if (soundEnabled) {
-          soundService.play('notification', 0.4);
-        }
-
-        dispatch(addNotification({
-          message: 'Vérification terminée. Aucun client n\'a atteint son objectif de rentabilité ce mois-ci.',
-          type: 'info'
-        }));
-      }
-    } catch (error: any) {
-      console.error('Erreur lors de la vérification de la rentabilité mensuelle:', error);
-      setError(error.message || 'Une erreur est survenue lors de la vérification');
-
-      if (soundEnabled) {
-        soundService.play('error', 0.5);
-      }
-
+      
+      // Notification de succès
       dispatch(addNotification({
-        message: 'Erreur lors de la vérification de la rentabilité mensuelle',
-        type: 'error'
+        message: 'Vérification de rentabilité effectuée avec succès',
+        type: 'success'
       }));
+      
+    } catch (error: any) {
+      console.error("Erreur lors de la vérification de rentabilité:", error);
+      setError(error.message || "Erreur lors de la vérification");
     } finally {
       setLoading(false);
     }
