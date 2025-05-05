@@ -267,7 +267,7 @@ const ClientProfitability: React.FC = () => {
       
       // Utiliser l'endpoint existant au lieu de /verify
       const response = await axios.get(
-        `${API_URL}/api/profitability/client/${id}`, 
+        `${API_URL}/profitability/client/${id}`, 
         { headers: { 'Authorization': `Bearer ${token}` } }
       );
       

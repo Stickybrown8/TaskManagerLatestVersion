@@ -14,6 +14,7 @@ import {
 import { addNotification } from '../../store/slices/uiSlice';
 import { motion } from 'framer-motion';
 import axios from 'axios';
+import { store } from '../../store';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com';
 
