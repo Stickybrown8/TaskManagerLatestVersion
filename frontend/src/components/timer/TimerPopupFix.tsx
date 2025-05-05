@@ -27,13 +27,9 @@ const API_URL = process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.
 
 const TimerPopupFix: React.FC = () => {
   const dispatch = useAppDispatch();
-  console.log("🔍 TimerPopupFix - Composant rendu");
-  console.log("🔍 TimerPopupFix - Vérification import:", { toggleTimerPopup });
 
   // Accéder directement à chaque propriété pour une meilleure réactivité
   const showTimerPopup = useAppSelector(state => {
-    console.log("🔍 État timer complet:", state.timer);
-    console.log("🔍 showTimerPopup actuel:", state.timer?.showTimerPopup);
     return state.timer?.showTimerPopup || false;
   });
   const timerPopupSize = useAppSelector(state => state.timer?.timerPopupSize || 'medium');
@@ -180,7 +176,6 @@ const TimerPopupFix: React.FC = () => {
             setDescription(response.data.description || '');
           }
         } catch (err) {
-          console.log("Pas de timer en cours");
         }
 
       } catch (error) {
@@ -367,8 +362,6 @@ const TimerPopupFix: React.FC = () => {
         billable: billable
       };
 
-      console.log("Données envoyées pour le timer:", timerData);
-
       // Créer le timer avec retry si nécessaire
       let retries = 0;
       let response;
@@ -388,7 +381,6 @@ const TimerPopupFix: React.FC = () => {
             timeout: 10000 // Timeout de 10 secondes
           });
 
-          console.log("Réponse reçue:", response.data);
           break; // Sortir de la boucle si succès
         } catch (err) {
           retries++;
@@ -396,8 +388,6 @@ const TimerPopupFix: React.FC = () => {
           await new Promise(r => setTimeout(r, 1000)); // Attendre 1 sec avant de réessayer
         }
       }
-
-      console.log("Réponse du timer:", response?.data);
 
       // Mettre à jour l'état local
       const createdTimer = response?.data?.timer || response?.data;
@@ -562,7 +552,6 @@ const TimerPopupFix: React.FC = () => {
             }
           });
 
-          console.log("Données de rentabilité mises à jour");
         } catch (error) {
           console.error("Erreur lors de la mise à jour des données de rentabilité:", error);
         }
@@ -727,60 +716,6 @@ const TimerPopupFix: React.FC = () => {
     }
   };
 
-  // Mettre à jour la fonction handleCreateTask pour inclure les données d'impact
-
-  const handleCreateTask = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) throw new Error("Token d'authentification manquant");
-
-      const taskData = {
-        title: newTaskData.title,
-        description: newTaskData.description,
-        clientId: newTaskData.clientId || selectedClientId,
-        priority: newTaskData.priority,
-        dueDate: newTaskData.dueDate,
-        isHighImpact: newTaskData.isHighImpact || false,
-        impactScore: newTaskData.impactScore || 0
-      };
-
-      // Appel API
-      const response = await axios.post(
-        `${API_URL}/api/tasks`,
-        taskData,
-        { headers: { 'Authorization': `Bearer ${token}` } }
-      );
-
-      const createdTask = response.data.task || response.data; // selon backend
-
-      // Sélectionner automatiquement la tâche créée
-      setSelectedTaskId(createdTask._id);
-      setSelectedTask(createdTask);
-
-      // Notification de succès
-      dispatch(addNotification({
-        message: 'Tâche créée avec succès',
-        type: 'success'
-      }));
-
-      // Rafraîchir la liste des tâches
-      refreshTasks();
-
-      // Fermer le formulaire
-      setShowNewTaskForm(false);
-
-    } catch (error: any) {
-      dispatch(addNotification({
-        message: error.response?.data?.message || 'Erreur lors de la création de la tâche',
-        type: 'error'
-      }));
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Gérer le changement de client
   const handleClientChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const clientId = e.target.value;
@@ -799,7 +734,6 @@ const TimerPopupFix: React.FC = () => {
 
   const handleTaskChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const taskId = e.target.value;
-    console.log("Tâche sélectionnée:", taskId);
 
     // Stocker dans le localStorage pour persistance
     if (taskId) {
@@ -1212,75 +1146,6 @@ const TimerPopupFix: React.FC = () => {
                           Tâche à fort impact (principe 80/20)
                         </span>
                       </label>
-                      {newTaskData.isHighImpact && (
-                        <div className="mt-2">
-                          <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
-                            Score d'impact (0-100)
-                          </label>
-                          <input
-                            type="range"
-                            min="50"
-                            max="100"
-                            step="5"
-                            value={newTaskData.impactScore}
-                            onChange={(e) => setNewTaskData({
-                              ...newTaskData,
-                              impactScore: parseInt(e.target.value)
-                            })}
-                            className="w-full h-2 bg-gray-200 rounded-full appearance-none cursor-pointer"
-                          />
-                          <div className="flex justify-between text-xs text-gray-500">
-                            <span>50</span>
-                            <span className="font-medium">{newTaskData.impactScore}</span>
-                            <span>100</span>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="mb-2">
-                        <label className="flex items-center space-x-2">
-                          <input
-                            type="checkbox"
-                            checked={newTaskData.isHighImpact}
-                            onChange={(e) => setNewTaskData({
-                              ...newTaskData,
-                              isHighImpact: e.target.checked,
-                              impactScore: e.target.checked ? 80 : 30
-                            })}
-                            className="form-checkbox h-4 w-4 text-primary-500"
-                          />
-                          <span className="text-sm text-gray-700 dark:text-gray-300">
-                            Tâche à fort impact (principe 80/20)
-                          </span>
-                        </label>
-                        {newTaskData.isHighImpact && (
-                          <div className="mt-2">
-                            <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
-                              Score d'impact (0-100)
-                            </label>
-                            <input
-                              type="range"
-                              min="50"
-                              max="100"
-                              step="5"
-                              value={newTaskData.impactScore}
-                              onChange={(e) => setNewTaskData({
-                                ...newTaskData,
-                                impactScore: parseInt(e.target.value)
-                              })}
-                              className="w-full h-2 bg-gray-200 rounded-full appearance-none cursor-pointer"
-                            />
-                            <div className="flex justify-between text-xs text-gray-500">
-                              <span>50</span>
-                              <span className="font-medium">{newTaskData.impactScore}</span>
-                              <span>100</span>
-                            </div>
-                          </div>
-                        )}
-                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                          Les tâches à fort impact représentent 20% des tâches qui apportent 80% des résultats.
-                        </p>
-                      </div>
 
                       <button
                         onClick={handleCreateNewTask}
