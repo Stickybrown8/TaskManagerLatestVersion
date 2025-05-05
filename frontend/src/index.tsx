@@ -9,7 +9,7 @@ import './index.css';
 import ErrorBoundary from './components/ErrorBoundary';
 import App from './App';
 
-// Avant le ReactDOM.render, appelez la fonction
+// Réinitialiser le store au démarrage
 resetStore();
 
 // Point d'entrée principal de l'application

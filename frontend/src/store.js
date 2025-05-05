@@ -1,15 +1,7 @@
-import { configureStore } from '@reduxjs/toolkit';
-import authReducer from './store/slices/authSlice';
-import clientsReducer from './store/slices/clientsSlice';
-import tasksReducer from './store/slices/tasksSlice';
+// Ce fichier ne doit pas contenir de syntaxe TypeScript mais servir de pont vers le vrai store
 
-export const store = configureStore({
-  reducer: {
-    auth: authReducer,
-    clients: clientsReducer,
-    tasks: tasksReducer,
-  },
-});
+import { store } from './store/index';
+import { resetStore } from './store/index';
 
-export type RootState = ReturnType<typeof store.getState>;
-export type AppDispatch = typeof store.dispatch;
+// Réexporter ce qui est nécessaire
+export { store, resetStore };

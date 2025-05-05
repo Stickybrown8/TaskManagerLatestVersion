@@ -551,12 +551,10 @@ const runningTimer = useAppSelector(state => state.timer?.runningTimer || null);
       <button
         onClick={() => {
           console.log("🖱️ Bouton timer cliqué");
-          // Forcer le changement d'état via une action spécifique
-          dispatch({ 
-            type: 'timer/toggleTimerPopup',
-            payload: true
-          });
-          // Log pour confirmer
+          // Utiliser l'action directement, pas l'objet générique
+          dispatch(toggleTimerPopup(true));
+          
+          // Log pour confirmer après un court délai
           setTimeout(() => {
             const currentState = store.getState();
             console.log("État après dispatch:", currentState.timer);
