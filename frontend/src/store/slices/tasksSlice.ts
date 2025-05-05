@@ -155,6 +155,9 @@ const tasksSlice = createSlice({
     clearCurrentTask: (state) => {
       state.currentTask = null;
     },
+    addTask: (state, action: PayloadAction<Task>) => {
+      state.tasks.push(action.payload);
+    },
   },
 });
 
@@ -219,6 +222,7 @@ export const {
   setTaskFilters,
   clearTaskFilters,
   clearCurrentTask,
+  addTask,
 } = tasksSlice.actions;
 
 // Reducer

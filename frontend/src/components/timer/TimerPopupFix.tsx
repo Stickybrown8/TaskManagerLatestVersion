@@ -15,6 +15,7 @@ import { addNotification } from '../../store/slices/uiSlice';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import { store } from '../../store';
+import { addTask } from '../../store/slices/tasksSlice';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com';
 
@@ -68,6 +69,10 @@ const runningTimer = useAppSelector(state => state.timer?.runningTimer || null);
     priority: 'normale',
     dueDate: ''
   });
+
+  // États pour la minimisation
+  const [isMinimized, setIsMinimized] = useState<boolean>(false);
+  const [previousSize, setPreviousSize] = useState<'small' | 'medium' | 'large'>('medium');
 
   // Charger les clients et les tâches
   useEffect(() => {
@@ -588,18 +593,29 @@ const runningTimer = useAppSelector(state => state.timer?.runningTimer || null);
         throw new Error("Token d'authentification manquant");
       }
       
+      // Enrichir les données de la tâche
+      const enrichedTaskData = {
+        ...newTaskData,
+        status: 'en cours',
+        createdAt: new Date().toISOString()
+      };
+      
       const response = await axios.post(
         `${API_URL}/api/tasks`,
-        newTaskData,
+        enrichedTaskData,
         { headers: { 'Authorization': `Bearer ${token}` } }
       );
       
+      // Mettre à jour Redux avec la nouvelle tâche (assurez-vous d'avoir importé l'action)
+      // Cette partie fonctionne bien
+      dispatch(addTask(response.data));
+      
       dispatch(addNotification({
-        message: 'Nouvelle tâche créée avec succès',
+        message: 'Nouvelle tâche créée et ajoutée à votre liste',
         type: 'success'
       }));
       
-      // Mettre à jour la liste des tâches
+      // Mettre à jour la liste des tâches localement
       const tasksResponse = await axios.get(`${API_URL}/api/tasks`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -610,16 +626,15 @@ const runningTimer = useAppSelector(state => state.timer?.runningTimer || null);
       setSelectedTaskId(response.data._id);
       fetchTaskDetails(response.data._id);
       
-      // Réinitialiser le formulaire
+      // Réinitialiser le formulaire mais garder le client
       setNewTaskData({
         title: '',
         description: '',
-        clientId: newTaskData.clientId, // Garder le client sélectionné
+        clientId: newTaskData.clientId,
         priority: 'normale',
         dueDate: ''
       });
       
-      // Fermer le formulaire de création
       setShowNewTaskForm(false);
       
     } catch (error: any) {
@@ -668,447 +683,468 @@ const runningTimer = useAppSelector(state => state.timer?.runningTimer || null);
     setIsDragging(false);
   };
 
-  // Afficher uniquement le bouton flottant si la popup n'est pas visible
-  if (!showTimerPopup) {
-    console.log("🚫 Timer non affiché car showTimerPopup =", showTimerPopup);
-    return (
-      <button
-        onClick={() => {
-          console.log("🖱️ Bouton timer cliqué");
-          // Utiliser l'action directement, pas l'objet générique
-          dispatch(toggleTimerPopup(true));
-          
-          // Log pour confirmer après un court délai
-          setTimeout(() => {
-            const currentState = store.getState();
-            console.log("État après dispatch:", currentState.timer);
-          }, 100);
-        }}
-        className="fixed bottom-4 right-4 bg-primary-600 text-white p-3 rounded-full shadow-lg hover:bg-primary-700 transition-colors z-50"
-        title="Ouvrir le chronomètre"
-      >
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      </button>
-    );
-  }
-
-  console.log("✅ Timer affiché car showTimerPopup =", showTimerPopup);
-
-  // Déterminer les classes CSS en fonction de la taille
-  const sizeClasses = {
-    small: 'w-64 h-auto',
-    medium: 'w-80 h-auto',
-    large: 'w-96 h-auto'
-  };
-  
-  // Définir les classes selon que le client soit sur ou sous le budget
-  const getRentabilityStatusColor = () => {
-    if (!profitability) return "";
-    
-    if (isOverBudget) {
-      return "border-red-500 bg-red-50 dark:bg-red-900/30";
-    } else if (percentageUsed > 80) {
-      return "border-yellow-500 bg-yellow-50 dark:bg-yellow-900/30";
-    } else {
-      return "border-green-500 bg-green-50 dark:bg-green-900/30";
+  // Ajoutez ce style dans le <head> du document HTML
+  useEffect(() => {
+    if (showTimerPopup) {
+      // Ajouter un style global pour garantir que le timer reste au-dessus de tout
+      const style = document.createElement('style');
+      style.innerHTML = `
+        .timer-popup-container {
+          z-index: 2147483647 !important; /* Valeur maximale de z-index */
+          position: fixed !important;
+          pointer-events: auto !important;
+        }
+      `;
+      document.head.appendChild(style);
+      
+      // Modifier la classe du conteneur de timer
+      if (popupRef.current) {
+        popupRef.current.classList.add('timer-popup-container');
+      }
+      
+      return () => {
+        document.head.removeChild(style);
+      };
     }
-  };
+  }, [showTimerPopup]);
 
-  // Définir les classes pour le taux horaire affiché
-  const getRateColor = () => {
-    if (!currentHourlyRate || !profitability) return "";
-    
-    const targetRate = profitability.hourlyRate || 0;
-    
-    if (currentHourlyRate < targetRate * 0.8) {
-      return "text-red-600 dark:text-red-400";
-    } else if (currentHourlyRate < targetRate) {
-      return "text-yellow-600 dark:text-yellow-400";
-    } else {
-      return "text-green-600 dark:text-green-400";
-    }
-  };
+  // Ajouter ces fonctions après les autres fonctions utilitaires
+const getRateColor = () => {
+  if (!profitability?.hourlyRate) return '';
+  const ratio = currentHourlyRate / profitability.hourlyRate;
+  if (ratio < 0.8) return 'text-red-600 dark:text-red-400';
+  if (ratio < 1) return 'text-yellow-600 dark:text-yellow-400';
+  return 'text-green-600 dark:text-green-400';
+};
 
+const getRentabilityStatusColor = () => {
+  if (isOverBudget) return 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30';
+  if (percentageUsed > 80) return 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800/30';
+  return 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/30';
+};
+
+// Remplacer la section return avec un design plus élégant
   return (
-    <motion.div
-      ref={popupRef}
-      drag
-      dragConstraints={false}  // Supprime les contraintes pour permettre le déplacement libre
-      dragElastic={0}  // Désactive l'effet élastique pour un positionnement précis
-      dragMomentum={false}
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className={`fixed z-50 ${
-        sizeClasses[timerPopupSize as keyof typeof sizeClasses]
-      } bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 border border-gray-200 dark:border-gray-700 cursor-move`}
-      style={{ 
-        top: timerPopupPosition === 'top-right' ? '1rem' : 
-             timerPopupPosition === 'center' ? '50%' : 'auto',
-        right: timerPopupPosition === 'top-right' || timerPopupPosition === 'bottom-right' ? '1rem' : 'auto',
-        bottom: timerPopupPosition === 'bottom-right' ? '1rem' : 'auto',
-        left: timerPopupPosition === 'center' ? '50%' : 'auto',
-        transform: timerPopupPosition === 'center' ? 'translate(-50%, -50%)' : 'none'
-      }}
-    >
-      <div className="cursor-default">
-        <div className="flex justify-between items-center mb-2">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center truncate max-w-[180px]">
-            {selectedClient && selectedClient.logo && (
-              <div className="w-6 h-6 mr-2 rounded-sm overflow-hidden flex-shrink-0">
-                <img 
-                  src={selectedClient.logo} 
-                  alt={`Logo de ${selectedClient.name}`} 
-                  className="w-full h-full object-contain"
-                />
-              </div>
-            )}
-            <span className="truncate">
-              {selectedClient ? selectedClient.name : (selectedTask ? selectedTask.title : 'Chronomètre')}
-            </span>
-          </h3>
-          <div className="flex space-x-2">
-            <button
-              onClick={() => dispatch(setTimerPopupSize('small'))}
-              className={`w-4 h-4 rounded-full ${timerPopupSize === 'small' ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'}`}
-              title="Petit"
-            />
-            <button
-              onClick={() => dispatch(setTimerPopupSize('medium'))}
-              className={`w-4 h-4 rounded-full ${timerPopupSize === 'medium' ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'}`}
-              title="Moyen"
-            />
-            <button
-              onClick={() => dispatch(setTimerPopupSize('large'))}
-              className={`w-4 h-4 rounded-full ${timerPopupSize === 'large' ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'}`}
-              title="Grand"
-            />
-            <button
-              onClick={() => dispatch(hideTimerPopup())}
-              className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-              title="Fermer"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 011.414 1.414L11.414 10l4.293 4.293a1 1 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        {/* Afficher les infos de rentabilité si disponibles */}
-        {selectedClient && profitability && (
-          <div className={`mb-4 p-3 rounded-md text-sm border shadow-inner ${getRentabilityStatusColor()}`}>
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-700 dark:text-gray-300 font-medium">Taux horaire objectif:</span>
-                <span className="font-bold text-lg">{profitability?.hourlyRate || 0}€/h</span>
-              </div>
-              
-              <div className="flex justify-between items-center">
-                <span className="text-gray-700 dark:text-gray-300 font-medium">Taux horaire actuel:</span>
-                <span className={`font-bold text-lg ${getRateColor()}`}>
-                  {currentHourlyRate > 0 ? Math.round(currentHourlyRate) : (profitability?.hourlyRate || 0)}€/h
-                </span>
-              </div>
-              
-              <div className="flex justify-between items-center">
-                <span className="text-gray-700 dark:text-gray-300">Budget mensuel:</span>
-                <span className="font-medium">{profitability?.monthlyBudget || 0}€</span>
-              </div>
-              
-              <div className="flex justify-between items-center">
-                <span className="text-gray-700 dark:text-gray-300">Heures restantes:</span>
-                <span className={`font-medium text-lg ${isOverBudget ? 'text-red-600 dark:text-red-400 font-bold' : ''}`}>
-                  {hoursRemaining.toFixed(1)}h
-                </span>
-              </div>
-              
-              <div className="mt-2">
-                <div className="flex justify-between text-xs mb-1">
-                  <span>Progression du budget</span>
-                  <span className={isOverBudget ? 'text-red-600 font-bold' : ''}>{Math.min(100, Math.round(percentageUsed))}%</span>
-                </div>
-                <div className="w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden border">
-                  <div 
-                    className={`h-full rounded-full ${
-                      isOverBudget ? 'bg-red-500 dark:bg-red-600 animate-pulse' : 
-                      percentageUsed > 80 ? 'bg-yellow-500 dark:bg-yellow-600' : 
-                      'bg-green-500 dark:bg-green-600'
-                    }`}
-                    style={{ width: `${Math.min(100, percentageUsed)}%` }}
-                  ></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="flex flex-col items-center justify-center mb-4">
-          <div className={`text-3xl font-bold mb-2 ${isOverBudget ? 'text-red-600 dark:text-red-400 animate-pulse' : 'text-gray-900 dark:text-white'}`}>
-            {formatDuration(timerDuration)}
-          </div>
-          <div className="flex space-x-2">
-            {isRunning ? (
-              <button
-                onClick={handlePauseTimer}
-                disabled={loading}
-                className="px-3 py-1 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-opacity-50 disabled:opacity-50"
-              >
-                {loading ? (
-                  <div className="flex items-center">
-                    <svg className="animate-spin h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Pause
-                  </div>
-                ) : 'Pause'}
-              </button>
-            ) : timerId ? (
-              <button
-                onClick={handleResumeTimer}
-                disabled={loading}
-                className="px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 disabled:opacity-50"
-              >
-                {loading ? (
-                  <div className="flex items-center">
-                    <svg className="animate-spin h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Reprendre
-                  </div>
-                ) : 'Reprendre'}
-              </button>
-            ) : (
-              <button
-                onClick={handleStartTimer}
-                disabled={(!selectedClientId && !selectedTaskId) || loading}
-                className="px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 disabled:opacity-50"
-              >
-                {loading ? (
-                  <div className="flex items-center">
-                    <svg className="animate-spin h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Démarrer
-                  </div>
-                ) : 'Démarrer'}
-              </button>
-            )}
-            {(isRunning || timerId) && (
-              <button
-                onClick={handleStopTimer}
-                disabled={loading}
-                className="px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 disabled:opacity-50"
-              >
-                {loading ? (
-                  <div className="flex items-center">
-                    <svg className="animate-spin h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Arrêter
-                  </div>
-                ) : 'Arrêter'}
-              </button>
-            )}
-          </div>
-        </div>
-
-        {!isRunning && !timerId && (
-          <div className="mt-4">
-            <div className="mb-3">
-              <label htmlFor="client" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Client
-              </label>
-              <select
-                id="client"
-                value={selectedClientId}
-                onChange={handleClientChange}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
-                disabled={loading}
-              >
-                <option value="">Sélectionner un client</option>
-                {clients.map(client => (
-                  <option key={client._id} value={client._id}>{client.name}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="mb-3">
-              <div className="flex justify-between items-center mb-2">
-                <label htmlFor="task" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Tâche
-                </label>
-                <button 
-                  type="button"
-                  onClick={() => setShowNewTaskForm(!showNewTaskForm)}
-                  className="text-primary-600 hover:text-primary-700 text-xs"
-                >
-                  {showNewTaskForm ? 'Annuler' : '+ Nouvelle tâche'}
-                </button>
-              </div>
-              
-              <select
-                id="task"
-                value={selectedTaskId}
-                onChange={handleTaskChange}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
-                disabled={loading}
-              >
-                <option value="">Sélectionner une tâche</option>
-                {tasks
-                  .filter(task => {
-                    const taskClientId = typeof task.clientId === 'object' ? task.clientId._id : task.clientId;
-                    return !selectedClientId || taskClientId === selectedClientId;
-                  })
-                  .map(task => (
-                    <option key={task._id} value={task._id}>{task.title}</option>
-                  ))
-                }
-              </select>
-              
-              {showNewTaskForm && (
-                <div className="mt-3 bg-gray-50 dark:bg-gray-700 p-3 rounded-md border border-gray-200 dark:border-gray-600">
-                  <div className="mb-2">
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Titre de la tâche
-                    </label>
-                    <input
-                      type="text"
-                      value={newTaskData.title}
-                      onChange={(e) => setNewTaskData({...newTaskData, title: e.target.value})}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md"
-                      placeholder="Titre de la nouvelle tâche"
+    <>
+      {!showTimerPopup ? (
+        <button
+          onClick={() => dispatch(toggleTimerPopup(true))}
+          className="fixed bottom-4 right-4 bg-primary-600 text-white p-3 rounded-full shadow-xl hover:bg-primary-700 transition-all hover:scale-110 z-[9999]"
+          title="Ouvrir le chronomètre"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </button>
+      ) : (
+        <motion.div
+          ref={popupRef}
+          drag
+          dragConstraints={false}
+          dragElastic={0}
+          dragMomentum={false}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="fixed shadow-2xl border border-gray-300 dark:border-gray-700 rounded-lg overflow-hidden z-[9999]"
+          style={{ 
+            width: timerPopupSize === 'small' ? '280px' : timerPopupSize === 'medium' ? '340px' : '420px',
+            height: 'auto',
+            top: position.y || (timerPopupPosition === 'top-right' ? '1rem' : timerPopupPosition === 'center' ? '50%' : 'auto'),
+            right: position.x || (timerPopupPosition === 'top-right' || timerPopupPosition === 'bottom-right' ? '1rem' : 'auto'),
+            bottom: timerPopupPosition === 'bottom-right' ? '1rem' : 'auto',
+            left: timerPopupPosition === 'center' ? '50%' : 'auto',
+            transform: timerPopupPosition === 'center' ? 'translate(-50%, -50%)' : 'none',
+            resize: 'both'
+          }}
+        >
+          <div className="cursor-default">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center truncate max-w-[180px]">
+                {selectedClient && selectedClient.logo && (
+                  <div className="w-6 h-6 mr-2 rounded-sm overflow-hidden flex-shrink-0">
+                    <img 
+                      src={selectedClient.logo} 
+                      alt={`Logo de ${selectedClient.name}`} 
+                      className="w-full h-full object-contain"
                     />
                   </div>
-                  
-                  <div className="mb-2">
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Client
-                    </label>
-                    <select
-                      value={newTaskData.clientId}
-                      onChange={(e) => setNewTaskData({...newTaskData, clientId: e.target.value})}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md"
-                    >
-                      <option value="">Sélectionner un client</option>
-                      {clients.map(client => (
-                        <option key={client._id} value={client._id}>{client.name}</option>
-                      ))}
-                    </select>
+                )}
+                <span className="truncate">
+                  {selectedClient ? selectedClient.name : (selectedTask ? selectedTask.title : 'Chronomètre')}
+                </span>
+              </h3>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => dispatch(setTimerPopupSize('small'))}
+                  className={`w-4 h-4 rounded-full ${timerPopupSize === 'small' ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+                  title="Petit"
+                />
+                <button
+                  onClick={() => dispatch(setTimerPopupSize('medium'))}
+                  className={`w-4 h-4 rounded-full ${timerPopupSize === 'medium' ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+                  title="Moyen"
+                />
+                <button
+                  onClick={() => dispatch(setTimerPopupSize('large'))}
+                  className={`w-4 h-4 rounded-full ${timerPopupSize === 'large' ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+                  title="Grand"
+                />
+                <button
+                  onClick={() => {
+                    setIsMinimized(!isMinimized);
+                    // Sauvegarder l'état précédent si on maximise
+                    if (isMinimized) {
+                      dispatch(setTimerPopupSize(previousSize || 'medium'));
+                    } else {
+                      setPreviousSize(timerPopupSize);
+                      dispatch(setTimerPopupSize('small'));
+                    }
+                  }}
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  title={isMinimized ? "Maximiser" : "Minimiser"}
+                >
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    {isMinimized ? (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" />
+                    ) : (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                    )}
+                  </svg>
+                </button>
+                <button
+                  onClick={() => dispatch(hideTimerPopup())}
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  title="Fermer"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 011.414 1.414L11.414 10l4.293 4.293a1 1 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Afficher les infos de rentabilité si disponibles */}
+            {selectedClient && profitability && (
+              <div className={`mb-4 p-4 rounded-md text-sm shadow-inner bg-gradient-to-r ${
+                isOverBudget 
+                  ? 'from-red-50 to-red-100 dark:from-red-900/30 dark:to-red-800/30 border-l-4 border-red-500' 
+                  : percentageUsed > 80 
+                    ? 'from-yellow-50 to-yellow-100 dark:from-yellow-900/30 dark:to-yellow-800/30 border-l-4 border-yellow-500' 
+                    : 'from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/30 border-l-4 border-green-500'
+              }`}>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-700 dark:text-gray-300 font-medium">Objectif horaire:</span>
+                    <span className="font-bold text-lg">{profitability?.hourlyRate || 0}€/h</span>
                   </div>
                   
-                  <div className="mb-2">
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Description (optionnelle)
-                    </label>
-                    <textarea
-                      value={newTaskData.description}
-                      onChange={(e) => setNewTaskData({...newTaskData, description: e.target.value})}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md"
-                      rows={2}
-                    ></textarea>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-700 dark:text-gray-300 font-medium">Taux actuel:</span>
+                    <span className={`font-bold text-xl ${getRateColor()}`}>
+                      {currentHourlyRate > 0 ? Math.round(currentHourlyRate) : (profitability?.hourlyRate || 0)}€/h
+                    </span>
                   </div>
                   
-                  <button
-                    onClick={handleCreateNewTask}
-                    disabled={loading}
-                    className="w-full mt-2 px-3 py-1 bg-primary-600 text-white text-sm rounded-md hover:bg-primary-700"
-                  >
-                    {loading ? 'Création...' : 'Créer la tâche'}
-                  </button>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-700 dark:text-gray-300">Budget mensuel:</span>
+                    <span className="font-medium">{profitability?.monthlyBudget?.toLocaleString() || 0}€</span>
+                  </div>
+                  
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-700 dark:text-gray-300 font-semibold">Heures restantes:</span>
+                    <span className={`font-medium text-xl ${isOverBudget ? 'text-red-600 dark:text-red-400 font-bold animate-pulse' : 'text-green-600 dark:text-green-400'}`}>
+                      {hoursRemaining > 0 ? `+${hoursRemaining.toFixed(1)}h` : `${hoursRemaining.toFixed(1)}h`}
+                    </span>
+                  </div>
+                  
+                  <div className="mt-3">
+                    <div className="flex justify-between text-xs mb-1">
+                      <span>Progression du budget</span>
+                      <span className={isOverBudget ? 'text-red-600 font-bold' : ''}>{Math.min(100, Math.round(percentageUsed))}%</span>
+                    </div>
+                    <div className="w-full h-4 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden border">
+                      <div 
+                        className={`h-full rounded-full ${
+                          isOverBudget ? 'bg-red-500 dark:bg-red-600 animate-pulse' : 
+                          percentageUsed > 80 ? 'bg-yellow-500 dark:bg-yellow-600' : 
+                          'bg-green-500 dark:bg-green-600'
+                        }`}
+                        style={{ width: `${Math.min(100, percentageUsed)}%` }}
+                      ></div>
+                    </div>
+                  </div>
                 </div>
-              )}
+              </div>
+            )}
+
+            <div className="flex flex-col items-center justify-center mb-4">
+              <div className={`text-3xl font-bold mb-2 ${isOverBudget ? 'text-red-600 dark:text-red-400 animate-pulse' : 'text-gray-900 dark:text-white'}`}>
+                {formatDuration(timerDuration)}
+              </div>
+              <div className="flex space-x-2">
+                {isRunning ? (
+                  <button
+                    onClick={handlePauseTimer}
+                    disabled={loading}
+                    className="px-3 py-1 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-opacity-50 disabled:opacity-50"
+                  >
+                    {loading ? (
+                      <div className="flex items-center">
+                        <svg className="animate-spin h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Pause
+                      </div>
+                    ) : 'Pause'}
+                  </button>
+                ) : timerId ? (
+                  <button
+                    onClick={handleResumeTimer}
+                    disabled={loading}
+                    className="px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 disabled:opacity-50"
+                  >
+                    {loading ? (
+                      <div className="flex items-center">
+                        <svg className="animate-spin h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Reprendre
+                      </div>
+                    ) : 'Reprendre'}
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleStartTimer}
+                    disabled={(!selectedClientId && !selectedTaskId) || loading}
+                    className="px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 disabled:opacity-50"
+                  >
+                    {loading ? (
+                      <div className="flex items-center">
+                        <svg className="animate-spin h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Démarrer
+                      </div>
+                    ) : 'Démarrer'}
+                  </button>
+                )}
+                {(isRunning || timerId) && (
+                  <button
+                    onClick={handleStopTimer}
+                    disabled={loading}
+                    className="px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 disabled:opacity-50"
+                  >
+                    {loading ? (
+                      <div className="flex items-center">
+                        <svg className="animate-spin h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Arrêter
+                      </div>
+                    ) : 'Arrêter'}
+                  </button>
+                )}
+              </div>
             </div>
 
-            <div className="mb-3">
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Description
-              </label>
-              <input
-                type="text"
-                id="description"
-                name="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
-                placeholder="Que faites-vous ?"
-                disabled={loading}
-              />
-            </div>
-            
-            <div className="mb-2 flex items-center">
-              <input
-                type="checkbox"
-                id="billable"
-                checked={billable}
-                onChange={(e) => setBillable(e.target.checked)}
-                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                disabled={loading}
-              />
-              <label htmlFor="billable" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
-                Facturable
-              </label>
-            </div>
-          </div>
-        )}
+            {!isRunning && !timerId && (
+              <div className="mt-4">
+                <div className="mb-3">
+                  <label htmlFor="client" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Client
+                  </label>
+                  <select
+                    id="client"
+                    value={selectedClientId}
+                    onChange={handleClientChange}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
+                    disabled={loading}
+                  >
+                    <option value="">Sélectionner un client</option>
+                    {clients.map(client => (
+                      <option key={client._id} value={client._id}>{client.name}</option>
+                    ))}
+                  </select>
+                </div>
 
-        {selectedTaskId && (
-          <div className="flex mt-2 space-x-2">
-            <button
-              onClick={() => handleTaskCompletion(true)}
-              disabled={loading}
-              className="px-3 py-1 bg-success-500 text-white rounded-md hover:bg-success-600 focus:outline-none focus:ring-2 focus:ring-success-500 focus:ring-opacity-50 disabled:opacity-50"
-            >
-              <span className="flex items-center">
-                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                </svg>
-                Tâche terminée
-              </span>
-            </button>
-            <button
-              onClick={() => handleTaskCompletion(false)}
-              disabled={loading}
-              className="px-3 py-1 bg-gray-500 text-white rounded-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50 disabled:opacity-50"
-            >
-              <span className="flex items-center">
-                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-                En cours
-              </span>
-            </button>
-          </div>
-        )}
+                <div className="mb-3">
+                  <div className="flex justify-between items-center mb-2">
+                    <label htmlFor="task" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Tâche
+                    </label>
+                    <button 
+                      type="button"
+                      onClick={() => setShowNewTaskForm(!showNewTaskForm)}
+                      className="text-primary-600 hover:text-primary-700 text-xs"
+                    >
+                      {showNewTaskForm ? 'Annuler' : '+ Nouvelle tâche'}
+                    </button>
+                  </div>
+                  
+                  <select
+                    id="task"
+                    value={selectedTaskId}
+                    onChange={handleTaskChange}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
+                    disabled={loading}
+                  >
+                    <option value="">Sélectionner une tâche</option>
+                    {tasks
+                      .filter(task => {
+                        const taskClientId = typeof task.clientId === 'object' ? task.clientId._id : task.clientId;
+                        // Filtrer par client ET exclure les tâches terminées
+                        return (!selectedClientId || taskClientId === selectedClientId) && task.status !== 'terminée';
+                      })
+                      .map(task => (
+                        <option key={task._id} value={task._id}>{task.title}</option>
+                      ))
+                    }
+                  </select>
+                  
+                  {showNewTaskForm && (
+                    <div className="mt-3 bg-gray-50 dark:bg-gray-700 p-3 rounded-md border border-gray-200 dark:border-gray-600">
+                      <div className="mb-2">
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Titre de la tâche
+                        </label>
+                        <input
+                          type="text"
+                          value={newTaskData.title}
+                          onChange={(e) => setNewTaskData({...newTaskData, title: e.target.value})}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md"
+                          placeholder="Titre de la nouvelle tâche"
+                        />
+                      </div>
+                      
+                      <div className="mb-2">
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Client
+                        </label>
+                        <select
+                          value={newTaskData.clientId}
+                          onChange={(e) => setNewTaskData({...newTaskData, clientId: e.target.value})}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md"
+                        >
+                          <option value="">Sélectionner un client</option>
+                          {clients.map(client => (
+                            <option key={client._id} value={client._id}>{client.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      <div className="mb-2">
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Description (optionnelle)
+                        </label>
+                        <textarea
+                          value={newTaskData.description}
+                          onChange={(e) => setNewTaskData({...newTaskData, description: e.target.value})}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md"
+                          rows={2}
+                        ></textarea>
+                      </div>
+                      
+                      <button
+                        onClick={handleCreateNewTask}
+                        disabled={loading}
+                        className="w-full mt-2 px-3 py-1 bg-primary-600 text-white text-sm rounded-md hover:bg-primary-700"
+                      >
+                        {loading ? 'Création...' : 'Créer la tâche'}
+                      </button>
+                    </div>
+                  )}
+                </div>
 
-        <div className="absolute bottom-2 right-2">
-          <div className="flex space-x-1">
-            <button
-              onClick={() => dispatch(setTimerPopupPosition('top-right'))}
-              className={`w-4 h-4 rounded-sm ${timerPopupPosition === 'top-right' ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'}`}
-              title="En haut à droite"
-            />
-            <button
-              onClick={() => dispatch(setTimerPopupPosition('bottom-right'))}
-              className={`w-4 h-4 rounded-sm ${timerPopupPosition === 'bottom-right' ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'}`}
-              title="En bas à droite"
-            />
-            <button
-              onClick={() => dispatch(setTimerPopupPosition('center'))}
-              className={`w-4 h-4 rounded-sm ${timerPopupPosition === 'center' ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'}`}
-              title="Au centre"
-            />
+                <div className="mb-3">
+                  <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Description
+                  </label>
+                  <input
+                    type="text"
+                    id="description"
+                    name="description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
+                    placeholder="Que faites-vous ?"
+                    disabled={loading}
+                  />
+                </div>
+                
+                <div className="mb-2 flex items-center">
+                  <input
+                    type="checkbox"
+                    id="billable"
+                    checked={billable}
+                    onChange={(e) => setBillable(e.target.checked)}
+                    className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                    disabled={loading}
+                  />
+                  <label htmlFor="billable" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+                    Facturable
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {selectedTaskId && (
+              <div className="flex mt-2 space-x-2">
+                <button
+                  onClick={() => handleTaskCompletion(true)}
+                  disabled={loading}
+                  className="px-3 py-1 bg-success-500 text-white rounded-md hover:bg-success-600 focus:outline-none focus:ring-2 focus:ring-success-500 focus:ring-opacity-50 disabled:opacity-50"
+                >
+                  <span className="flex items-center">
+                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Tâche terminée
+                  </span>
+                </button>
+                <button
+                  onClick={() => handleTaskCompletion(false)}
+                  disabled={loading}
+                  className="px-3 py-1 bg-gray-500 text-white rounded-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50 disabled:opacity-50"
+                >
+                  <span className="flex items-center">
+                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    En cours
+                  </span>
+                </button>
+              </div>
+            )}
+
+            <div className="absolute bottom-2 right-2">
+              <div className="flex space-x-1">
+                <button
+                  onClick={() => dispatch(setTimerPopupPosition('top-right'))}
+                  className={`w-4 h-4 rounded-sm ${timerPopupPosition === 'top-right' ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+                  title="En haut à droite"
+                />
+                <button
+                  onClick={() => dispatch(setTimerPopupPosition('bottom-right'))}
+                  className={`w-4 h-4 rounded-sm ${timerPopupPosition === 'bottom-right' ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+                  title="En bas à droite"
+                />
+                <button
+                  onClick={() => dispatch(setTimerPopupPosition('center'))}
+                  className={`w-4 h-4 rounded-sm ${timerPopupPosition === 'center' ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+                  title="Au centre"
+                />
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
-    </motion.div>
+        </motion.div>
+      )}
+    </>
   );
 };
 
