@@ -19,12 +19,18 @@ const API_URL = process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.
 
 const TimerPopupFix: React.FC = () => {
   const dispatch = useAppDispatch();
+  console.log("🔍 TimerPopupFix - Composant rendu");
+  console.log("🔍 TimerPopupFix - Vérification import:", {toggleTimerPopup});
   
   // Accéder directement à chaque propriété pour une meilleure réactivité
-const showTimerPopup = useAppSelector(state => state.timer?.showTimerPopup) || false;
-const timerPopupSize = useAppSelector(state => state.timer?.timerPopupSize) || 'medium';
-const timerPopupPosition = useAppSelector(state => state.timer?.timerPopupPosition) || 'bottom-right';
-const runningTimer = useAppSelector(state => state.timer?.runningTimer) || null;
+const showTimerPopup = useAppSelector(state => {
+  console.log("🔍 État timer complet:", state.timer);
+  console.log("🔍 showTimerPopup actuel:", state.timer?.showTimerPopup);
+  return state.timer?.showTimerPopup || false;
+});
+const timerPopupSize = useAppSelector(state => state.timer?.timerPopupSize || 'medium');
+const timerPopupPosition = useAppSelector(state => state.timer?.timerPopupPosition || 'bottom-right');
+const runningTimer = useAppSelector(state => state.timer?.runningTimer || null);
   
   // États locaux
   const [selectedClientId, setSelectedClientId] = useState<string>('');
@@ -539,13 +545,14 @@ const runningTimer = useAppSelector(state => state.timer?.runningTimer) || null;
 
   // Afficher uniquement le bouton flottant si la popup n'est pas visible
   if (!showTimerPopup) {
+    console.log("🚫 Timer non affiché car showTimerPopup =", showTimerPopup);
     return (
       <button
         onClick={() => {
-          console.log("Bouton de timer cliqué");
-          console.log("État actuel showTimerPopup:", showTimerPopup);
+          console.log("🖱️ Bouton timer cliqué");
+          console.log("🔍 État avant dispatch:", showTimerPopup);
           dispatch(toggleTimerPopup(true));
-          console.log("Action toggleTimerPopup dispatched");
+          console.log("✅ Action toggleTimerPopup(true) dispatchée");
         }}
         className="fixed bottom-4 right-4 bg-primary-600 text-white p-3 rounded-full shadow-lg hover:bg-primary-700 transition-colors z-50"
         title="Ouvrir le chronomètre"
@@ -556,6 +563,8 @@ const runningTimer = useAppSelector(state => state.timer?.runningTimer) || null;
       </button>
     );
   }
+
+  console.log("✅ Timer affiché car showTimerPopup =", showTimerPopup);
 
   // Déterminer les classes CSS en fonction de la taille
   const sizeClasses = {
@@ -653,7 +662,7 @@ const runningTimer = useAppSelector(state => state.timer?.runningTimer) || null;
               title="Fermer"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 011.414 1.414L11.414 10l4.293 4.293a1 1 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
               </svg>
             </button>
           </div>

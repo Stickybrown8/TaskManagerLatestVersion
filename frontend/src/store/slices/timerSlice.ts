@@ -119,7 +119,10 @@ const timerSlice = createSlice({
 
     // Afficher/masquer la popup de timer
     toggleTimerPopup: (state, action: PayloadAction<boolean>) => {
-      state.showTimerPopup = action.payload; // Assurez-vous que cette ligne existe
+      console.log("🔧 Reducer toggleTimerPopup appelé avec:", action.payload);
+      console.log("🔧 État avant:", state.showTimerPopup);
+      state.showTimerPopup = action.payload;
+      console.log("🔧 État après:", state.showTimerPopup);
     },
 
     // Définir la taille de la popup de timer
