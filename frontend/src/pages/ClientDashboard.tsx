@@ -150,7 +150,7 @@ const ClientDashboard: React.FC = () => {
   // Charger les données
   useEffect(() => {
     fetchTimeData();
-  }, [dateRange, fetchTimeData]);
+  }, [fetchTimeData]);
   
   // Formater la durée en heures et minutes
   const formatDuration = (seconds: number): string => {

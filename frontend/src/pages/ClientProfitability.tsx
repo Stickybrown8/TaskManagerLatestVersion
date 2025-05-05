@@ -45,62 +45,64 @@ const ClientProfitability: React.FC = () => {
   
   const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'custom'>('month');
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!id) return;
-      
-      try {
-        setLoading(true);
-        setError('');
-        
-        // Récupérer le token d'authentification
-        const token = localStorage.getItem('token');
-        
-        if (!token) {
-          throw new Error("Token d'authentification manquant");
-        }
-        
-        // Charger les informations du client
-        const clientResponse = await axios.get(`${API_URL}/api/clients/${id}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        setClient(clientResponse.data);
-        
-        // Charger les données de rentabilité
-        try {
-          const profitabilityResponse = await axios.get(`${API_URL}/api/profitability/client/${id}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          
-          setProfitability(profitabilityResponse.data);
-        } catch (err) {
-          console.log('Pas de données de rentabilité pour ce client');
-        }
-        
-        // Charger les timers pour ce client avec le filtre de date
-        const timersResponse = await axios.get(`${API_URL}/api/timers`, {
-          params: {
-            clientId: id,
-            startDate: dateRange.startDate,
-            endDate: dateRange.endDate
-          },
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        setTimers(timersResponse.data);
-      } catch (error: any) {
-        console.error("Erreur lors du chargement des données:", error);
-        setError(error.message || "Une erreur est survenue lors du chargement des données");
-        dispatch(addNotification({
-          message: 'Erreur lors du chargement des données de rentabilité',
-          type: 'error'
-        }));
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Déplacez cette fonction hors du useEffect pour pouvoir l'appeler ailleurs
+  const fetchData = async () => {
+    if (!id) return;
     
+    try {
+      setLoading(true);
+      setError('');
+      
+      // Récupérer le token d'authentification
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        throw new Error("Token d'authentification manquant");
+      }
+      
+      // Charger les informations du client
+      const clientResponse = await axios.get(`${API_URL}/api/clients/${id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      setClient(clientResponse.data);
+      
+      // Charger les données de rentabilité
+      try {
+        const profitabilityResponse = await axios.get(`${API_URL}/api/profitability/client/${id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        setProfitability(profitabilityResponse.data);
+      } catch (err) {
+        console.log('Pas de données de rentabilité pour ce client');
+      }
+      
+      // Charger les timers pour ce client avec le filtre de date
+      const timersResponse = await axios.get(`${API_URL}/api/timers`, {
+        params: {
+          clientId: id,
+          startDate: dateRange.startDate,
+          endDate: dateRange.endDate
+        },
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      setTimers(timersResponse.data);
+    } catch (error: any) {
+      console.error("Erreur lors du chargement des données:", error);
+      setError(error.message || "Une erreur est survenue lors du chargement des données");
+      dispatch(addNotification({
+        message: 'Erreur lors du chargement des données de rentabilité',
+        type: 'error'
+      }));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Modifiez votre useEffect pour l'utiliser
+  useEffect(() => {
     fetchData();
   }, [id, dateRange, dispatch]);
 
@@ -249,6 +251,50 @@ const ClientProfitability: React.FC = () => {
   
   // Calculer la rentabilité
   const profitabilityResults = calculateProfitability();
+
+  // Fonction simple pour vérifier manuellement la rentabilité
+  const verifyProfitability = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        throw new Error("Token d'authentification manquant");
+      }
+      
+      // Log pour debug
+      console.log("Vérification de la rentabilité pour le client:", id);
+      
+      // Utiliser l'endpoint existant au lieu de /verify
+      const response = await axios.get(
+        `${API_URL}/api/profitability/client/${id}`, 
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      
+      console.log("Réponse données de rentabilité:", response.data);
+      
+      // Mettre à jour l'état avec les données
+      setProfitability(response.data);
+      
+      dispatch(addNotification({
+        message: 'Données de rentabilité actualisées',
+        type: 'success'
+      }));
+      
+      // Recharger les données complètes
+      await fetchData();
+      
+    } catch (error: any) {
+      console.error("Erreur détaillée:", error);
+      setError(error.response?.data?.message || error.message || "Erreur lors de la vérification");
+      dispatch(addNotification({
+        message: `Erreur: ${error.response?.status || error.message}`,
+        type: 'error'
+      }));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="container mx-auto px-4 py-6">
@@ -599,6 +645,24 @@ const ClientProfitability: React.FC = () => {
                 </div>
               )}
             </div>
+            {/* Bouton de vérification de rentabilité - à placer dans le JSX */}
+            <button
+              onClick={verifyProfitability}
+              disabled={loading}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            >
+              {loading ? (
+                <span className="flex items-center">
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Vérification...
+                </span>
+              ) : (
+                'Vérifier la rentabilité maintenant'
+              )}
+            </button>
           </>
         )}
       </motion.div>
