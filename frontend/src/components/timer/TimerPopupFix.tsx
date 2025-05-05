@@ -59,6 +59,16 @@ const runningTimer = useAppSelector(state => state.timer?.runningTimer || null);
   const [hoursRemaining, setHoursRemaining] = useState<number>(0);
   const [percentageUsed, setPercentageUsed] = useState<number>(0);
 
+  // États pour la création de nouvelle tâche
+  const [showNewTaskForm, setShowNewTaskForm] = useState(false);
+  const [newTaskData, setNewTaskData] = useState({
+    title: '',
+    description: '',
+    clientId: '',
+    priority: 'normale',
+    dueDate: ''
+  });
+
   // Charger les clients et les tâches
   useEffect(() => {
     const fetchClientsAndTasks = async () => {
@@ -509,6 +519,120 @@ const runningTimer = useAppSelector(state => state.timer?.runningTimer || null);
     }
   };
 
+  // Fonction pour marquer une tâche comme terminée ou en cours
+  const handleTaskCompletion = async (isComplete: boolean) => {
+    if (!selectedTaskId) {
+      dispatch(addNotification({
+        message: 'Aucune tâche sélectionnée',
+        type: 'warning'
+      }));
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        throw new Error("Token d'authentification manquant");
+      }
+      
+      // Mettre à jour le statut de la tâche
+      await axios.put(
+        `${API_URL}/api/tasks/${selectedTaskId}`,
+        { status: isComplete ? 'terminée' : 'en cours' },
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      
+      // Arrêter le timer si la tâche est terminée
+      if (isComplete && timerId) {
+        await handleStopTimer();
+      }
+      
+      dispatch(addNotification({
+        message: isComplete ? 'Tâche marquée comme terminée' : 'Tâche marquée comme en cours',
+        type: 'success'
+      }));
+      
+      // Recharger la tâche pour mettre à jour l'UI
+      if (selectedTaskId) {
+        fetchTaskDetails(selectedTaskId);
+      }
+      
+    } catch (error: any) {
+      console.error('Erreur lors de la mise à jour du statut de la tâche:', error);
+      dispatch(addNotification({
+        message: error.response?.data?.message || 'Erreur lors de la mise à jour du statut',
+        type: 'error'
+      }));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fonction pour créer une nouvelle tâche
+  const handleCreateNewTask = async () => {
+    try {
+      if (!newTaskData.title || !newTaskData.clientId) {
+        dispatch(addNotification({
+          message: 'Veuillez remplir au moins le titre et sélectionner un client',
+          type: 'warning'
+        }));
+        return;
+      }
+      
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        throw new Error("Token d'authentification manquant");
+      }
+      
+      const response = await axios.post(
+        `${API_URL}/api/tasks`,
+        newTaskData,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      
+      dispatch(addNotification({
+        message: 'Nouvelle tâche créée avec succès',
+        type: 'success'
+      }));
+      
+      // Mettre à jour la liste des tâches
+      const tasksResponse = await axios.get(`${API_URL}/api/tasks`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      setTasks(tasksResponse.data);
+      
+      // Sélectionner automatiquement la tâche créée
+      setSelectedTaskId(response.data._id);
+      fetchTaskDetails(response.data._id);
+      
+      // Réinitialiser le formulaire
+      setNewTaskData({
+        title: '',
+        description: '',
+        clientId: newTaskData.clientId, // Garder le client sélectionné
+        priority: 'normale',
+        dueDate: ''
+      });
+      
+      // Fermer le formulaire de création
+      setShowNewTaskForm(false);
+      
+    } catch (error: any) {
+      console.error('Erreur lors de la création de la tâche:', error);
+      dispatch(addNotification({
+        message: error.response?.data?.message || 'Erreur lors de la création de la tâche',
+        type: 'error'
+      }));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Gérer le changement de client
   const handleClientChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const clientId = e.target.value;
@@ -611,8 +735,8 @@ const runningTimer = useAppSelector(state => state.timer?.runningTimer || null);
     <motion.div
       ref={popupRef}
       drag
-      dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
-      dragElastic={0.2}
+      dragConstraints={false}  // Supprime les contraintes pour permettre le déplacement libre
+      dragElastic={0}  // Désactive l'effet élastique pour un positionnement précis
       dragMomentum={false}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
@@ -668,7 +792,7 @@ const runningTimer = useAppSelector(state => state.timer?.runningTimer || null);
               title="Fermer"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 011.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" />
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 011.414 1.414L11.414 10l4.293 4.293a1 1 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" />
               </svg>
             </button>
           </div>
@@ -676,41 +800,41 @@ const runningTimer = useAppSelector(state => state.timer?.runningTimer || null);
 
         {/* Afficher les infos de rentabilité si disponibles */}
         {selectedClient && profitability && (
-          <div className={`mb-4 p-3 rounded-md text-sm border ${getRentabilityStatusColor()}`}>
-            <div className="space-y-1">
+          <div className={`mb-4 p-3 rounded-md text-sm border shadow-inner ${getRentabilityStatusColor()}`}>
+            <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <span className="text-gray-700 dark:text-gray-300">Taux horaire cible:</span>
-                <span className="font-medium">{profitability.hourlyRate}€/h</span>
+                <span className="text-gray-700 dark:text-gray-300 font-medium">Taux horaire objectif:</span>
+                <span className="font-bold text-lg">{profitability?.hourlyRate || 0}€/h</span>
               </div>
               
               <div className="flex justify-between items-center">
-                <span className="text-gray-700 dark:text-gray-300">Taux horaire actuel:</span>
-                <span className={`font-medium ${getRateColor()}`}>
-                  {currentHourlyRate > 0 ? Math.round(currentHourlyRate) : profitability.hourlyRate}€/h
+                <span className="text-gray-700 dark:text-gray-300 font-medium">Taux horaire actuel:</span>
+                <span className={`font-bold text-lg ${getRateColor()}`}>
+                  {currentHourlyRate > 0 ? Math.round(currentHourlyRate) : (profitability?.hourlyRate || 0)}€/h
                 </span>
               </div>
               
               <div className="flex justify-between items-center">
                 <span className="text-gray-700 dark:text-gray-300">Budget mensuel:</span>
-                <span className="font-medium">{profitability.monthlyBudget}€</span>
+                <span className="font-medium">{profitability?.monthlyBudget || 0}€</span>
               </div>
               
               <div className="flex justify-between items-center">
                 <span className="text-gray-700 dark:text-gray-300">Heures restantes:</span>
-                <span className={`font-medium ${isOverBudget ? 'text-red-600 dark:text-red-400' : ''}`}>
+                <span className={`font-medium text-lg ${isOverBudget ? 'text-red-600 dark:text-red-400 font-bold' : ''}`}>
                   {hoursRemaining.toFixed(1)}h
                 </span>
               </div>
               
               <div className="mt-2">
                 <div className="flex justify-between text-xs mb-1">
-                  <span>Progression</span>
-                  <span>{Math.min(100, Math.round(percentageUsed))}%</span>
+                  <span>Progression du budget</span>
+                  <span className={isOverBudget ? 'text-red-600 font-bold' : ''}>{Math.min(100, Math.round(percentageUsed))}%</span>
                 </div>
-                <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                <div className="w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden border">
                   <div 
                     className={`h-full rounded-full ${
-                      isOverBudget ? 'bg-red-500 dark:bg-red-600' : 
+                      isOverBudget ? 'bg-red-500 dark:bg-red-600 animate-pulse' : 
                       percentageUsed > 80 ? 'bg-yellow-500 dark:bg-yellow-600' : 
                       'bg-green-500 dark:bg-green-600'
                     }`}
@@ -817,9 +941,19 @@ const runningTimer = useAppSelector(state => state.timer?.runningTimer || null);
             </div>
 
             <div className="mb-3">
-              <label htmlFor="task" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Tâche
-              </label>
+              <div className="flex justify-between items-center mb-2">
+                <label htmlFor="task" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Tâche
+                </label>
+                <button 
+                  type="button"
+                  onClick={() => setShowNewTaskForm(!showNewTaskForm)}
+                  className="text-primary-600 hover:text-primary-700 text-xs"
+                >
+                  {showNewTaskForm ? 'Annuler' : '+ Nouvelle tâche'}
+                </button>
+              </div>
+              
               <select
                 id="task"
                 value={selectedTaskId}
@@ -838,6 +972,59 @@ const runningTimer = useAppSelector(state => state.timer?.runningTimer || null);
                   ))
                 }
               </select>
+              
+              {showNewTaskForm && (
+                <div className="mt-3 bg-gray-50 dark:bg-gray-700 p-3 rounded-md border border-gray-200 dark:border-gray-600">
+                  <div className="mb-2">
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Titre de la tâche
+                    </label>
+                    <input
+                      type="text"
+                      value={newTaskData.title}
+                      onChange={(e) => setNewTaskData({...newTaskData, title: e.target.value})}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md"
+                      placeholder="Titre de la nouvelle tâche"
+                    />
+                  </div>
+                  
+                  <div className="mb-2">
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Client
+                    </label>
+                    <select
+                      value={newTaskData.clientId}
+                      onChange={(e) => setNewTaskData({...newTaskData, clientId: e.target.value})}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md"
+                    >
+                      <option value="">Sélectionner un client</option>
+                      {clients.map(client => (
+                        <option key={client._id} value={client._id}>{client.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div className="mb-2">
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Description (optionnelle)
+                    </label>
+                    <textarea
+                      value={newTaskData.description}
+                      onChange={(e) => setNewTaskData({...newTaskData, description: e.target.value})}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md"
+                      rows={2}
+                    ></textarea>
+                  </div>
+                  
+                  <button
+                    onClick={handleCreateNewTask}
+                    disabled={loading}
+                    className="w-full mt-2 px-3 py-1 bg-primary-600 text-white text-sm rounded-md hover:bg-primary-700"
+                  >
+                    {loading ? 'Création...' : 'Créer la tâche'}
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="mb-3">
@@ -869,6 +1056,35 @@ const runningTimer = useAppSelector(state => state.timer?.runningTimer || null);
                 Facturable
               </label>
             </div>
+          </div>
+        )}
+
+        {selectedTaskId && (
+          <div className="flex mt-2 space-x-2">
+            <button
+              onClick={() => handleTaskCompletion(true)}
+              disabled={loading}
+              className="px-3 py-1 bg-success-500 text-white rounded-md hover:bg-success-600 focus:outline-none focus:ring-2 focus:ring-success-500 focus:ring-opacity-50 disabled:opacity-50"
+            >
+              <span className="flex items-center">
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                Tâche terminée
+              </span>
+            </button>
+            <button
+              onClick={() => handleTaskCompletion(false)}
+              disabled={loading}
+              className="px-3 py-1 bg-gray-500 text-white rounded-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50 disabled:opacity-50"
+            >
+              <span className="flex items-center">
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                En cours
+              </span>
+            </button>
           </div>
         )}
 
