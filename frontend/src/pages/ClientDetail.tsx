@@ -47,23 +47,19 @@ const ClientDetail: React.FC = () => {
 
   // Variable pour stocker les tâches filtrées
   const clientTasks = React.useMemo(() => {
-    // Si pas de client ID ou pas de tâches, retourner un tableau vide
-    if (!clientId || !allTasks.length) return [];
+    // Vérifications de sécurité
+    if (!clientId || !allTasks || !allTasks.length) return [];
     
-    // Filtrer les tâches de façon sécurisée
+    console.log("Filtrage de", allTasks.length, "tâches pour le client", clientId);
+    
     return allTasks.filter(task => {
-      // Vérifier que la tâche existe
       if (!task) return false;
-      
-      // Vérifier si un clientId existe
       if (!task.clientId) return false;
       
-      // Gérer le cas où clientId est un objet
       if (typeof task.clientId === 'object' && task.clientId !== null) {
         return (task.clientId as { _id: string })._id === clientId;
       }
       
-      // Gérer le cas où clientId est une string
       return task.clientId === clientId;
     });
   }, [clientId, allTasks]);
@@ -782,10 +778,10 @@ const ClientDetail: React.FC = () => {
               <div className="md:col-span-3 mt-6">
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
                   <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                    Tâches associées ({clientTasks.length})
+                    Tâches associées ({clientTasks?.length || 0})
                   </h2>
                   
-                  {clientTasks.length === 0 ? (
+                  {(!clientTasks || clientTasks.length === 0) ? (
                     <p className="text-gray-600 dark:text-gray-400">
                       Aucune tâche associée à ce client pour le moment.
                     </p>
@@ -810,7 +806,8 @@ const ClientDetail: React.FC = () => {
                         </thead>
                         <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                           {clientTasks.map(task => (
-                            <tr key={task._id} className="hover:bg-gray-50 dark:hover:bg-gray-750">
+                            <tr key={typeof task._id === 'object' ? (task._id as any)._id : task._id} 
+                                className="hover:bg-gray-50 dark:hover:bg-gray-750">
                               <td className="px-4 py-3 whitespace-nowrap">
                                 {task.title}
                               </td>
@@ -824,11 +821,13 @@ const ClientDetail: React.FC = () => {
                                 </span>
                               </td>
                               <td className="px-4 py-3 whitespace-nowrap">
-                                {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'Non définie'}
+                                {task.dueDate && !isNaN(new Date(task.dueDate).getTime()) 
+                                  ? new Date(task.dueDate).toLocaleDateString() 
+                                  : 'Non définie'}
                               </td>
                               <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
                                 <Link 
-                                  to={`/tasks/${task._id}`}
+                                  to={`/tasks/${typeof task._id === 'object' ? (task._id as any)._id : task._id}`}
                                   className="text-primary-600 dark:text-primary-400 hover:text-primary-900 dark:hover:text-primary-300"
                                 >
                                   Voir

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAppDispatch, useAppSelector } from '../hooks';
 import { addNotification } from '../store/slices/uiSlice';
 import { motion } from 'framer-motion';
@@ -49,25 +49,7 @@ const ClientDashboard: React.FC = () => {
   });
   const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'year' | 'custom'>('month');
   
-  // Charger les données
-  useEffect(() => {
-    fetchTimeData();
-  }, [dateRange]);
-  
-  // Formater la durée en heures et minutes
-  const formatDuration = (seconds: number): string => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    
-    if (hours === 0) {
-      return `${minutes} min`;
-    }
-    
-    return `${hours}h${minutes > 0 ? ` ${minutes}min` : ''}`;
-  };
-  
-  // Fonction pour récupérer les données de temps
-  const fetchTimeData = async () => {
+  const fetchTimeData = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -163,6 +145,23 @@ const ClientDashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  }, [dateRange, dispatch]);
+  
+  // Charger les données
+  useEffect(() => {
+    fetchTimeData();
+  }, [dateRange, fetchTimeData]);
+  
+  // Formater la durée en heures et minutes
+  const formatDuration = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    
+    if (hours === 0) {
+      return `${minutes} min`;
+    }
+    
+    return `${hours}h${minutes > 0 ? ` ${minutes}min` : ''}`;
   };
   
   // Fonction pour définir la plage de dates en fonction de la période

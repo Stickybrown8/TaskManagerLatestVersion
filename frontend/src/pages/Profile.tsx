@@ -49,7 +49,7 @@ const Profile: React.FC = () => {
         }
       });
     }
-  }, [user]);
+  }, [user, defaultProfile]);
 
   const [activeTab, setActiveTab] = useState('info');
   

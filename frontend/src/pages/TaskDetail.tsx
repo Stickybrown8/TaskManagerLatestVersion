@@ -5,6 +5,7 @@ import { fetchTasksStart, fetchTasksSuccess, fetchTasksFailure } from '../store/
 import { updateTask, deleteTask } from '../store/actions/taskActions';
 import { tasksService } from '../services/api';
 import { motion } from 'framer-motion';
+import { addNotification } from '../store/slices/uiSlice';
 
 interface Client {
   _id: string;
@@ -135,6 +136,20 @@ const TaskDetail: React.FC = () => {
                         typeof task._id === 'object' ? (task._id as any)._id : task._id,
                         { status: 'terminée' }
                       );
+                      
+                      // Mettre à jour l'interface
+                      setTask({ ...task, status: 'terminée' });
+                      
+                      // Notification de succès
+                      dispatch(addNotification({ 
+                        message: 'Tâche marquée comme terminée', 
+                        type: 'success' 
+                      }));
+                      
+                      // Recharger les tâches dans Redux
+                      dispatch(fetchTasksStart());
+                      const tasksData = await tasksService.getTasks();
+                      dispatch(fetchTasksSuccess(tasksData));
                     } catch (error) {
                       alert("Erreur lors de la complétion de la tâche");
                     }
@@ -254,7 +269,9 @@ const TaskDetail: React.FC = () => {
                 <p>
                   <span className="font-medium">Date d'échéance:</span>
                   <span className="ml-2">
-                    {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'Non définie'}
+                    {task.dueDate 
+                      ? new Date(task.dueDate).toLocaleDateString() 
+                      : 'Non définie'}
                     {task.dueDate && (
                       <span className="ml-2 text-sm text-gray-500">
                         ({formatRemainingDays(task.dueDate)})
@@ -276,9 +293,11 @@ const TaskDetail: React.FC = () => {
                 <p><span className="font-medium">Créée le:</span> {new Date(task.createdAt).toLocaleDateString()}</p>
                 <p>
                   <span className="font-medium">Dernière mise à jour:</span>
-                  {task.updatedAt
-                    ? new Date(task.updatedAt).toLocaleDateString()
-                    : 'Non disponible'}
+                  <span className="ml-2">
+                    {task.updatedAt && !isNaN(new Date(task.updatedAt).getTime())
+                      ? new Date(task.updatedAt).toLocaleDateString()
+                      : 'Non disponible'}
+                  </span>
                 </p>
               </div>
             </div>
