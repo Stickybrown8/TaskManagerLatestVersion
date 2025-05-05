@@ -3,7 +3,31 @@ import { useAppDispatch } from '../hooks';
 import { addNotification } from '../store/slices/uiSlice';
 import axios from 'axios';
 import { Bar, Doughnut } from 'react-chartjs-2';
-import 'chart.js/auto';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement
+} from 'chart.js';
+
+// Et enregistrez chaque composant individuellement
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  PointElement, 
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement
+);
 import ClientLogo from '../components/Clients/ClientLogo';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com';

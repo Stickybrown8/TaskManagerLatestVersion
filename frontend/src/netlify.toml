@@ -1,9 +1,0 @@
-[build]
-  base = "frontend"
-  publish = "build"
-  command = "npm install chart.js@4.4.9 react-chartjs-2@5.3.0 && npm run build"
-
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
