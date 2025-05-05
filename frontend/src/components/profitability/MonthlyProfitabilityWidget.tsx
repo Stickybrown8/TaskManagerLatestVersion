@@ -16,6 +16,16 @@ interface MonthlyProfitabilityWidgetProps {
   displayMode?: 'compact' | 'full';
 }
 
+// Ajouter cette interface après MonthlyProfitabilityWidgetProps
+interface ProfitabilityData {
+  _id: string;
+  clientId: string;
+  clientName?: string;
+  targetHours: number;
+  actualHours: number;
+  profitabilityPercentage: number;
+}
+
 const MonthlyProfitabilityWidget: React.FC<MonthlyProfitabilityWidgetProps> = ({
   displayMode = 'full'
 }) => {
@@ -67,19 +77,29 @@ const MonthlyProfitabilityWidget: React.FC<MonthlyProfitabilityWidgetProps> = ({
       setLoading(true);
       setError(null);
       
-      // MODIFICATION : Utiliser un endpoint qui existe réellement
-      const result = await axios.get(`${API_URL}/profitability/client/stats`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error("Token d'authentification manquant");
+      }
+      
+      // Utiliser l'endpoint GET /api/profitability qui existe réellement
+      const result = await axios.get<ProfitabilityData[]>(`${API_URL}/api/profitability`, {
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       
-      // Traiter les résultats
-      const profitabilityStats = result.data;
+      // Calculer manuellement les statistiques côté client
+      const allProfitabilityData: ProfitabilityData[] = result.data || [];
+      
+      // Corriger le filtre avec un typage explicite
+      const profitableClients = allProfitabilityData.filter(
+        (client: ProfitabilityData) => client.profitabilityPercentage >= 0
+      ).length;
+      
+      // Mettre à jour les données d'interface
       setProfitabilityData({
-        targetsReached: profitabilityStats.profitableClients || 0,
-        totalClients: profitabilityStats.totalClients || 0,
-        totalPointsEarned: 5, // Points fixes pour simplifier
+        targetsReached: profitableClients,
+        totalClients: allProfitabilityData.length,
+        totalPointsEarned: profitableClients * 5, // 5 points par client rentable
         lastChecked: new Date().toISOString()
       });
       
@@ -89,9 +109,15 @@ const MonthlyProfitabilityWidget: React.FC<MonthlyProfitabilityWidgetProps> = ({
         type: 'success'
       }));
       
+      // Si des clients sont rentables, déclencher des confettis
+      if (profitableClients > 0 && soundEnabled) {
+        setShowConfetti(true);
+        soundService.play('success');
+      }
+      
     } catch (error: any) {
-      console.error("Erreur lors de la vérification de rentabilité:", error);
-      setError(error.message || "Erreur lors de la vérification");
+      console.error("Erreur détaillée lors de la vérification:", error);
+      setError(error.response?.data?.message || error.message || "Erreur lors de la vérification");
     } finally {
       setLoading(false);
     }

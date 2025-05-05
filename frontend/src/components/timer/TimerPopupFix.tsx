@@ -551,9 +551,16 @@ const runningTimer = useAppSelector(state => state.timer?.runningTimer || null);
       <button
         onClick={() => {
           console.log("🖱️ Bouton timer cliqué");
-          console.log("🔍 État avant dispatch:", showTimerPopup);
-          dispatch(toggleTimerPopup(true));
-          console.log("✅ Action toggleTimerPopup(true) dispatchée");
+          // Forcer le changement d'état via une action spécifique
+          dispatch({ 
+            type: 'timer/toggleTimerPopup',
+            payload: true
+          });
+          // Log pour confirmer
+          setTimeout(() => {
+            const currentState = store.getState();
+            console.log("État après dispatch:", currentState.timer);
+          }, 100);
         }}
         className="fixed bottom-4 right-4 bg-primary-600 text-white p-3 rounded-full shadow-lg hover:bg-primary-700 transition-colors z-50"
         title="Ouvrir le chronomètre"
