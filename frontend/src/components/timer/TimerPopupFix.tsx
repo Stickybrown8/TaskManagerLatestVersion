@@ -83,7 +83,7 @@ const TimerPopupFix: React.FC = () => {
   const [previousSize, setPreviousSize] = useState<'small' | 'medium' | 'large'>('medium');
 
   // Ajouter ces états
-  const [dragBounds, setDragBounds] = useState({ top: 0, left: 0, right: 0, bottom: 0 });
+  const [dragBounds, setDragBounds] = useState({ left: 0, top: 0, right: 0, bottom: 0 });
   const dragConstraintsRef = useRef(null);
 
   const [showImpactIndicator, setShowImpactIndicator] = useState(true);
@@ -378,7 +378,7 @@ const TimerPopupFix: React.FC = () => {
       while (retries < 3) {
         try {
           console.log("Tentative de connexion à:", `${API_URL}/api/timers/start`);
-          
+
           response = await axios({
             method: 'post',
             url: `${API_URL}/api/timers/start`,
@@ -389,7 +389,7 @@ const TimerPopupFix: React.FC = () => {
             },
             timeout: 10000 // Timeout de 10 secondes
           });
-          
+
           console.log("Réponse reçue:", response.data);
           break; // Sortir de la boucle si succès
         } catch (err) {
@@ -572,32 +572,19 @@ const TimerPopupFix: React.FC = () => {
 
       // Système de gamification: récompenser l'utilisateur en fonction de l'impact
       if (timerDuration > 600) { // Plus de 10 minutes de travail
-        try {
-          // Points de base pour le temps passé
-          let points = Math.floor(timerDuration / 60); // 1 point par minute
-          
-          // Multiplicateur basé sur l'impact de la tâche
-          const isHighImpact = selectedTask && getTaskImpactInfo();
-          const impactMultiplier = isHighImpact ? 2 : 1;
-          
-          const totalPoints = points * impactMultiplier;
-          
-          // Attribuer les points avec un message approprié
-          const reason = isHighImpact 
-            ? `Timer sur tâche à fort impact (${formatDuration(timerDuration)})`
-            : `Timer: ${formatDuration(timerDuration)} sur ${selectedTask?.title || selectedClient?.name || 'une tâche'}`;
-          
-          await addExperience(totalPoints, reason);
-          
-          if (isHighImpact) {
-            // Vérifier si des achievements liés aux tâches à fort impact sont débloqués
-            const achievements = await checkAchievement('high_impact_tasks');
-            if (achievements.length > 0) {
-              showReward(achievements[0]);
-            }
+        let points = Math.floor(timerDuration / 60); // 1 point par minute
+        const isHighImpact = selectedTask && selectedTask.isHighImpact;
+        const impactMultiplier = isHighImpact ? 2 : 1;
+        const totalPoints = points * impactMultiplier;
+        const reason = isHighImpact 
+          ? `Timer sur tâche à fort impact (${formatDuration(timerDuration)})`
+          : `Timer: ${formatDuration(timerDuration)} sur ${selectedTask?.title || selectedClient?.name || 'une tâche'}`;
+        await addExperience(totalPoints, reason);
+        if (isHighImpact) {
+          const achievements = await checkAchievement('high_impact_tasks');
+          if (achievements.length > 0) {
+            showReward(achievements[0]);
           }
-        } catch (error) {
-          console.error("Erreur lors de l'attribution des points:", error);
         }
       }
 
@@ -740,82 +727,82 @@ const TimerPopupFix: React.FC = () => {
 
   // Mettre à jour la fonction handleCreateTask pour inclure les données d'impact
 
-const handleCreateTask = async (e: React.FormEvent) => {
-  e.preventDefault();
-  
-  try {
-    setLoading(true);
-    const token = localStorage.getItem('token');
-    
-    if (!token) {
-      throw new Error("Token d'authentification manquant");
-    }
-    
-    // Préparer les données de la tâche
-    const taskData = {
-      title: newTaskData.title,
-      description: newTaskData.description,
-      clientId: newTaskData.clientId || selectedClientId,
-      priority: newTaskData.priority,
-      dueDate: newTaskData.dueDate,
-      isHighImpact: newTaskData.isHighImpact || false,
-      impactScore: newTaskData.impactScore || 0
-    };
-    
-    // Créer la tâche
-    const response = await axios({
-      method: 'post',
-      url: `${API_URL}/api/tasks`,
-      data: taskData,
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    const createdTask = response.data;
-    
-    // Si c'est une tâche à fort impact, mettre à jour dans le système d'impact
-    if (newTaskData.isHighImpact) {
-      dispatch(updateTaskImpact({
-        taskId: createdTask._id,
-        isHighImpact: true,
-        impactScore: newTaskData.impactScore || 80
-      }));
-    }
-    
-    // Réinitialiser le formulaire
-    setNewTaskData({
-      title: '',
-      description: '',
-      clientId: '',
-      priority: 'normale',
-      dueDate: '',
-      isHighImpact: false,
-      impactScore: 50
-    });
-    
-    // Sélectionner la tâche créée
-    setSelectedTaskId(createdTask._id);
-    setSelectedTask(createdTask);
-    setShowNewTaskForm(false);
-    
-    dispatch(addNotification({
-      message: 'Tâche créée avec succès',
-      type: 'success'
-    }));
+  const handleCreateTask = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-    refreshTasks(); // Rafraîchir les tâches dans toute l'application
-  } catch (error: any) {
-    console.error('Erreur lors de la création de la tâche:', error);
-    dispatch(addNotification({
-      message: error.response?.data?.message || 'Erreur lors de la création de la tâche',
-      type: 'error'
-    }));
-  } finally {
-    setLoading(false);
-  }
-};
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+
+      if (!token) {
+        throw new Error("Token d'authentification manquant");
+      }
+
+      // Préparer les données de la tâche
+      const taskData = {
+        title: newTaskData.title,
+        description: newTaskData.description,
+        clientId: newTaskData.clientId || selectedClientId,
+        priority: newTaskData.priority,
+        dueDate: newTaskData.dueDate,
+        isHighImpact: newTaskData.isHighImpact || false,
+        impactScore: newTaskData.impactScore || 0
+      };
+
+      // Créer la tâche
+      const response = await axios({
+        method: 'post',
+        url: `${API_URL}/api/tasks`,
+        data: taskData,
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const createdTask = response.data;
+
+      // Si c'est une tâche à fort impact, mettre à jour dans le système d'impact
+      if (newTaskData.isHighImpact) {
+        dispatch(updateTaskImpact({
+          taskId: createdTask._id,
+          isHighImpact: true,
+          impactScore: newTaskData.impactScore || 80
+        }));
+      }
+
+      // Réinitialiser le formulaire
+      setNewTaskData({
+        title: '',
+        description: '',
+        clientId: '',
+        priority: 'normale',
+        dueDate: '',
+        isHighImpact: false,
+        impactScore: 50
+      });
+
+      // Sélectionner la tâche créée
+      setSelectedTaskId(createdTask._id);
+      setSelectedTask(createdTask);
+      setShowNewTaskForm(false);
+
+      dispatch(addNotification({
+        message: 'Tâche créée avec succès',
+        type: 'success'
+      }));
+
+      refreshTasks(); // Rafraîchir les tâches dans toute l'application
+    } catch (error: any) {
+      console.error('Erreur lors de la création de la tâche:', error);
+      dispatch(addNotification({
+        message: error.response?.data?.message || 'Erreur lors de la création de la tâche',
+        type: 'error'
+      }));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Gérer le changement de client
   const handleClientChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -833,33 +820,33 @@ const handleCreateTask = async (e: React.FormEvent) => {
 
   // Améliorer la fonction handleTaskChange
 
-const handleTaskChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-  const taskId = e.target.value;
-  console.log("Tâche sélectionnée:", taskId);
-  
-  // Stocker dans le localStorage pour persistance
-  if (taskId) {
-    localStorage.setItem('selectedTaskId', taskId);
-  }
-  
-  setSelectedTaskId(taskId);
+  const handleTaskChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const taskId = e.target.value;
+    console.log("Tâche sélectionnée:", taskId);
 
-  if (taskId) {
-    fetchTaskDetails(taskId);
-  } else {
-    setSelectedTask(null);
-  }
-};
+    // Stocker dans le localStorage pour persistance
+    if (taskId) {
+      localStorage.setItem('selectedTaskId', taskId);
+    }
 
-// Ajouter dans votre useEffect initial
-useEffect(() => {
-  // Restaurer la sélection précédente au chargement
-  const savedTaskId = localStorage.getItem('selectedTaskId');
-  if (savedTaskId) {
-    setSelectedTaskId(savedTaskId);
-    fetchTaskDetails(savedTaskId);
-  }
-}, []);
+    setSelectedTaskId(taskId);
+
+    if (taskId) {
+      fetchTaskDetails(taskId);
+    } else {
+      setSelectedTask(null);
+    }
+  };
+
+  // Ajouter dans votre useEffect initial
+  useEffect(() => {
+    // Restaurer la sélection précédente au chargement
+    const savedTaskId = localStorage.getItem('selectedTaskId');
+    if (savedTaskId) {
+      setSelectedTaskId(savedTaskId);
+      fetchTaskDetails(savedTaskId);
+    }
+  }, []);
 
   // Fonctions pour le drag-and-drop
   const onDragStart = () => {
@@ -904,7 +891,7 @@ useEffect(() => {
         right: window.innerWidth - 320, // Adapter en fonction de la taille
         bottom: window.innerHeight - 200 // Adapter en fonction de la taille
       });
-      
+
       const handleResize = () => {
         setDragBounds({
           top: 0,
@@ -913,7 +900,7 @@ useEffect(() => {
           bottom: window.innerHeight - 200
         });
       };
-      
+
       window.addEventListener('resize', handleResize);
       return () => window.removeEventListener('resize', handleResize);
     }
@@ -936,7 +923,7 @@ useEffect(() => {
 
   const getTaskImpactInfo = () => {
     if (!selectedTaskId || !highImpactTasks) return null;
-    
+
     const isHighImpact = highImpactTasks.some(task => task._id === selectedTaskId);
     return isHighImpact;
   };
@@ -962,19 +949,12 @@ useEffect(() => {
           dragElastic={0.2}
           dragMomentum={false}
           dragTransition={{ bounceStiffness: 600, bounceDamping: 20 }}
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="fixed shadow-xl rounded-xl overflow-hidden z-[9999]"
+          className="fixed shadow-2xl rounded-2xl bg-white dark:bg-gray-900 p-6 z-[9999] border border-gray-200 dark:border-gray-700"
           style={{
-            width: timerPopupSize === 'small' ? '320px' : timerPopupSize === 'medium' ? '380px' : '440px',
-            background: 'linear-gradient(to bottom, #ffffff, #f9fafb)',
-            border: '1px solid rgba(209, 213, 219, 0.5)',
-            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
-            top: position.y || (timerPopupPosition === 'top-right' ? '1rem' : timerPopupPosition === 'center' ? '50%' : 'auto'),
-            right: position.x || (timerPopupPosition === 'top-right' || timerPopupPosition === 'bottom-right' ? '1rem' : 'auto'),
-            bottom: timerPopupPosition === 'bottom-right' ? '1rem' : 'auto',
-            left: timerPopupPosition === 'center' ? '50%' : 'auto',
-            transform: timerPopupPosition === 'center' ? 'translate(-50%, -50%)' : 'none'
+            width: '380px',
+            top: position.y || '10%',
+            left: position.x || '50%',
+            transform: 'translate(-50%, 0)'
           }}
         >
           <div className="cursor-default">
@@ -1041,67 +1021,25 @@ useEffect(() => {
 
             {/* Afficher les infos de rentabilité si disponibles */}
             {selectedClient && profitability && (
-              <div className="mb-5 p-4 rounded-lg shadow-inner bg-gradient-to-r 
+              <div className={`mb-4 p-4 rounded-lg shadow-inner bg-gradient-to-r 
                 from-gray-50 to-gray-100 dark:from-gray-800/50 dark:to-gray-900/50 
-                border-l-4 transition-all duration-300"
-                style={{
-                  borderLeftColor: isOverBudget 
-                    ? 'rgba(239, 68, 68, 1)' 
-                    : percentageUsed > 80 
-                      ? 'rgba(245, 158, 11, 1)' 
-                      : 'rgba(16, 185, 129, 1)',
-                  animation: isOverBudget ? 'pulse 2s infinite' : 'none'
-                }}
-              >
+                border-l-4 transition-all duration-300
+                ${isOverBudget ? 'border-red-500' : percentageUsed > 80 ? 'border-yellow-500' : 'border-green-500'}`}>
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-lg font-semibold">Rentabilité actuelle:</span>
-                  <div className={`text-xl font-bold ${getRateColor()}`}>
+                  <span className="text-lg font-semibold">Rentabilité actuelle :</span>
+                  <div className={`text-xl font-bold ${isOverBudget ? 'text-red-600' : percentageUsed > 80 ? 'text-yellow-600' : 'text-green-600'}`}>
                     {Math.round(currentHourlyRate)}€/h
                   </div>
                 </div>
-                
-                <div className="grid grid-cols-2 gap-3 mb-3">
-                  <div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">Objectif</div>
-                    <div className="font-medium">{profitability?.hourlyRate || 0}€/h</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">Budget</div>
-                    <div className="font-medium">{profitability?.monthlyBudget?.toLocaleString() || 0}€</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">Heures restantes</div>
-                    <div className={`font-medium ${isOverBudget ? 'text-red-600 dark:text-red-400 animate-pulse' : 'text-green-600 dark:text-green-400'}`}>
-                      {hoursRemaining > 0 ? `+${hoursRemaining.toFixed(1)}h` : `${hoursRemaining.toFixed(1)}h`}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">Utilisation</div>
-                    <div className={`font-medium ${isOverBudget ? 'text-red-600' : percentageUsed > 80 ? 'text-yellow-600' : 'text-green-600'}`}>
-                      {Math.min(100, Math.round(percentageUsed))}%
-                    </div>
-                  </div>
+                <div className="text-sm">
+                  {isOverBudget
+                    ? "⚠️ Budget dépassé !"
+                    : percentageUsed > 80
+                      ? "Attention : Vous approchez de la limite de budget"
+                      : "Budget sous contrôle"}
                 </div>
-                
-                <div className="mt-2">
-                  <div className="w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full transition-all duration-500 ${
-                        isOverBudget ? 'bg-red-500 dark:bg-red-600 animate-pulse' :
-                        percentageUsed > 80 ? 'bg-yellow-500 dark:bg-yellow-600' :
-                        'bg-green-500 dark:bg-green-600'
-                      }`}
-                      style={{ width: `${Math.min(100, percentageUsed)}%` }}
-                    ></div>
-                  </div>
-                  <div className="text-xs text-center mt-1 font-medium">
-                    {isOverBudget 
-                      ? "⚠️ Budget dépassé ! Attention à la rentabilité !"
-                      : percentageUsed > 80
-                        ? "Attention: Vous approchez de la limite de budget"
-                        : "Budget sous contrôle"
-                    }
-                  </div>
+                <div className="mt-2 text-xs">
+                  Il vous reste <span className="font-bold">{hoursRemaining > 0 ? `+${hoursRemaining.toFixed(1)}h` : `${hoursRemaining.toFixed(1)}h`}</span> pour rester rentable.
                 </div>
               </div>
             )}
@@ -1128,66 +1066,64 @@ useEffect(() => {
               </div>
             )}
 
-            <div className="flex flex-col items-center justify-center mb-4">
-              <div className="text-4xl font-bold mb-3 text-gray-900 dark:text-white 
-                py-4 px-8 rounded-xl bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 
-                shadow-inner border border-gray-100 dark:border-gray-700 tracking-wider">
+            <div className="flex flex-col items-center justify-center mb-6">
+              <div className="text-5xl font-extrabold mb-4 text-gray-900 dark:text-white py-6 px-10 rounded-2xl bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 shadow-inner border border-gray-100 dark:border-gray-700 tracking-widest">
                 {formatDuration(timerDuration)}
               </div>
-              <div className="flex space-x-3 mt-2">
-                {isRunning ? (
-                  <button
-                    onClick={handlePauseTimer}
-                    disabled={loading}
-                    className="px-5 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 focus:outline-none 
-                    focus:ring-2 focus:ring-yellow-500 focus:ring-opacity-50 disabled:opacity-50 
-                    transition-all duration-200 ease-in-out shadow-md hover:shadow-lg"
-                  >
-                    {loading ? (
-                      <div className="flex items-center">
-                        <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Pause
-                      </div>
-                    ) : (
-                      <span className="flex items-center">
-                        <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        Pause
-                      </span>
-                    )}
-                  </button>
-                ) : (
-  <button
-    onClick={handleStartTimer}
-    disabled={loading || (!selectedClientId && !selectedTaskId)}
-    className="px-5 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 focus:outline-none 
-    focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 disabled:opacity-50 
-    transition-all duration-200 ease-in-out shadow-md hover:shadow-lg"
-  >
-    {loading ? (
-      <div className="flex items-center">
-        <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-        Démarrer
-      </div>
-    ) : (
-      <span className="flex items-center">
-        <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-        </svg>
-        Démarrer
-      </span>
-    )}
-  </button>
-)}
-              </div>
+            </div>
+            <div className="flex space-x-3 mt-2">
+              {isRunning ? (
+                <button
+                  onClick={handlePauseTimer}
+                  disabled={loading}
+                  className="px-5 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 focus:outline-none 
+                  focus:ring-2 focus:ring-yellow-500 focus:ring-opacity-50 disabled:opacity-50 
+                  transition-all duration-200 ease-in-out shadow-md hover:shadow-lg"
+                >
+                  {loading ? (
+                    <div className="flex items-center">
+                      <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Pause
+                    </div>
+                  ) : (
+                    <span className="flex items-center">
+                      <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                      </svg>
+                      Pause
+                    </span>
+                  )}
+                </button>
+              ) : (
+                <button
+                  onClick={handleStartTimer}
+                  disabled={loading || (!selectedClientId && !selectedTaskId)}
+                  className="px-5 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 focus:outline-none 
+  focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 disabled:opacity-50 
+  transition-all duration-200 ease-in-out shadow-md hover:shadow-lg"
+                >
+                  {loading ? (
+                    <div className="flex items-center">
+                      <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Démarrer
+                    </div>
+                  ) : (
+                    <span className="flex items-center">
+                      <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                      </svg>
+                      Démarrer
+                    </span>
+                  )}
+                </button>
+              )}
             </div>
 
             {!isRunning && !timerId && (
@@ -1286,6 +1222,46 @@ useEffect(() => {
                           rows={2}
                         ></textarea>
                       </div>
+
+                      <label className="flex items-center space-x-2 mt-2">
+                        <input
+                          type="checkbox"
+                          checked={newTaskData.isHighImpact}
+                          onChange={(e) => setNewTaskData({
+                            ...newTaskData,
+                            isHighImpact: e.target.checked,
+                            impactScore: e.target.checked ? 80 : 30
+                          })}
+                          className="form-checkbox h-4 w-4 text-primary-500"
+                        />
+                        <span className="text-sm text-gray-700 dark:text-gray-300">
+                          Tâche à fort impact (principe 80/20)
+                        </span>
+                      </label>
+                      {newTaskData.isHighImpact && (
+                        <div className="mt-2">
+                          <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
+                            Score d'impact (0-100)
+                          </label>
+                          <input
+                            type="range"
+                            min="50"
+                            max="100"
+                            step="5"
+                            value={newTaskData.impactScore}
+                            onChange={(e) => setNewTaskData({
+                              ...newTaskData,
+                              impactScore: parseInt(e.target.value)
+                            })}
+                            className="w-full h-2 bg-gray-200 rounded-full appearance-none cursor-pointer"
+                          />
+                          <div className="flex justify-between text-xs text-gray-500">
+                            <span>50</span>
+                            <span className="font-medium">{newTaskData.impactScore}</span>
+                            <span>100</span>
+                          </div>
+                        </div>
+                      )}
 
                       <div className="mb-2">
                         <label className="flex items-center space-x-2">
