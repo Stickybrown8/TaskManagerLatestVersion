@@ -21,6 +21,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
 import { updateTaskImpact } from '../../store/slices/taskImpactSlice';
 import { useGamification } from '../../hooks/useGamification';
+import { useTasks } from '../../hooks/useTasks';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com';
 
@@ -89,6 +90,7 @@ const TimerPopupFix: React.FC = () => {
   const { highImpactTasks } = useSelector((state: RootState) => state.taskImpact);
 
   const { addExperience, checkAchievement, showReward } = useGamification();
+  const { refreshTasks } = useTasks();
 
   // Charger les clients et les tâches
   useEffect(() => {
@@ -375,6 +377,8 @@ const TimerPopupFix: React.FC = () => {
 
       while (retries < 3) {
         try {
+          console.log("Tentative de connexion à:", `${API_URL}/api/timers/start`);
+          
           response = await axios({
             method: 'post',
             url: `${API_URL}/api/timers/start`,
@@ -385,6 +389,8 @@ const TimerPopupFix: React.FC = () => {
             },
             timeout: 10000 // Timeout de 10 secondes
           });
+          
+          console.log("Réponse reçue:", response.data);
           break; // Sortir de la boucle si succès
         } catch (err) {
           retries++;
@@ -690,7 +696,7 @@ const TimerPopupFix: React.FC = () => {
 
       // Mettre à jour Redux avec la nouvelle tâche (assurez-vous d'avoir importé l'action)
       // Cette partie fonctionne bien
-      dispatch(addTask(response.data));
+      dispatch(addTask(response.data)); // Ajouter la tâche au store Redux
 
       dispatch(addNotification({
         message: 'Nouvelle tâche créée et ajoutée à votre liste',
@@ -798,6 +804,8 @@ const handleCreateTask = async (e: React.FormEvent) => {
       message: 'Tâche créée avec succès',
       type: 'success'
     }));
+
+    refreshTasks(); // Rafraîchir les tâches dans toute l'application
   } catch (error: any) {
     console.error('Erreur lors de la création de la tâche:', error);
     dispatch(addNotification({
@@ -823,17 +831,35 @@ const handleCreateTask = async (e: React.FormEvent) => {
     }
   };
 
-  // Gérer le changement de tâche
-  const handleTaskChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const taskId = e.target.value;
-    setSelectedTaskId(taskId);
+  // Améliorer la fonction handleTaskChange
 
-    if (taskId) {
-      fetchTaskDetails(taskId);
-    } else {
-      setSelectedTask(null);
-    }
-  };
+const handleTaskChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const taskId = e.target.value;
+  console.log("Tâche sélectionnée:", taskId);
+  
+  // Stocker dans le localStorage pour persistance
+  if (taskId) {
+    localStorage.setItem('selectedTaskId', taskId);
+  }
+  
+  setSelectedTaskId(taskId);
+
+  if (taskId) {
+    fetchTaskDetails(taskId);
+  } else {
+    setSelectedTask(null);
+  }
+};
+
+// Ajouter dans votre useEffect initial
+useEffect(() => {
+  // Restaurer la sélection précédente au chargement
+  const savedTaskId = localStorage.getItem('selectedTaskId');
+  if (savedTaskId) {
+    setSelectedTaskId(savedTaskId);
+    fetchTaskDetails(savedTaskId);
+  }
+}, []);
 
   // Fonctions pour le drag-and-drop
   const onDragStart = () => {
@@ -936,21 +962,9 @@ const handleCreateTask = async (e: React.FormEvent) => {
           dragElastic={0.2}
           dragMomentum={false}
           dragTransition={{ bounceStiffness: 600, bounceDamping: 20 }}
-          onDragStart={onDragStart}
-          onDragEnd={(event, info) => {
-            onDragEnd();
-            setPosition({
-              x: info.point.x,
-              y: info.point.y
-            });
-            localStorage.setItem('timerPosition', JSON.stringify({
-              x: info.point.x,
-              y: info.point.y
-            }));
-          }}
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="fixed shadow-2xl rounded-lg overflow-hidden z-[9999]"
+          className="fixed shadow-xl rounded-xl overflow-hidden z-[9999]"
           style={{
             width: timerPopupSize === 'small' ? '320px' : timerPopupSize === 'medium' ? '380px' : '440px',
             background: 'linear-gradient(to bottom, #ffffff, #f9fafb)',
@@ -1115,10 +1129,9 @@ const handleCreateTask = async (e: React.FormEvent) => {
             )}
 
             <div className="flex flex-col items-center justify-center mb-4">
-              <div className={`text-4xl font-bold mb-3 ${isOverBudget ? 'text-red-600 dark:text-red-400 animate-pulse' : 'text-gray-900 dark:text-white'} 
-    py-4 px-8 rounded-xl bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 
-    shadow-inner border border-gray-100 dark:border-gray-700 tracking-wider`}
-              >
+              <div className="text-4xl font-bold mb-3 text-gray-900 dark:text-white 
+                py-4 px-8 rounded-xl bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 
+                shadow-inner border border-gray-100 dark:border-gray-700 tracking-wider">
                 {formatDuration(timerDuration)}
               </div>
               <div className="flex space-x-3 mt-2">
@@ -1127,8 +1140,8 @@ const handleCreateTask = async (e: React.FormEvent) => {
                     onClick={handlePauseTimer}
                     disabled={loading}
                     className="px-5 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 focus:outline-none 
-        focus:ring-2 focus:ring-yellow-500 focus:ring-opacity-50 disabled:opacity-50 
-        transition-all duration-200 ease-in-out shadow-md hover:shadow-lg"
+                    focus:ring-2 focus:ring-yellow-500 focus:ring-opacity-50 disabled:opacity-50 
+                    transition-all duration-200 ease-in-out shadow-md hover:shadow-lg"
                   >
                     {loading ? (
                       <div className="flex items-center">

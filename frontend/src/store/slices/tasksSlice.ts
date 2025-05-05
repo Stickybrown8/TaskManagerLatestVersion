@@ -54,6 +54,7 @@ interface TasksState {
   };
   loading: boolean;
   error: string | null;
+  lastFetched: number | null;
 }
 
 // État initial
@@ -64,6 +65,7 @@ const initialState: TasksState = {
   filters: {},
   loading: false,
   error: null,
+  lastFetched: null,
 };
 
 // Slice
@@ -75,10 +77,12 @@ const tasksSlice = createSlice({
       state.loading = true;
       state.error = null;
     },
-    fetchTasksSuccess: (state, action: PayloadAction<Task[]>) => {
+    fetchTasksSuccess: (state, action) => {
       state.tasks = action.payload;
       state.filteredTasks = applyFilters(action.payload, state.filters);
       state.loading = false;
+      state.error = null;
+      state.lastFetched = Date.now();
     },
     fetchTasksFailure: (state, action: PayloadAction<string>) => {
       state.loading = false;
@@ -155,8 +159,9 @@ const tasksSlice = createSlice({
     clearCurrentTask: (state) => {
       state.currentTask = null;
     },
-    addTask: (state, action: PayloadAction<Task>) => {
-      state.tasks.push(action.payload);
+    addTask: (state, action) => {
+      state.tasks.unshift(action.payload);
+      state.filteredTasks = applyFilters(state.tasks, state.filters);
     },
   },
 });

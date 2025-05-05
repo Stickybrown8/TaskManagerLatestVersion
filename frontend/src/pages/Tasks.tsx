@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../hooks';
-import { fetchTasksStart, fetchTasksSuccess, fetchTasksFailure, setTaskFilters } from '../store/slices/tasksSlice';
-import { fetchClientsStart, fetchClientsSuccess, fetchClientsFailure } from '../store/slices/clientsSlice';
-import { tasksService, clientsService } from '../services/api';
+import { setTaskFilters } from '../store/slices/tasksSlice';
 import { addNotification } from '../store/slices/uiSlice';
 import { motion } from 'framer-motion';
+import { useTasks } from '../hooks/useTasks';
+import { tasksService } from '../services/api'; // Ajoutez cette ligne
 
 // Interfaces pour typer les données
 interface Client {
@@ -28,38 +28,16 @@ interface Task {
 const Tasks: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const tasksState = useAppSelector(state => state.tasks || {});
-  const { tasks = [], filteredTasks = [] as Task[], filters = {}, loading = false, error = null } = tasksState;
+  const { tasks, loading, error, refreshTasks } = useTasks(); // Utiliser le hook personnalisé au lieu de useState + useEffect + fetch
   const { clients } = useAppSelector(state => state.clients) as { clients: Client[] };
   const [searchTerm, setSearchTerm] = useState('');
+  const tasksState = useAppSelector(state => state.tasks || {});
+  const { filteredTasks = [] as Task[], filters = {} } = tasksState;
 
-  // Charger les tâches et les clients au chargement de la page
-  useEffect(() => {
-    console.log("Chargement des tâches...");
-    const loadData = async () => {
-      try {
-        // Charger les tâches
-        dispatch(fetchTasksStart());
-        const tasksData = await tasksService.getTasks();
-        dispatch(fetchTasksSuccess(tasksData));
-
-        // Charger les clients si ce n'est pas déjà fait
-        if (clients.length === 0) {
-          dispatch(fetchClientsStart());
-          const clientsData = await clientsService.getClients();
-          dispatch(fetchClientsSuccess(clientsData));
-        }
-      } catch (error: any) {
-        dispatch(fetchTasksFailure(error.message));
-        dispatch(addNotification({
-          message: 'Erreur lors du chargement des tâches',
-          type: 'error'
-        }));
-      }
-    };
-
-    loadData();
-  }, [dispatch, clients.length]);
+  // Fonction pour après la création d'une tâche
+  const handleTaskCreated = () => {
+    refreshTasks(); // Rechargement automatique des tâches
+  };
 
   // Appliquer les filtres
   const handleFilterChange = (filterName: string, value: string) => {
@@ -375,9 +353,7 @@ const Tasks: React.FC = () => {
                             );
                             dispatch(addNotification({ message: 'Tâche marquée comme terminée', type: 'success' }));
                             // Recharge la liste
-                            dispatch(fetchTasksStart());
-                            const tasksData = await tasksService.getTasks();
-                            dispatch(fetchTasksSuccess(tasksData));
+                            refreshTasks();
                           } catch (error) {
                             dispatch(addNotification({ message: "Erreur lors de la complétion", type: "error" }));
                           }

@@ -6,6 +6,7 @@ import { clientsService } from '../services/api';
 import { addNotification } from '../store/slices/uiSlice';
 import { motion } from 'framer-motion';
 import axios from 'axios';
+import { useTasks } from '../hooks/useTasks'; // Ajouter cet import
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com';
 
@@ -41,28 +42,7 @@ const ClientDetail: React.FC = () => {
     }
   });
 
-  const tasksState = useAppSelector(state => state.tasks || {});
-  const allTasks = tasksState.tasks as Task[] || [];
-  const clientId = currentClient?._id || id;
-
-  // Variable pour stocker les tâches filtrées
-  const clientTasks = React.useMemo(() => {
-    // Vérifications de sécurité
-    if (!clientId || !allTasks || !allTasks.length) return [];
-    
-    console.log("Filtrage de", allTasks.length, "tâches pour le client", clientId);
-    
-    return allTasks.filter(task => {
-      if (!task) return false;
-      if (!task.clientId) return false;
-      
-      if (typeof task.clientId === 'object' && task.clientId !== null) {
-        return (task.clientId as { _id: string })._id === clientId;
-      }
-      
-      return task.clientId === clientId;
-    });
-  }, [clientId, allTasks]);
+  const { tasks, loading: tasksLoading, error: tasksError, refreshTasks } = useTasks(id);
 
   // Charger les données du client
   useEffect(() => {
@@ -778,13 +758,11 @@ const ClientDetail: React.FC = () => {
               <div className="md:col-span-3 mt-6">
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
                   <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                    Tâches associées ({clientTasks?.length || 0})
+                    Tâches associées ({tasks?.length || 0})
                   </h2>
                   
-                  {(!clientTasks || clientTasks.length === 0) ? (
-                    <p className="text-gray-600 dark:text-gray-400">
-                      Aucune tâche associée à ce client pour le moment.
-                    </p>
+                  {tasksLoading ? (
+                    <div>Chargement des tâches...</div>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -805,7 +783,7 @@ const ClientDetail: React.FC = () => {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                          {clientTasks.map(task => (
+                          {tasks.map(task => (
                             <tr key={typeof task._id === 'object' ? (task._id as any)._id : task._id} 
                                 className="hover:bg-gray-50 dark:hover:bg-gray-750">
                               <td className="px-4 py-3 whitespace-nowrap">

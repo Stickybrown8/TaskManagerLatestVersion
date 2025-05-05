@@ -3,6 +3,7 @@ const router = express.Router();
 const { verifyToken } = require('../middleware/auth');
 const Task = require('../models/Task');
 const User = require('../models/User');
+const Client = require('../models/Client'); // Ajout de l'importation du modèle Client
 
 // Obtenir toutes les tâches
 router.get('/', verifyToken, async (req, res) => {
@@ -48,6 +49,21 @@ router.post('/', verifyToken, async (req, res) => {
     });
     
     await newTask.save();
+
+    if (newTask.clientId) {
+      // Mettre à jour les métriques du client
+      try {
+        await Client.findByIdAndUpdate(newTask.clientId, {
+          $inc: { 'metrics.tasksPending': 1 },
+          'metrics.lastActivity': Date.now()
+        });
+        console.log(`Métriques du client ${newTask.clientId} mises à jour`);
+      } catch (err) {
+        console.error("Erreur lors de la mise à jour des métriques client:", err);
+        // Ne pas faire échouer toute la requête si cette partie échoue
+      }
+    }
+
     res.status(201).json({ message: 'Tâche créée avec succès', task: newTask });
   } catch (error) {
     res.status(500).json({ message: 'Erreur lors de la création de la tâche', error: error.message });

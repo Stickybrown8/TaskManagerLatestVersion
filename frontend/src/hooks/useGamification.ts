@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import axios from 'axios';
-import { useAppDispatch } from '../hooks';
+import { useAppDispatch } from '../store';
 import { addNotification } from '../store/slices/uiSlice';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com';
