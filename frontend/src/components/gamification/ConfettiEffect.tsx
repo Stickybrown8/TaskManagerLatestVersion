@@ -107,6 +107,30 @@ const ConfettiEffect: React.FC<ConfettiProps> = ({
     }
   }, [show, duration, onComplete, soundEnabled]);
 
+  // Écouteur d'événement global pour déclencher le confetti
+  useEffect(() => {
+    const handleTriggerConfetti = () => {
+      setIsVisible(true);
+      setParticles(generateParticles());
+      
+      if (soundEnabled) {
+        playConfettiSound();
+      }
+      
+      const timer = setTimeout(() => {
+        setIsVisible(false);
+        if (onComplete) onComplete();
+      }, duration);
+      
+      return () => clearTimeout(timer);
+    };
+    
+    window.addEventListener('trigger-confetti', handleTriggerConfetti);
+    return () => {
+      window.removeEventListener('trigger-confetti', handleTriggerConfetti);
+    };
+  }, [duration, generateParticles, onComplete, soundEnabled]);
+
   // Fonction pour jouer un son de célébration
   const playConfettiSound = () => {
     try {

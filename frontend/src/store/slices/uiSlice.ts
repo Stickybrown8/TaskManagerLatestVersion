@@ -1,5 +1,5 @@
 // frontend/src/store/slices/uiSlice.ts
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, PayloadAction, createAction } from '@reduxjs/toolkit';
 
 // Types
 interface UIState {
@@ -24,11 +24,12 @@ interface UIState {
 }
 
 interface Notification {
-  id: string;
+  id?: string;
   message: string;
   type: 'success' | 'error' | 'info' | 'warning';
-  timestamp: number;
-  read: boolean;
+  timestamp?: number;
+  read?: boolean;
+  duration?: number; // Ajoutez cette ligne
 }
 
 // État initial - Exporté pour être utilisé dans initialStates.js
@@ -82,6 +83,7 @@ const uiSlice = createSlice({
         type: action.payload.type,
         timestamp: Date.now(),
         read: false,
+        duration: action.payload.duration,
       };
       state.notifications.unshift(newNotification);
       

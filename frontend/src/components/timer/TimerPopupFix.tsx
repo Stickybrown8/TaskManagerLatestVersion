@@ -17,6 +17,10 @@ import axios from 'axios';
 import { store } from '../../store';
 import { addTask } from '../../store/slices/tasksSlice';
 import ClientLogo from '../Clients/ClientLogo';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../store';
+import { updateTaskImpact } from '../../store/slices/taskImpactSlice';
+import { useGamification } from '../../hooks/useGamification';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com';
 
@@ -68,12 +72,23 @@ const TimerPopupFix: React.FC = () => {
     description: '',
     clientId: '',
     priority: 'normale',
-    dueDate: ''
+    dueDate: '',
+    isHighImpact: false,
+    impactScore: 50
   });
 
   // États pour la minimisation
   const [isMinimized, setIsMinimized] = useState<boolean>(false);
   const [previousSize, setPreviousSize] = useState<'small' | 'medium' | 'large'>('medium');
+
+  // Ajouter ces états
+  const [dragBounds, setDragBounds] = useState({ top: 0, left: 0, right: 0, bottom: 0 });
+  const dragConstraintsRef = useRef(null);
+
+  const [showImpactIndicator, setShowImpactIndicator] = useState(true);
+  const { highImpactTasks } = useSelector((state: RootState) => state.taskImpact);
+
+  const { addExperience, checkAchievement, showReward } = useGamification();
 
   // Charger les clients et les tâches
   useEffect(() => {
@@ -344,43 +359,59 @@ const TimerPopupFix: React.FC = () => {
         throw new Error("Token d'authentification manquant");
       }
 
-      // Préparer les données du timer
+      // Préparer les données du timer avec validation
       const timerData = {
-        clientId: selectedClientId || (selectedTask?.clientId || ''),
-        taskId: selectedTaskId || '',
-        description: description,
+        clientId: selectedClientId || (selectedTask?.clientId?._id || selectedTask?.clientId),
+        taskId: selectedTaskId,
+        description: description || (selectedTask?.title ? `Travail sur: ${selectedTask.title}` : ''),
         billable: billable
       };
 
-      // Créer le timer
-      const response = await axios({
-        method: 'post',
-        url: `${API_URL}/api/timers/start`,
-        data: timerData,
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+      console.log("Données envoyées pour le timer:", timerData);
+
+      // Créer le timer avec retry si nécessaire
+      let retries = 0;
+      let response;
+
+      while (retries < 3) {
+        try {
+          response = await axios({
+            method: 'post',
+            url: `${API_URL}/api/timers/start`,
+            data: timerData,
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            timeout: 10000 // Timeout de 10 secondes
+          });
+          break; // Sortir de la boucle si succès
+        } catch (err) {
+          retries++;
+          if (retries >= 3) throw err;
+          await new Promise(r => setTimeout(r, 1000)); // Attendre 1 sec avant de réessayer
         }
-      });
+      }
 
-      console.log("Réponse détaillée:", response);
-
-      console.log("Timer créé:", response.data);
+      console.log("Réponse du timer:", response?.data);
 
       // Mettre à jour l'état local
-      const createdTimer = response.data.timer || response.data;
-      setTimerId(createdTimer._id);
-      setIsRunning(true);
-      setTimerDuration(0);
+      const createdTimer = response?.data?.timer || response?.data;
+      if (createdTimer?._id) {
+        setTimerId(createdTimer._id);
+        setIsRunning(true);
+        setTimerDuration(0);
 
-      // Mettre à jour le state Redux
-      dispatch(startTimer(createdTimer._id, selectedClientId ? 'client' : 'task'));
+        // Mettre à jour le state Redux
+        dispatch(startTimer(createdTimer._id, selectedClientId ? 'client' : 'task'));
 
-      dispatch(addNotification({
-        message: 'Chronomètre démarré',
-        type: 'success'
-      }));
-
+        dispatch(addNotification({
+          message: 'Chronomètre démarré',
+          type: 'success'
+        }));
+      } else {
+        throw new Error("ID du timer manquant dans la réponse");
+      }
     } catch (error: any) {
       console.error('Erreur lors du démarrage du timer:', error);
       dispatch(addNotification({
@@ -533,6 +564,37 @@ const TimerPopupFix: React.FC = () => {
         }
       }
 
+      // Système de gamification: récompenser l'utilisateur en fonction de l'impact
+      if (timerDuration > 600) { // Plus de 10 minutes de travail
+        try {
+          // Points de base pour le temps passé
+          let points = Math.floor(timerDuration / 60); // 1 point par minute
+          
+          // Multiplicateur basé sur l'impact de la tâche
+          const isHighImpact = selectedTask && getTaskImpactInfo();
+          const impactMultiplier = isHighImpact ? 2 : 1;
+          
+          const totalPoints = points * impactMultiplier;
+          
+          // Attribuer les points avec un message approprié
+          const reason = isHighImpact 
+            ? `Timer sur tâche à fort impact (${formatDuration(timerDuration)})`
+            : `Timer: ${formatDuration(timerDuration)} sur ${selectedTask?.title || selectedClient?.name || 'une tâche'}`;
+          
+          await addExperience(totalPoints, reason);
+          
+          if (isHighImpact) {
+            // Vérifier si des achievements liés aux tâches à fort impact sont débloqués
+            const achievements = await checkAchievement('high_impact_tasks');
+            if (achievements.length > 0) {
+              showReward(achievements[0]);
+            }
+          }
+        } catch (error) {
+          console.error("Erreur lors de l'attribution des points:", error);
+        }
+      }
+
     } catch (error: any) {
       console.error('Erreur lors de l\'arrêt du timer:', error);
       dispatch(addNotification({
@@ -652,7 +714,9 @@ const TimerPopupFix: React.FC = () => {
         description: '',
         clientId: newTaskData.clientId,
         priority: 'normale',
-        dueDate: ''
+        dueDate: '',
+        isHighImpact: false,
+        impactScore: 30
       });
 
       setShowNewTaskForm(false);
@@ -667,6 +731,83 @@ const TimerPopupFix: React.FC = () => {
       setLoading(false);
     }
   };
+
+  // Mettre à jour la fonction handleCreateTask pour inclure les données d'impact
+
+const handleCreateTask = async (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  try {
+    setLoading(true);
+    const token = localStorage.getItem('token');
+    
+    if (!token) {
+      throw new Error("Token d'authentification manquant");
+    }
+    
+    // Préparer les données de la tâche
+    const taskData = {
+      title: newTaskData.title,
+      description: newTaskData.description,
+      clientId: newTaskData.clientId || selectedClientId,
+      priority: newTaskData.priority,
+      dueDate: newTaskData.dueDate,
+      isHighImpact: newTaskData.isHighImpact || false,
+      impactScore: newTaskData.impactScore || 0
+    };
+    
+    // Créer la tâche
+    const response = await axios({
+      method: 'post',
+      url: `${API_URL}/api/tasks`,
+      data: taskData,
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    const createdTask = response.data;
+    
+    // Si c'est une tâche à fort impact, mettre à jour dans le système d'impact
+    if (newTaskData.isHighImpact) {
+      dispatch(updateTaskImpact({
+        taskId: createdTask._id,
+        isHighImpact: true,
+        impactScore: newTaskData.impactScore || 80
+      }));
+    }
+    
+    // Réinitialiser le formulaire
+    setNewTaskData({
+      title: '',
+      description: '',
+      clientId: '',
+      priority: 'normale',
+      dueDate: '',
+      isHighImpact: false,
+      impactScore: 50
+    });
+    
+    // Sélectionner la tâche créée
+    setSelectedTaskId(createdTask._id);
+    setSelectedTask(createdTask);
+    setShowNewTaskForm(false);
+    
+    dispatch(addNotification({
+      message: 'Tâche créée avec succès',
+      type: 'success'
+    }));
+  } catch (error: any) {
+    console.error('Erreur lors de la création de la tâche:', error);
+    dispatch(addNotification({
+      message: error.response?.data?.message || 'Erreur lors de la création de la tâche',
+      type: 'error'
+    }));
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Gérer le changement de client
   const handleClientChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -728,6 +869,30 @@ const TimerPopupFix: React.FC = () => {
     }
   }, [showTimerPopup]);
 
+  // Ajouter cet useEffect pour calculer les limites de déplacement
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setDragBounds({
+        top: 0,
+        left: 0,
+        right: window.innerWidth - 320, // Adapter en fonction de la taille
+        bottom: window.innerHeight - 200 // Adapter en fonction de la taille
+      });
+      
+      const handleResize = () => {
+        setDragBounds({
+          top: 0,
+          left: 0,
+          right: window.innerWidth - 320,
+          bottom: window.innerHeight - 200
+        });
+      };
+      
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }
+  }, [timerPopupSize]);
+
   // Ajouter ces fonctions après les autres fonctions utilitaires
   const getRateColor = () => {
     if (!profitability?.hourlyRate) return '';
@@ -741,6 +906,13 @@ const TimerPopupFix: React.FC = () => {
     if (isOverBudget) return 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30';
     if (percentageUsed > 80) return 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800/30';
     return 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/30';
+  };
+
+  const getTaskImpactInfo = () => {
+    if (!selectedTaskId || !highImpactTasks) return null;
+    
+    const isHighImpact = highImpactTasks.some(task => task._id === selectedTaskId);
+    return isHighImpact;
   };
 
   // Remplacer la section return avec un design plus élégant
@@ -760,19 +932,17 @@ const TimerPopupFix: React.FC = () => {
         <motion.div
           ref={popupRef}
           drag
-          dragConstraints={false}
-          dragElastic={0}
+          dragConstraints={dragBounds}
+          dragElastic={0.2}
           dragMomentum={false}
+          dragTransition={{ bounceStiffness: 600, bounceDamping: 20 }}
           onDragStart={onDragStart}
           onDragEnd={(event, info) => {
             onDragEnd();
-            // Enregistrer la position finale
             setPosition({
               x: info.point.x,
               y: info.point.y
             });
-
-            // Sauvegarder la position dans localStorage pour persistance
             localStorage.setItem('timerPosition', JSON.stringify({
               x: info.point.x,
               y: info.point.y
@@ -780,17 +950,17 @@ const TimerPopupFix: React.FC = () => {
           }}
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="fixed shadow-2xl border border-gray-300 dark:border-gray-700 rounded-lg overflow-hidden z-[9999] bg-white dark:bg-gray-800"
+          className="fixed shadow-2xl rounded-lg overflow-hidden z-[9999]"
           style={{
-            width: timerPopupSize === 'small' ? '280px' : timerPopupSize === 'medium' ? '340px' : '420px',
-            height: 'auto',
+            width: timerPopupSize === 'small' ? '320px' : timerPopupSize === 'medium' ? '380px' : '440px',
+            background: 'linear-gradient(to bottom, #ffffff, #f9fafb)',
+            border: '1px solid rgba(209, 213, 219, 0.5)',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
             top: position.y || (timerPopupPosition === 'top-right' ? '1rem' : timerPopupPosition === 'center' ? '50%' : 'auto'),
             right: position.x || (timerPopupPosition === 'top-right' || timerPopupPosition === 'bottom-right' ? '1rem' : 'auto'),
             bottom: timerPopupPosition === 'bottom-right' ? '1rem' : 'auto',
             left: timerPopupPosition === 'center' ? '50%' : 'auto',
-            transform: timerPopupPosition === 'center' ? 'translate(-50%, -50%)' : 'none',
-            resize: 'both',
-            overflow: 'auto'
+            transform: timerPopupPosition === 'center' ? 'translate(-50%, -50%)' : 'none'
           }}
         >
           <div className="cursor-default">
@@ -849,7 +1019,7 @@ const TimerPopupFix: React.FC = () => {
                   title="Fermer"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 011.414 1.414L11.414 10l4.293 4.293a1 1 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" />
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 011.414 1.414L11.414 10l4.293 4.293a1 1 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" />
                   </svg>
                 </button>
               </div>
@@ -857,130 +1027,153 @@ const TimerPopupFix: React.FC = () => {
 
             {/* Afficher les infos de rentabilité si disponibles */}
             {selectedClient && profitability && (
-              <div className={`mb-4 p-4 rounded-md text-sm shadow-inner bg-gradient-to-r ${isOverBudget
-                ? 'from-red-50 to-red-100 dark:from-red-900/30 dark:to-red-800/30 border-l-4 border-red-500 animate-pulse'
-                : percentageUsed > 80
-                  ? 'from-yellow-50 to-yellow-100 dark:from-yellow-900/30 dark:to-yellow-800/30 border-l-4 border-yellow-500'
-                  : 'from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/30 border-l-4 border-green-500'
-                }`}>
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-700 dark:text-gray-300 font-medium">Objectif horaire:</span>
-                    <span className="font-bold text-lg">{profitability?.hourlyRate || 0}€/h</span>
+              <div className="mb-5 p-4 rounded-lg shadow-inner bg-gradient-to-r 
+                from-gray-50 to-gray-100 dark:from-gray-800/50 dark:to-gray-900/50 
+                border-l-4 transition-all duration-300"
+                style={{
+                  borderLeftColor: isOverBudget 
+                    ? 'rgba(239, 68, 68, 1)' 
+                    : percentageUsed > 80 
+                      ? 'rgba(245, 158, 11, 1)' 
+                      : 'rgba(16, 185, 129, 1)',
+                  animation: isOverBudget ? 'pulse 2s infinite' : 'none'
+                }}
+              >
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-lg font-semibold">Rentabilité actuelle:</span>
+                  <div className={`text-xl font-bold ${getRateColor()}`}>
+                    {Math.round(currentHourlyRate)}€/h
                   </div>
-
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-700 dark:text-gray-300 font-medium">Taux actuel:</span>
-                    <span className={`font-bold text-xl ${getRateColor()}`}>
-                      {currentHourlyRate > 0 ? Math.round(currentHourlyRate) : (profitability?.hourlyRate || 0)}€/h
-                    </span>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">Objectif</div>
+                    <div className="font-medium">{profitability?.hourlyRate || 0}€/h</div>
                   </div>
-
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-700 dark:text-gray-300">Budget mensuel:</span>
-                    <span className="font-medium">{profitability?.monthlyBudget?.toLocaleString() || 0}€</span>
+                  <div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">Budget</div>
+                    <div className="font-medium">{profitability?.monthlyBudget?.toLocaleString() || 0}€</div>
                   </div>
-
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-700 dark:text-gray-300 font-semibold">Heures restantes:</span>
-                    <span className={`font-medium text-xl ${isOverBudget ? 'text-red-600 dark:text-red-400 font-bold animate-pulse' : 'text-green-600 dark:text-green-400'}`}>
+                  <div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">Heures restantes</div>
+                    <div className={`font-medium ${isOverBudget ? 'text-red-600 dark:text-red-400 animate-pulse' : 'text-green-600 dark:text-green-400'}`}>
                       {hoursRemaining > 0 ? `+${hoursRemaining.toFixed(1)}h` : `${hoursRemaining.toFixed(1)}h`}
-                    </span>
+                    </div>
                   </div>
-
-                  <div className="mt-3">
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="font-medium">Progression du budget</span>
-                      <span className={`${isOverBudget ? 'text-red-600 font-bold animate-pulse' : ''}`}>
-                        {Math.min(100, Math.round(percentageUsed))}%
-                      </span>
+                  <div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">Utilisation</div>
+                    <div className={`font-medium ${isOverBudget ? 'text-red-600' : percentageUsed > 80 ? 'text-yellow-600' : 'text-green-600'}`}>
+                      {Math.min(100, Math.round(percentageUsed))}%
                     </div>
-                    <div className="w-full h-4 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden shadow-inner border border-gray-300 dark:border-gray-600">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${isOverBudget ? 'bg-red-500 dark:bg-red-600 animate-pulse' :
-                          percentageUsed > 80 ? 'bg-yellow-500 dark:bg-yellow-600' :
-                            'bg-green-500 dark:bg-green-600'
-                          }`}
-                        style={{ width: `${Math.min(100, percentageUsed)}%` }}
-                      ></div>
-                    </div>
+                  </div>
+                </div>
+                
+                <div className="mt-2">
+                  <div className="w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full transition-all duration-500 ${
+                        isOverBudget ? 'bg-red-500 dark:bg-red-600 animate-pulse' :
+                        percentageUsed > 80 ? 'bg-yellow-500 dark:bg-yellow-600' :
+                        'bg-green-500 dark:bg-green-600'
+                      }`}
+                      style={{ width: `${Math.min(100, percentageUsed)}%` }}
+                    ></div>
+                  </div>
+                  <div className="text-xs text-center mt-1 font-medium">
+                    {isOverBudget 
+                      ? "⚠️ Budget dépassé ! Attention à la rentabilité !"
+                      : percentageUsed > 80
+                        ? "Attention: Vous approchez de la limite de budget"
+                        : "Budget sous contrôle"
+                    }
                   </div>
                 </div>
               </div>
             )}
 
+            {selectedTask && showImpactIndicator && (
+              <div className={`mb-4 p-3 rounded-lg ${getTaskImpactInfo() ? 'bg-green-50 border-l-4 border-green-500' : 'bg-gray-50 border-l-4 border-gray-300'}`}>
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-sm">Impact de la tâche:</span>
+                  {getTaskImpactInfo() ? (
+                    <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800 font-bold">
+                      Fort impact (80/20)
+                    </span>
+                  ) : (
+                    <span className="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-600">
+                      Impact normal
+                    </span>
+                  )}
+                </div>
+                {getTaskImpactInfo() && (
+                  <p className="text-xs text-green-700 mt-1">
+                    Cette tâche fait partie des 20% qui génèrent 80% des résultats. Priorité maximale!
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="flex flex-col items-center justify-center mb-4">
-              <div className={`text-4xl font-bold mb-2 ${isOverBudget ? 'text-red-600 dark:text-red-400 animate-pulse' : 'text-gray-900 dark:text-white'} 
-  shadow-sm bg-gray-50 dark:bg-gray-900/30 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700`}>
+              <div className={`text-4xl font-bold mb-3 ${isOverBudget ? 'text-red-600 dark:text-red-400 animate-pulse' : 'text-gray-900 dark:text-white'} 
+    py-4 px-8 rounded-xl bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 
+    shadow-inner border border-gray-100 dark:border-gray-700 tracking-wider`}
+              >
                 {formatDuration(timerDuration)}
               </div>
-              <div className="flex space-x-2">
+              <div className="flex space-x-3 mt-2">
                 {isRunning ? (
                   <button
                     onClick={handlePauseTimer}
                     disabled={loading}
-                    className="px-3 py-1 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-opacity-50 disabled:opacity-50"
+                    className="px-5 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 focus:outline-none 
+        focus:ring-2 focus:ring-yellow-500 focus:ring-opacity-50 disabled:opacity-50 
+        transition-all duration-200 ease-in-out shadow-md hover:shadow-lg"
                   >
                     {loading ? (
                       <div className="flex items-center">
-                        <svg className="animate-spin h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
                         Pause
                       </div>
-                    ) : 'Pause'}
-                  </button>
-                ) : timerId ? (
-                  <button
-                    onClick={handleResumeTimer}
-                    disabled={loading}
-                    className="px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 disabled:opacity-50"
-                  >
-                    {loading ? (
-                      <div className="flex items-center">
-                        <svg className="animate-spin h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    ) : (
+                      <span className="flex items-center">
+                        <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
-                        Reprendre
-                      </div>
-                    ) : 'Reprendre'}
+                        Pause
+                      </span>
+                    )}
                   </button>
                 ) : (
-                  <button
-                    onClick={handleStartTimer}
-                    disabled={(!selectedClientId && !selectedTaskId) || loading}
-                    className="px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 disabled:opacity-50"
-                  >
-                    {loading ? (
-                      <div className="flex items-center">
-                        <svg className="animate-spin h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Démarrer
-                      </div>
-                    ) : 'Démarrer'}
-                  </button>
-                )}
-                {(isRunning || timerId) && (
-                  <button
-                    onClick={handleStopTimer}
-                    disabled={loading}
-                    className="px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 disabled:opacity-50"
-                  >
-                    {loading ? (
-                      <div className="flex items-center">
-                        <svg className="animate-spin h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Arrêter
-                      </div>
-                    ) : 'Arrêter'}
-                  </button>
-                )}
+  <button
+    onClick={handleStartTimer}
+    disabled={loading || (!selectedClientId && !selectedTaskId)}
+    className="px-5 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 focus:outline-none 
+    focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 disabled:opacity-50 
+    transition-all duration-200 ease-in-out shadow-md hover:shadow-lg"
+  >
+    {loading ? (
+      <div className="flex items-center">
+        <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        Démarrer
+      </div>
+    ) : (
+      <span className="flex items-center">
+        <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        Démarrer
+      </span>
+    )}
+  </button>
+)}
               </div>
             </div>
 
@@ -1079,6 +1272,51 @@ const TimerPopupFix: React.FC = () => {
                           className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md"
                           rows={2}
                         ></textarea>
+                      </div>
+
+                      <div className="mb-2">
+                        <label className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            checked={newTaskData.isHighImpact}
+                            onChange={(e) => setNewTaskData({
+                              ...newTaskData,
+                              isHighImpact: e.target.checked,
+                              impactScore: e.target.checked ? 80 : 30
+                            })}
+                            className="form-checkbox h-4 w-4 text-primary-500"
+                          />
+                          <span className="text-sm text-gray-700 dark:text-gray-300">
+                            Tâche à fort impact (principe 80/20)
+                          </span>
+                        </label>
+                        {newTaskData.isHighImpact && (
+                          <div className="mt-2">
+                            <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
+                              Score d'impact (0-100)
+                            </label>
+                            <input
+                              type="range"
+                              min="50"
+                              max="100"
+                              step="5"
+                              value={newTaskData.impactScore}
+                              onChange={(e) => setNewTaskData({
+                                ...newTaskData,
+                                impactScore: parseInt(e.target.value)
+                              })}
+                              className="w-full h-2 bg-gray-200 rounded-full appearance-none cursor-pointer"
+                            />
+                            <div className="flex justify-between text-xs text-gray-500">
+                              <span>50</span>
+                              <span className="font-medium">{newTaskData.impactScore}</span>
+                              <span>100</span>
+                            </div>
+                          </div>
+                        )}
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          Les tâches à fort impact représentent 20% des tâches qui apportent 80% des résultats.
+                        </p>
                       </div>
 
                       <button

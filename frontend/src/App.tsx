@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import PrivateRoute from './components/PrivateRoute';
@@ -22,9 +22,23 @@ import TestApi from './pages/TestApi';
 import TestLogin from './TestLogin';
 import AdminSetup from './AdminSetup';
 import ClientStatistics from './pages/ClientStatistics';
+import ConfettiEffect from './components/gamification/ConfettiEffect';
 
 const App: React.FC = () => {
   console.log("App.tsx rendu !");
+  
+  const [showConfetti, setShowConfetti] = useState(false);
+
+  useEffect(() => {
+    const handleTriggerConfetti = () => {
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 3000);
+    };
+    
+    window.addEventListener('trigger-confetti', handleTriggerConfetti);
+    return () => window.removeEventListener('trigger-confetti', handleTriggerConfetti);
+  }, []);
+
   return (
     <>
       <TimerPopupFix />
@@ -54,6 +68,12 @@ const App: React.FC = () => {
       </Routes>
       {process.env.NODE_ENV !== 'production' && <TimerDebug />}
       {process.env.NODE_ENV !== 'production' && <TestTimer />}
+      <ConfettiEffect 
+        show={showConfetti} 
+        duration={3000}
+        particleCount={100}
+        onComplete={() => setShowConfetti(false)}
+      />
     </>
   );
 };
