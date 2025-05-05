@@ -21,6 +21,7 @@ import Profile from './pages/Profile';
 import TestApi from './pages/TestApi';
 import TestLogin from './TestLogin';
 import AdminSetup from './AdminSetup';
+import ClientStatistics from './pages/ClientStatistics';
 
 const App: React.FC = () => {
   console.log("App.tsx rendu !");
@@ -46,6 +47,7 @@ const App: React.FC = () => {
             <Route path="/dashboard/clients" element={<ClientDashboard />} />
             <Route path="/gamification" element={<Gamification />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/client-statistics" element={<ClientStatistics />} />
             <Route path="*" element={<div>Page non trouvée</div>} />
           </Route>
         </Route>
