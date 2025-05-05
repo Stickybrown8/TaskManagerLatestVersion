@@ -15,8 +15,11 @@ import {
   Legend,
   ArcElement
 } from 'chart.js';
+import ClientLogo from '../components/Clients/ClientLogo';
 
-// Et enregistrez chaque composant individuellement
+const API_URL = process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com';
+
+// Enregistrement des composants Chart.js (après tous les imports)
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -28,9 +31,6 @@ ChartJS.register(
   Legend,
   ArcElement
 );
-import ClientLogo from '../components/Clients/ClientLogo';
-
-const API_URL = process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com';
 
 interface DateRange {
   startDate: string;
