@@ -731,16 +731,11 @@ const TimerPopupFix: React.FC = () => {
 
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    setLoading(true);
     try {
-      setLoading(true);
       const token = localStorage.getItem('token');
+      if (!token) throw new Error("Token d'authentification manquant");
 
-      if (!token) {
-        throw new Error("Token d'authentification manquant");
-      }
-
-      // Préparer les données de la tâche
       const taskData = {
         title: newTaskData.title,
         description: newTaskData.description,
@@ -751,52 +746,32 @@ const TimerPopupFix: React.FC = () => {
         impactScore: newTaskData.impactScore || 0
       };
 
-      // Créer la tâche
-      const response = await axios({
-        method: 'post',
-        url: `${API_URL}/api/tasks`,
-        data: taskData,
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      // Appel API
+      const response = await axios.post(
+        `${API_URL}/api/tasks`,
+        taskData,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
 
-      const createdTask = response.data;
+      const createdTask = response.data.task || response.data; // selon backend
 
-      // Si c'est une tâche à fort impact, mettre à jour dans le système d'impact
-      if (newTaskData.isHighImpact) {
-        dispatch(updateTaskImpact({
-          taskId: createdTask._id,
-          isHighImpact: true,
-          impactScore: newTaskData.impactScore || 80
-        }));
-      }
-
-      // Réinitialiser le formulaire
-      setNewTaskData({
-        title: '',
-        description: '',
-        clientId: '',
-        priority: 'normale',
-        dueDate: '',
-        isHighImpact: false,
-        impactScore: 50
-      });
-
-      // Sélectionner la tâche créée
+      // Sélectionner automatiquement la tâche créée
       setSelectedTaskId(createdTask._id);
       setSelectedTask(createdTask);
-      setShowNewTaskForm(false);
 
+      // Notification de succès
       dispatch(addNotification({
         message: 'Tâche créée avec succès',
         type: 'success'
       }));
 
-      refreshTasks(); // Rafraîchir les tâches dans toute l'application
+      // Rafraîchir la liste des tâches
+      refreshTasks();
+
+      // Fermer le formulaire
+      setShowNewTaskForm(false);
+
     } catch (error: any) {
-      console.error('Erreur lors de la création de la tâche:', error);
       dispatch(addNotification({
         message: error.response?.data?.message || 'Erreur lors de la création de la tâche',
         type: 'error'
@@ -971,10 +946,8 @@ const TimerPopupFix: React.FC = () => {
             maxWidth: 400,
             minWidth: 260,
             maxHeight: '90vh',
-            overflowY: 'auto', // <-- Ajoute cette ligne
-            top: position.y || 40,
-            left: position.x || '50%',
-            transform: position.x ? undefined : 'translateX(-50%)',
+            overflowY: 'auto',
+            resize: 'both', // <-- Ajoute cette ligne
           }}
         >
           <div className="cursor-default">
@@ -1336,19 +1309,17 @@ const TimerPopupFix: React.FC = () => {
                   />
                 </div>
 
-                <div className="mb-2 flex items-center">
+                <label className="flex items-center space-x-2 mt-2">
                   <input
                     type="checkbox"
-                    id="billable"
                     checked={billable}
-                    onChange={(e) => setBillable(e.target.checked)}
-                    className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                    disabled={loading}
+                    onChange={() => setBillable(!billable)}
+                    className="form-checkbox h-5 w-5 text-green-500"
                   />
-                  <label htmlFor="billable" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
-                    Facturable
-                  </label>
-                </div>
+                  <span className="text-lg font-semibold flex items-center">
+                    {billable ? "💸 Facturable" : "⏳ Non facturable"}
+                  </span>
+                </label>
               </div>
             )}
 
