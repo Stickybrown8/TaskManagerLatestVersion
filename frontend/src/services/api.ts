@@ -151,39 +151,39 @@ export const badgesService = {
 
 export const timerService = {
   startTimer: async (timerData: any) => {
-    const response = await api.post('/api/timer/start', timerData);
+    const response = await api.post('/api/timers/start', timerData);
     return response.data;
   },
   stopTimer: async (id: string, duration?: number) => {
-    const response = await api.post(`/api/timer/stop/${id}`, { duration });
+    const response = await api.post(`/api/timers/stop/${id}`, { duration });
     return response.data;
   },
   getTimerHistory: async (taskId: string) => {
-    const response = await api.get(`/api/timer/history/${taskId}`);
+    const response = await api.get(`/api/timers/history/${taskId}`);
     return response.data;
   },
   getAllTimers: async () => {
-    const response = await api.get('/api/timer/all');
+    const response = await api.get('/api/timers/all');
     return response.data;
   },
   getRunningTimer: async () => {
-    const response = await api.get('/api/timer/running');
+    const response = await api.get('/api/timers/running');
     return response.data;
   },
   getTimerById: async (id: string) => {
-    const response = await api.get(`/api/timer/${id}`);
+    const response = await api.get(`/api/timers/${id}`);
     return response.data;
   },
   pauseTimer: async (id: string) => {
-    const response = await api.post(`/api/timer/pause/${id}`);
+    const response = await api.post(`/api/timers/pause/${id}`);
     return response.data;
   },
   resumeTimer: async (id: string) => {
-    const response = await api.post(`/api/timer/resume/${id}`);
+    const response = await api.post(`/api/timers/resume/${id}`);
     return response.data;
   },
   deleteTimer: async (id: string) => {
-    const response = await api.delete(`/api/timer/${id}`);
+    const response = await api.delete(`/api/timers/${id}`);
     return response.data;
   },
 };
