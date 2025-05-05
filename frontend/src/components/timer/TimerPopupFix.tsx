@@ -169,7 +169,6 @@ const TimerPopupFix: React.FC = () => {
             setBillable(response.data.billable !== false);
 
             if (response.data.clientId) {
-              setSelectedClientId(response.data.clientId);
               fetchClientDetails(response.data.clientId);
             }
 
@@ -275,7 +274,6 @@ const TimerPopupFix: React.FC = () => {
 
       // Si la tâche a un client, charger les détails du client
       if (response.data.clientId) {
-        setSelectedClientId(response.data.clientId);
         fetchClientDetails(response.data.clientId);
       }
 
@@ -576,7 +574,7 @@ const TimerPopupFix: React.FC = () => {
         const isHighImpact = selectedTask && selectedTask.isHighImpact;
         const impactMultiplier = isHighImpact ? 2 : 1;
         const totalPoints = points * impactMultiplier;
-        const reason = isHighImpact 
+        const reason = isHighImpact
           ? `Timer sur tâche à fort impact (${formatDuration(timerDuration)})`
           : `Timer: ${formatDuration(timerDuration)} sur ${selectedTask?.title || selectedClient?.name || 'une tâche'}`;
         await addExperience(totalPoints, reason);
@@ -906,6 +904,20 @@ const TimerPopupFix: React.FC = () => {
     }
   }, [timerPopupSize]);
 
+  useEffect(() => {
+    function updateBounds() {
+      setDragBounds({
+        left: 0,
+        top: 0,
+        right: window.innerWidth - 260,
+        bottom: window.innerHeight - 200,
+      });
+    }
+    updateBounds();
+    window.addEventListener('resize', updateBounds);
+    return () => window.removeEventListener('resize', updateBounds);
+  }, []);
+
   // Ajouter ces fonctions après les autres fonctions utilitaires
   const getRateColor = () => {
     if (!profitability?.hourlyRate) return '';
@@ -949,12 +961,20 @@ const TimerPopupFix: React.FC = () => {
           dragElastic={0.2}
           dragMomentum={false}
           dragTransition={{ bounceStiffness: 600, bounceDamping: 20 }}
+          onDragEnd={(_, info) => {
+            // Sauvegarde la position au drag
+            setPosition({ x: info.point.x, y: info.point.y });
+            localStorage.setItem('timerPosition', JSON.stringify({ x: info.point.x, y: info.point.y }));
+          }}
           className="fixed shadow-2xl rounded-2xl bg-white dark:bg-gray-900 p-6 z-[9999] border border-gray-200 dark:border-gray-700"
           style={{
-            width: '380px',
-            top: position.y || '10%',
+            width: '95vw',
+            maxWidth: 400,
+            minWidth: 260,
+            top: position.y || 40,
             left: position.x || '50%',
-            transform: 'translate(-50%, 0)'
+            transform: position.x ? undefined : 'translateX(-50%)',
+            // Responsive : adapte la largeur sur mobile
           }}
         >
           <div className="cursor-default">
