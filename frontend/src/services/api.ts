@@ -155,7 +155,8 @@ export const timerService = {
     return response.data;
   },
   stopTimer: async (id: string, duration?: number) => {
-    const response = await api.post(`/api/timers/stop/${id}`, { duration });
+    // Changer POST à PUT (pour correspondre au backend)
+    const response = await api.put(`/api/timers/stop/${id}`, { duration });
     return response.data;
   },
   getTimerHistory: async (taskId: string) => {
@@ -163,7 +164,8 @@ export const timerService = {
     return response.data;
   },
   getAllTimers: async () => {
-    const response = await api.get('/api/timers/all');
+    // Cette route existe (pas "/api/timers/all")
+    const response = await api.get('/api/timers');
     return response.data;
   },
   getRunningTimer: async () => {

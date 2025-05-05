@@ -22,6 +22,7 @@ import { RootState } from '../../store';
 import { updateTaskImpact } from '../../store/slices/taskImpactSlice';
 import { useGamification } from '../../hooks/useGamification';
 import { useTasks } from '../../hooks/useTasks';
+import { timerService } from '../../services/api';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com';
 
@@ -518,11 +519,7 @@ const TimerPopupFix: React.FC = () => {
       }
 
       // Arrêter le timer
-      await axios.put(`${API_URL}/api/timers/${timerId}/stop`, {}, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      await timerService.stopTimer(timerId);
 
       // Mettre à jour l'état local
       setIsRunning(false);
