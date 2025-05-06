@@ -2,6 +2,7 @@
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const mongoLogger = require('../utils/mongoLogger');
+const setupMongoMonitoring = require('../utils/mongoMonitor');
 
 // Charger les variables d'environnement
 dotenv.config({ path: process.env.NODE_ENV === 'production' ? '.env.production' : '.env' });
@@ -46,6 +47,8 @@ const connectDB = async (retryCount = 0, maxRetries = 5) => {
         docSize: doc ? JSON.stringify(doc).length : 0
       });
     });
+    
+    const mongoMonitor = setupMongoMonitoring();
     
     mongoLogger.info(`MongoDB connecté avec succès: ${conn.connection.host}`);
     return true;

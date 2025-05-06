@@ -2,22 +2,32 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 const { verifyToken } = require('../middleware/auth');
 const User = require('../models/User');
+const Activity = require('../models/Activity');
 const config = require('../config/auth.config');
+const mongoose = require('mongoose');
+const mongoLogger = require('../utils/mongoLogger');
+const Activity = require('../models/Activity');
 
-// Route d'inscription
+// Route d'inscription - Ajouter la transaction
 router.post('/register', async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  
   try {
     const { name, email, password } = req.body;
     
-    // Vérifier si l'utilisateur existe déjà
-    const existingUser = await User.findOne({ email });
+    // 1. Vérifier si l'utilisateur existe déjà
+    const existingUser = await User.findOne({ email }).session(session);
     if (existingUser) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({ message: 'Cet email est déjà utilisé' });
     }
     
-    // Créer un nouvel utilisateur
+    // 2. Créer un nouvel utilisateur
     const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = new User({
       name,
@@ -31,9 +41,24 @@ router.post('/register', async (req, res) => {
       lastActive: Date.now()
     });
     
-    await newUser.save();
+    await newUser.save({ session });
     
-    // Créer un token JWT
+    // 3. Créer l'activité d'inscription
+    const newActivity = new Activity({
+      userId: newUser._id,
+      type: 'account_creation',
+      description: 'Inscription au système',
+      points: 10,
+      createdAt: Date.now()
+    });
+    
+    await newActivity.save({ session });
+    
+    // 4. Valider la transaction
+    await session.commitTransaction();
+    session.endSession();
+    
+    // Générer un token JWT
     const token = jwt.sign({ id: newUser._id }, config.secret, {
       expiresIn: config.jwtExpiration
     });
@@ -51,6 +76,14 @@ router.post('/register', async (req, res) => {
       }
     });
   } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    
+    mongoLogger.error('Erreur création utilisateur', {
+      error: error.message,
+      email: req.body.email
+    });
+    
     res.status(500).json({ message: 'Erreur lors de l\'inscription', error: error.message });
   }
 });

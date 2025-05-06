@@ -71,6 +71,23 @@ const ClientSchema = new Schema({
   }
 });
 
+// Ajouter des validateurs
+
+ClientSchema.path('name').validate(function(value) {
+  return value && value.length >= 2;
+}, 'Le nom du client doit contenir au moins 2 caractères');
+
+ClientSchema.pre('save', function(next) {
+  // Nettoyer les valeurs avant enregistrement
+  if (this.name) this.name = this.name.trim();
+  if (this.description) this.description = this.description.trim();
+  
+  // S'assurer que lastActivity est toujours défini
+  if (!this.lastActivity) this.lastActivity = new Date();
+  
+  next();
+});
+
 // Ajout d'index pour améliorer les performances
 ClientSchema.index({ name: 1 });
 ClientSchema.index({ userId: 1, status: 1 });

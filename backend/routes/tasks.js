@@ -129,9 +129,29 @@ router.post('/', verifyToken, async (req, res) => {
 
 // Mettre à jour une tâche
 router.put('/:id', verifyToken, async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  
   try {
     const { title, description, clientId, dueDate, priority, category, status, estimatedTime, actualTime, impactScore } = req.body;
     
+    // 1. Vérifier si la tâche existe et obtenir ses données actuelles
+    const existingTask = await Task.findOne({ 
+      _id: req.params.id, 
+      userId: req.userId 
+    }).session(session);
+    
+    if (!existingTask) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({ message: 'Tâche non trouvée' });
+    }
+    
+    // Capturer l'ancien statut et client pour vérifier les changements
+    const oldStatus = existingTask.status;
+    const oldClientId = existingTask.clientId.toString();
+    
+    // 2. Mettre à jour la tâche
     const updatedTask = await Task.findOneAndUpdate(
       { _id: req.params.id, userId: req.userId },
       { 
@@ -147,78 +167,242 @@ router.put('/:id', verifyToken, async (req, res) => {
         impactScore,
         updatedAt: Date.now() 
       },
-      { new: true }
+      { new: true, session }
     );
     
-    if (!updatedTask) {
-      return res.status(404).json({ message: 'Tâche non trouvée' });
+    // 3. Si le statut ou le client a changé, mettre à jour les métriques
+    if (status !== oldStatus || clientId.toString() !== oldClientId) {
+      // Si changement de client
+      if (clientId.toString() !== oldClientId) {
+        // Décrémenter l'ancien client
+        await Client.findByIdAndUpdate(oldClientId, {
+          $inc: { 
+            [`metrics.tasks${oldStatus === 'pending' ? 'Pending' : 
+                       oldStatus === 'in-progress' ? 'InProgress' : 
+                       'Completed'}`]: -1 
+          },
+          lastActivity: Date.now()
+        }, { session });
+        
+        // Incrémenter le nouveau client
+        await Client.findByIdAndUpdate(clientId, {
+          $inc: { 
+            [`metrics.tasks${status === 'pending' ? 'Pending' : 
+                           status === 'in-progress' ? 'InProgress' : 
+                           'Completed'}`]: 1 
+          },
+          lastActivity: Date.now()
+        }, { session });
+      } 
+      // Si seulement changement de statut (même client)
+      else if (status !== oldStatus) {
+        const update = {
+          lastActivity: Date.now(),
+          $inc: {}
+        };
+        
+        // Décrémenter l'ancien statut
+        update.$inc[`metrics.tasks${oldStatus === 'pending' ? 'Pending' : 
+                                   oldStatus === 'in-progress' ? 'InProgress' : 
+                                   'Completed'}`] = -1;
+        
+        // Incrémenter le nouveau statut
+        update.$inc[`metrics.tasks${status === 'pending' ? 'Pending' : 
+                                   status === 'in-progress' ? 'InProgress' : 
+                                   'Completed'}`] = 1;
+        
+        await Client.findByIdAndUpdate(clientId, update, { session });
+      }
     }
     
-    res.status(200).json({ message: 'Tâche mise à jour avec succès', task: updatedTask });
+    // 4. Valider la transaction
+    await session.commitTransaction();
+    session.endSession();
+    
+    // 5. Vérification post-transaction (optionnelle)
+    const verificationTask = await Task.findById(req.params.id);
+    if (!verificationTask) {
+      mongoLogger.warn('Vérification post-mise à jour échouée', { taskId: req.params.id });
+    }
+    
+    res.status(200).json({ 
+      success: true,
+      message: 'Tâche mise à jour avec succès', 
+      task: updatedTask 
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Erreur lors de la mise à jour de la tâche', error: error.message });
+    await session.abortTransaction();
+    session.endSession();
+    
+    mongoLogger.error('Erreur mise à jour tâche', { 
+      error: error.message,
+      taskId: req.params.id
+    });
+    
+    res.status(500).json({ 
+      message: 'Erreur lors de la mise à jour de la tâche', 
+      error: error.message 
+    });
   }
 });
 
-// Marquer une tâche comme terminée
+// Mettre à jour le statut d'une tâche (complétion)
 router.put('/:id/complete', verifyToken, async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  
   try {
     const { actualTime } = req.body;
     
-    const task = await Task.findOne({ _id: req.params.id, userId: req.userId });
+    // 1. Mettre à jour la tâche
+    const task = await Task.findOneAndUpdate(
+      { _id: req.params.id, userId: req.userId },
+      { 
+        status: 'completed', 
+        completedAt: Date.now(),
+        actualTime: actualTime || 0
+      },
+      { new: true, session }
+    );
     
     if (!task) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(404).json({ message: 'Tâche non trouvée' });
     }
     
-    // Mettre à jour la tâche
-    task.status = 'completed';
-    task.completedAt = Date.now();
-    task.actualTime = actualTime || task.actualTime;
-    await task.save();
+    // 2. Mettre à jour les statistiques du client
+    await Client.findByIdAndUpdate(
+      task.clientId,
+      { 
+        $inc: { 'metrics.tasksCompleted': 1, 'metrics.tasksInProgress': -1 },
+        lastActivity: Date.now()
+      },
+      { session }
+    );
     
-    // Ajouter des points à l'utilisateur
+    // 3. Ajouter des points de gamification
     const pointsEarned = Math.floor(10 + (task.impactScore || 0) * 2);
     const expEarned = Math.floor(20 + (task.impactScore || 0) * 3);
     
-    const user = await User.findById(req.userId);
-    user.points += pointsEarned;
-    user.experience += expEarned;
+    const user = await User.findByIdAndUpdate(
+      req.userId,
+      { 
+        $inc: { 
+          points: pointsEarned,
+          experience: expEarned
+        }
+      },
+      { new: true, session }
+    );
     
-    // Vérifier si l'utilisateur monte de niveau
-    const nextLevelExp = user.level * 100;
-    if (user.experience >= nextLevelExp) {
+    // 4. Vérifier la montée de niveau
+    let levelUp = false;
+    if (user.experience >= user.level * 100) {
       user.level += 1;
+      levelUp = true;
+      await user.save({ session });
     }
     
-    await user.save();
+    // 5. Valider la transaction
+    await session.commitTransaction();
+    session.endSession();
     
-    res.status(200).json({ 
-      message: 'Tâche marquée comme terminée', 
-      task, 
+    // 6. Vérification post-transaction
+    const verifyTask = await Task.findById(task._id);
+    if (!verifyTask || verifyTask.status !== 'completed') {
+      mongoLogger.warn('Vérification post-complétion échouée', { taskId: task._id });
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: 'Tâche marquée comme terminée',
+      task,
       rewards: {
         points: pointsEarned,
         experience: expEarned,
-        levelUp: user.experience >= nextLevelExp
+        levelUp
       }
     });
   } catch (error) {
-    res.status(500).json({ message: 'Erreur lors de la complétion de la tâche', error: error.message });
+    await session.abortTransaction();
+    session.endSession();
+    
+    mongoLogger.error('Erreur complétion tâche', { 
+      error: error.message,
+      taskId: req.params.id
+    });
+    
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la complétion de la tâche',
+      error: process.env.NODE_ENV === 'production' ? undefined : error.message
+    });
   }
 });
 
 // Supprimer une tâche
 router.delete('/:id', verifyToken, async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  
   try {
-    const deletedTask = await Task.findOneAndDelete({ _id: req.params.id, userId: req.userId });
+    // 1. Récupérer les informations de la tâche avant suppression
+    const taskToDelete = await Task.findOne({ 
+      _id: req.params.id, 
+      userId: req.userId 
+    }).session(session);
     
-    if (!deletedTask) {
+    if (!taskToDelete) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(404).json({ message: 'Tâche non trouvée' });
     }
     
-    res.status(200).json({ message: 'Tâche supprimée avec succès' });
+    // 2. Mettre à jour les métriques du client
+    await Client.findByIdAndUpdate(
+      taskToDelete.clientId,
+      { 
+        $inc: { 
+          [`metrics.tasks${taskToDelete.status === 'pending' ? 'Pending' : 
+                          taskToDelete.status === 'in-progress' ? 'InProgress' : 
+                          'Completed'}`]: -1 
+        },
+        lastActivity: Date.now()
+      },
+      { session }
+    );
+    
+    // 3. Supprimer la tâche
+    await Task.findByIdAndDelete(req.params.id).session(session);
+    
+    // 4. Valider la transaction
+    await session.commitTransaction();
+    session.endSession();
+    
+    // 5. Vérification post-transaction
+    const verifyTask = await Task.findById(req.params.id);
+    if (verifyTask) {
+      mongoLogger.warn('Vérification post-suppression échouée', { taskId: req.params.id });
+    }
+    
+    res.status(200).json({ 
+      success: true,
+      message: 'Tâche supprimée avec succès' 
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Erreur lors de la suppression de la tâche', error: error.message });
+    await session.abortTransaction();
+    session.endSession();
+    
+    mongoLogger.error('Erreur suppression tâche', { 
+      error: error.message,
+      taskId: req.params.id
+    });
+    
+    res.status(500).json({ 
+      message: 'Erreur lors de la suppression de la tâche', 
+      error: error.message 
+    });
   }
 });
 

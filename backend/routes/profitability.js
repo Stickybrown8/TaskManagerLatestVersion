@@ -35,97 +35,144 @@ router.get('/client/:clientId', verifyToken, async (req, res) => {
 
 // Mettre à jour ou créer des données de rentabilité pour un client
 router.post('/client/:clientId', verifyToken, async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  
   try {
     const { hourlyRate, targetHours, actualHours, revenue } = req.body;
     
-    // Vérifier si le client existe
-    const client = await Client.findOne({ _id: req.params.clientId, userId: req.userId });
+    // 1. Vérifier si le client existe
+    const client = await Client.findOne({ 
+      _id: req.params.clientId, 
+      userId: req.userId 
+    }).session(session);
+    
     if (!client) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(404).json({ message: 'Client non trouvé' });
     }
     
-    // Rechercher des données de rentabilité existantes
+    // 2. Rechercher des données de rentabilité existantes
     let profitability = await Profitability.findOne({ 
       userId: req.userId,
       clientId: req.params.clientId 
-    });
+    }).session(session);
     
-    if (profitability) {
-      // Mettre à jour les données existantes
-      profitability.hourlyRate = hourlyRate || profitability.hourlyRate;
-      profitability.targetHours = targetHours || profitability.targetHours;
-      profitability.actualHours = actualHours || profitability.actualHours;
-      profitability.revenue = revenue || profitability.revenue;
-      profitability.updatedAt = Date.now();
-    } else {
-      // Créer de nouvelles données de rentabilité
+    // 3. Créer ou mettre à jour les données de rentabilité
+    if (!profitability) {
       profitability = new Profitability({
         userId: req.userId,
         clientId: req.params.clientId,
-        hourlyRate: hourlyRate || 0,
-        targetHours: targetHours || 0,
-        actualHours: actualHours || 0,
-        revenue: revenue || 0,
-        createdAt: Date.now()
+        hourlyRate,
+        targetHours,
+        actualHours,
+        revenue
       });
+    } else {
+      profitability.hourlyRate = hourlyRate;
+      profitability.targetHours = targetHours;
+      profitability.actualHours = actualHours;
+      profitability.revenue = revenue;
+      profitability.updatedAt = Date.now();
     }
     
-    // Calculer la rentabilité
+    // 4. Calculs de rentabilité
     const cost = profitability.hourlyRate * profitability.actualHours;
     profitability.profit = profitability.revenue - cost;
     profitability.profitability = profitability.revenue > 0 ? (profitability.profit / profitability.revenue) * 100 : 0;
     profitability.remainingHours = profitability.targetHours - profitability.actualHours;
     
-    await profitability.save();
+    await profitability.save({ session });
+    
+    // 5. Mettre à jour le client avec les dernières informations de rentabilité
+    client.lastProfitabilityUpdate = Date.now();
+    await client.save({ session });
+    
+    // 6. Valider la transaction
+    await session.commitTransaction();
+    session.endSession();
     
     res.status(200).json({ 
       message: 'Données de rentabilité mises à jour avec succès', 
       profitability 
     });
   } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    
+    mongoLogger.error('Erreur mise à jour rentabilité', { 
+      error: error.message,
+      clientId: req.params.clientId
+    });
+    
     res.status(500).json({ message: 'Erreur lors de la mise à jour des données de rentabilité', error: error.message });
   }
 });
 
 // Mettre à jour les heures réelles basées sur les tâches terminées
 router.put('/update-hours/:clientId', verifyToken, async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  
   try {
-    // Calculer le total des heures passées sur les tâches pour ce client
+    // 1. Calculer le total des heures passées sur les tâches pour ce client
     const tasks = await Task.find({ 
       userId: req.userId,
       clientId: req.params.clientId,
       status: 'completed'
-    });
+    }).session(session);
     
     const totalHours = tasks.reduce((sum, task) => sum + (task.actualTime || 0), 0);
     
-    // Mettre à jour les données de rentabilité
+    // 2. Mettre à jour les données de rentabilité
     let profitability = await Profitability.findOne({ 
       userId: req.userId,
       clientId: req.params.clientId 
-    });
+    }).session(session);
     
     if (!profitability) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(404).json({ message: 'Données de rentabilité non trouvées pour ce client' });
     }
     
+    // 3. Mettre à jour les heures et recalculer la rentabilité
     profitability.actualHours = totalHours;
     
-    // Recalculer la rentabilité
     const cost = profitability.hourlyRate * profitability.actualHours;
     profitability.profit = profitability.revenue - cost;
     profitability.profitability = profitability.revenue > 0 ? (profitability.profit / profitability.revenue) * 100 : 0;
     profitability.remainingHours = profitability.targetHours - profitability.actualHours;
     profitability.updatedAt = Date.now();
     
-    await profitability.save();
+    await profitability.save({ session });
+    
+    // 4. Mettre à jour le client
+    await Client.findByIdAndUpdate(
+      req.params.clientId,
+      { lastProfitabilityUpdate: Date.now() },
+      { session }
+    );
+    
+    // 5. Valider la transaction
+    await session.commitTransaction();
+    session.endSession();
     
     res.status(200).json({ 
-      message: 'Heures réelles mises à jour avec succès', 
+      message: 'Heures et rentabilité mises à jour avec succès', 
       profitability 
     });
   } catch (error) {
-    res.status(500).json({ message: 'Erreur lors de la mise à jour des heures réelles', error: error.message });
+    await session.abortTransaction();
+    session.endSession();
+    
+    mongoLogger.error('Erreur mise à jour heures rentabilité', { 
+      error: error.message,
+      clientId: req.params.clientId
+    });
+    
+    res.status(500).json({ message: 'Erreur lors de la mise à jour des heures et de la rentabilité', error: error.message });
   }
 });
 

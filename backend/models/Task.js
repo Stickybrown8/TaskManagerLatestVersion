@@ -72,4 +72,11 @@ TaskSchema.index({ userId: 1, status: 1 });
 TaskSchema.index({ clientId: 1, status: 1 });
 TaskSchema.index({ dueDate: 1 });
 
+// Ajouter à la fin du fichier, avant l'export du modèle
+
+// Création d'index pour les requêtes fréquentes
+TaskSchema.index({ userId: 1, status: 1 }); // Pour filtrer par statut et utilisateur
+TaskSchema.index({ clientId: 1, status: 1 }); // Pour filtrer par client et statut
+TaskSchema.index({ dueDate: 1 }); // Pour trier par date d'échéance
+
 module.exports = mongoose.model('Task', TaskSchema);

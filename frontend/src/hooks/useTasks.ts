@@ -11,21 +11,36 @@ import {
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
+// Améliorer la fonction fetchWithRetry existante
 const fetchWithRetry = async <T>(
   fetcher: () => Promise<T>, 
   retryCount = 0, 
-  maxRetries = 3
+  maxRetries = 3,
+  retryDelay = 1000
 ): Promise<T> => {
   try {
     return await fetcher();
-  } catch (error) {
-    if (retryCount < maxRetries) {
-      const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s...
-      console.log(`Retry ${retryCount + 1} after ${delay}ms`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-      return fetchWithRetry(fetcher, retryCount + 1, maxRetries);
+  } catch (error: any) {
+    // Déterminer si l'erreur est récupérable
+    const isRecoverable = 
+      (axios.isAxiosError(error) && 
+       error.response?.status !== undefined && 
+       error.response.status >= 500) || // Erreurs serveur
+      error.message.includes('network') || // Erreurs réseau 
+      error.message.includes('timeout') || // Timeouts
+      error.message.includes('ECONNREFUSED'); // Refus de connexion
+
+    // Si c'est une erreur non récupérable ou si on a dépassé le nombre max de tentatives
+    if (!isRecoverable || retryCount >= maxRetries) {
+      throw error;
     }
-    throw error;
+
+    // Délai exponentiel avec jitter pour éviter les tempêtes de requêtes
+    const delay = retryDelay * Math.pow(2, retryCount) * (0.9 + Math.random() * 0.2);
+    console.log(`Tentative ${retryCount + 1}/${maxRetries} dans ${Math.round(delay)}ms...`);
+    
+    await new Promise(resolve => setTimeout(resolve, delay));
+    return fetchWithRetry(fetcher, retryCount + 1, maxRetries, retryDelay);
   }
 };
 
