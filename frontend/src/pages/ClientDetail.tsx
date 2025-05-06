@@ -7,6 +7,8 @@ import { addNotification } from '../store/slices/uiSlice';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import { useTasks } from '../hooks/useTasks'; // Ajouter cet import
+import LogoUploader from '../components/Clients/LogoUploader';
+import ClientLogo from '../components/Clients/ClientLogo';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com';
 
@@ -39,10 +41,15 @@ const ClientDetail: React.FC = () => {
       hourlyRate: 100,
       targetHours: 0,
       monthlyBudget: 0
-    }
+    },
+    logo: '' // Ajouté ici
   });
 
   const { tasks, loading: tasksLoading, error: tasksError, refreshTasks } = useTasks(id);
+
+  // États pour gérer le logo
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string>('');
 
   // Charger les données du client
   useEffect(() => {
@@ -90,6 +97,7 @@ const ClientDetail: React.FC = () => {
             contacts: clientData.contacts || [],
             notes: clientData.notes || '',
             tags: clientData.tags || [],
+            logo: clientData.logo || '', // Ajouté ici
             profitability: {
               hourlyRate: clientData.profitability?.hourlyRate || 100,
               targetHours: clientData.profitability?.targetHours || 0,
@@ -110,6 +118,13 @@ const ClientDetail: React.FC = () => {
 
     loadClient();
   }, [dispatch, id]);
+
+  // Au chargement du client, initialiser le preview
+  useEffect(() => {
+    if (currentClient && currentClient.logo) {
+      setLogoPreview(currentClient.logo);
+    }
+  }, [currentClient]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -185,6 +200,12 @@ const ClientDetail: React.FC = () => {
     const updatedContacts = [...formData.contacts];
     updatedContacts.splice(index, 1);
     setFormData(prev => ({ ...prev, contacts: updatedContacts }));
+  };
+
+  const handleLogoChange = (logo: string, file?: File) => {
+    setLogoFile(file || null);
+    setFormData(prev => ({ ...prev, logo }));
+    setLogoPreview(logo);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -427,6 +448,17 @@ const ClientDetail: React.FC = () => {
                   <option value="inactif">Inactif</option>
                   <option value="archivé">Archivé</option>
                 </select>
+              </div>
+              
+              <div className="mb-4">
+                <label htmlFor="logo" className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                  Logo du client
+                </label>
+                <LogoUploader
+                  currentLogo={formData.logo || ''}
+                  onLogoChange={handleLogoChange}
+                  className="mb-4"
+                />
               </div>
               
               {/* Configuration de rentabilité */}

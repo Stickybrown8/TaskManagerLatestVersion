@@ -204,6 +204,7 @@ const Clients: React.FC = () => {
                 >
                   <div className="p-6">
                     <div className="flex items-start mb-4">
+                      {/* Ajouter cette div pour le logo */}
                       <div className="mr-4">
                         <ClientLogo client={client} size="large" shape="rounded" />
                       </div>
