@@ -53,7 +53,9 @@ const TimerPopupFix: React.FC = () => {
   const [billable, setBillable] = useState<boolean>(true);
 
   // États pour le drag-and-drop
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [position, setPosition] = useState({ x: 0, y: 0 });
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isDragging, setIsDragging] = useState(false);
   const popupRef = useRef<HTMLDivElement>(null);
 
@@ -141,9 +143,7 @@ const TimerPopupFix: React.FC = () => {
   useEffect(() => {
     const fetchRunningTimer = async () => {
       try {
-        // Récupérer le token d'authentification
         const token = localStorage.getItem('token');
-
         if (!token) {
           console.error("Token d'authentification manquant");
           return;
@@ -151,32 +151,38 @@ const TimerPopupFix: React.FC = () => {
 
         setLoading(true);
 
-        // Vérifier s'il y a un timer en cours
         try {
-          const response = await axios.get(`${API_URL}/api/timers/running`, {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
+          // Utiliser le service au lieu d'appeler directement axios
+          const timers = await timerService.getAllTimers();
+          // Trouver le timer actif (sans endTime)
+          const runningTimer = timers.find((t: {_id: string; endTime?: Date; duration?: number; clientId?: any; taskId?: any; description?: string}) => !t.endTime);
 
-          if (response.data && response.data._id) {
-            setTimerId(response.data._id);
-            setIsRunning(response.data.isRunning || false);
-            setTimerDuration(response.data.duration || 0);
-            setBillable(response.data.billable !== false);
+          if (runningTimer) {
+            setTimerId(runningTimer._id);
+            setIsRunning(true); // Si pas d'endTime, considérer comme en cours
+            setTimerDuration(runningTimer.duration || 0);
+            setBillable(runningTimer.billable !== false);
 
-            if (response.data.clientId) {
-              fetchClientDetails(response.data.clientId);
-            }
-
-            if (response.data.taskId) {
-              setSelectedTaskId(response.data.taskId);
-              fetchTaskDetails(response.data.taskId);
+            if (runningTimer.clientId) {
+              const clientId = typeof runningTimer.clientId === 'object' 
+                ? runningTimer.clientId._id 
+                : runningTimer.clientId;
+              setSelectedClientId(clientId);
+              fetchClientDetails(clientId);
             }
 
-            setDescription(response.data.description || '');
+            if (runningTimer.taskId) {
+              const taskId = typeof runningTimer.taskId === 'object'
+                ? runningTimer.taskId._id
+                : runningTimer.taskId;
+              setSelectedTaskId(taskId);
+              fetchTaskDetails(taskId);
+            }
+
+            setDescription(runningTimer.description || '');
           }
         } catch (err) {
+          console.error("Erreur lors de la récupération des timers:", err);
         }
 
       } catch (error) {
@@ -369,12 +375,10 @@ const TimerPopupFix: React.FC = () => {
 
       while (retries < 3) {
         try {
-          console.log("Tentative de connexion à:", `${API_URL}/api/timers/start`);
+          // Corriger le message de log pour qu'il corresponde à l'URL réellement utilisée
+          console.log("Tentative de connexion à:", `${API_URL}/api/timers`);
 
-          response = await axios({
-            method: 'post',
-            url: `${API_URL}/api/timers/start`,
-            data: timerData,
+          response = await axios.post(`${API_URL}/api/timers`, timerData, {
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json'
@@ -424,36 +428,24 @@ const TimerPopupFix: React.FC = () => {
 
     try {
       setLoading(true);
-
-      // Récupérer le token d'authentification
-      const token = localStorage.getItem('token');
-
-      if (!token) {
-        throw new Error("Token d'authentification manquant");
-      }
-
-      // Mettre en pause le timer
-      await axios.put(`${API_URL}/api/timers/${timerId}/pause`, {}, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
+      
+      // Au lieu de mettre en pause via une API, on va arrêter le timer avec duration = timerDuration
+      // puis en recréer un nouveau si l'utilisateur reprend
+      await timerService.stopTimer(timerId, timerDuration);
+      
       // Mettre à jour l'état local
       setIsRunning(false);
-
-      // Mettre à jour le state Redux
+      
       dispatch(pauseTimer(timerId, selectedClientId ? 'client' : 'task'));
-
       dispatch(addNotification({
         message: 'Chronomètre mis en pause',
         type: 'info'
       }));
-
+      
     } catch (error: any) {
       console.error('Erreur lors de la mise en pause du timer:', error);
       dispatch(addNotification({
-        message: error.response?.data?.message || 'Erreur lors de la mise en pause du chronomètre',
+        message: error.response?.data?.message || 'Erreur lors de la mise en pause',
         type: 'error'
       }));
     } finally {
@@ -463,40 +455,34 @@ const TimerPopupFix: React.FC = () => {
 
   // Fonction pour reprendre le timer
   const handleResumeTimer = async () => {
-    if (!timerId) return;
-
     try {
       setLoading(true);
-
-      // Récupérer le token d'authentification
-      const token = localStorage.getItem('token');
-
-      if (!token) {
-        throw new Error("Token d'authentification manquant");
-      }
-
-      // Reprendre le timer
-      await axios.put(`${API_URL}/api/timers/${timerId}/resume`, {}, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      // Mettre à jour l'état local
+      
+      // Créer un nouveau timer en réutilisant les infos du timer en pause
+      const timerData = {
+        clientId: selectedClientId || (selectedTask?.clientId?._id || selectedTask?.clientId),
+        taskId: selectedTaskId,
+        description: description || (selectedTask?.title ? `Travail sur: ${selectedTask.title}` : ''),
+        billable: billable
+      };
+      
+      const response = await timerService.startTimer(timerData);
+      
+      // Mettre à jour l'état local avec le nouveau timer
+      const createdTimer = response.timer || response;
+      setTimerId(createdTimer._id);
       setIsRunning(true);
-
-      // Mettre à jour le state Redux
-      dispatch(resumeTimer(timerId, selectedClientId ? 'client' : 'task'));
-
+      
+      dispatch(resumeTimer(createdTimer._id, selectedClientId ? 'client' : 'task'));
       dispatch(addNotification({
         message: 'Chronomètre repris',
         type: 'success'
       }));
-
+      
     } catch (error: any) {
       console.error('Erreur lors de la reprise du timer:', error);
       dispatch(addNotification({
-        message: error.response?.data?.message || 'Erreur lors de la reprise du chronomètre',
+        message: error.response?.data?.message || 'Erreur lors de la reprise',
         type: 'error'
       }));
     } finally {
@@ -510,17 +496,14 @@ const TimerPopupFix: React.FC = () => {
 
     try {
       setLoading(true);
-
-      // Récupérer le token d'authentification
+      
       const token = localStorage.getItem('token');
-
       if (!token) {
         throw new Error("Token d'authentification manquant");
       }
 
-      // Arrêter le timer
       await timerService.stopTimer(timerId);
-
+      
       // Mettre à jour l'état local
       setIsRunning(false);
       setTimerDuration(0);

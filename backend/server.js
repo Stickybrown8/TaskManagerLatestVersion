@@ -15,6 +15,7 @@ const taskRoutes = require('./routes/tasks');
 const badgeRoutes = require('./routes/badges');
 const gamificationRoutes = require('./routes/gamification');
 const imageRoutes = require('./routes/images');
+const timerRoutes = require('./routes/timers');
 
 // Load environment variables
 dotenv.config({ path: process.env.NODE_ENV === 'production' ? '.env.production' : '.env' });
@@ -200,7 +201,7 @@ app.use('/api/clients', clientRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/badges', badgeRoutes);
 app.use('/api/gamification', gamificationRoutes);
-// app.use('/api/chat', chatRoutes);
+app.use('/api/timers', timerRoutes); // Assurez-vous que cette ligne est présente
 app.use('/api/images', imageRoutes);
 
 // Route de base

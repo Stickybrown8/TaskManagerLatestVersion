@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAppDispatch } from '../hooks';
 import { addNotification } from '../store/slices/uiSlice';
 import axios from 'axios';
@@ -74,15 +74,8 @@ const ClientStatistics: React.FC = () => {
     fetchClients();
   }, []);
 
-  // Charger les données quand le client ou la période change
-  useEffect(() => {
-    if (selectedClientId) {
-      fetchClientData();
-    }
-  }, [selectedClientId, dateRange]);
-
   // Fonction pour récupérer les données du client sélectionné
-  const fetchClientData = async () => {
+  const fetchClientData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -132,7 +125,14 @@ const ClientStatistics: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedClientId, dateRange, dispatch]);
+
+  // Un seul useEffect pour les deux cas
+  useEffect(() => {
+    if (selectedClientId) {
+      fetchClientData();
+    }
+  }, [selectedClientId, dateRange, fetchClientData]);
 
   // Préparer les données pour les graphiques
   const prepareChartData = (timersData: any[]) => {

@@ -94,37 +94,24 @@ TimerSchema.methods.start = function() {
 
 // Méthode pour mettre en pause le chronomètre
 TimerSchema.methods.pause = function() {
-  if (!this.isRunning) return;
-  
   this.pausedAt = new Date();
   this.isRunning = false;
+  return this;
 };
 
 // Méthode pour arrêter le chronomètre
 TimerSchema.methods.stop = function() {
-  const now = new Date();
-  this.endTime = now;
+  this.endTime = new Date();
+  this.isRunning = false;
   
-  // Calculer la durée totale
-  let totalDuration = Math.floor((now - this.startTime) / 1000);
-  
-  // Soustraire le temps total de pause
-  totalDuration -= this.totalPausedTime;
-  
-  // Si le chronomètre était en pause, ajouter cette dernière pause
-  if (this.pausedAt) {
-    const pauseDuration = Math.floor((now - this.pausedAt) / 1000);
-    totalDuration -= pauseDuration;
-    
-    this.breaks.push({
-      startTime: this.pausedAt,
-      endTime: now,
-      duration: pauseDuration
-    });
+  // Calculer la durée
+  if (!this.duration) {
+    const start = new Date(this.startTime).getTime();
+    const end = new Date(this.endTime).getTime();
+    this.duration = Math.round((end - start) / 1000); // en secondes
   }
   
-  this.duration = totalDuration;
-  this.isRunning = false;
+  return this;
 };
 
 // Méthode pour obtenir la durée actuelle
@@ -146,6 +133,32 @@ TimerSchema.methods.getCurrentDuration = function() {
   }
   
   return totalDuration;
+};
+
+// Méthode pour reprendre un timer en pause
+TimerSchema.methods.resume = function() {
+  if (this.pausedAt) {
+    // Calculer le temps de pause
+    const pauseStart = new Date(this.pausedAt).getTime();
+    const pauseEnd = Date.now();
+    const pauseDuration = Math.round((pauseEnd - pauseStart) / 1000);
+    
+    // Ajouter au temps total de pause
+    this.totalPausedTime = (this.totalPausedTime || 0) + pauseDuration;
+    
+    // Ajouter une entrée dans le tableau des pauses
+    this.breaks.push({
+      startTime: this.pausedAt,
+      endTime: new Date(),
+      duration: pauseDuration
+    });
+    
+    // Réinitialiser pausedAt
+    this.pausedAt = null;
+    this.isRunning = true;
+  }
+  
+  return this;
 };
 
 // Ajout d'index pour améliorer les performances

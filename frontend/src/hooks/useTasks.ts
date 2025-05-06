@@ -9,6 +9,7 @@ import {
 
 // Configuration de l'URL de l'API
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
 /**
  * Hook personnalisé pour gérer les tâches dans l'application
@@ -88,21 +89,22 @@ export const useTasks = (clientId?: string, forceRefresh = false) => {
   
   // Effet qui s'exécute au chargement du composant et quand les dépendances changent
   useEffect(() => {
-    // Déterminer si on doit charger les données
-    const shouldFetch = forceRefresh || 
-                       !lastFetched || 
-                       (Date.now() - lastFetched) > 5 * 60 * 1000; // 5 minutes
+    if (clientId) {
+      loadClientTasks(clientId);
+    } else {
+      loadAllTasks();
+    }
     
-    const fetchData = async () => {
+    // Rafraîchissement périodique si nécessaire
+    const now = Date.now();
+    if (lastFetched && now - lastFetched > REFRESH_INTERVAL) {
       if (clientId) {
-        await loadClientTasks(clientId);
-      } else if (shouldFetch) {
-        await loadAllTasks();
+        loadClientTasks(clientId);
+      } else {
+        loadAllTasks();
       }
-    };
-    
-    fetchData();
-  }, [forceRefresh, clientId]); // Recharger quand ces props changent
+    }
+  }, [clientId, lastFetched, loadAllTasks, loadClientTasks]); // Ajouter les dépendances manquantes
   
   // Retourner les données et fonctions à utiliser dans vos composants
   return {

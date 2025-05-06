@@ -13,6 +13,7 @@ import {
 import { addNotification } from '../store/slices/uiSlice';
 import { motion } from 'framer-motion';
 import axios from 'axios';
+import LogoUploader from '../components/Clients/LogoUploader';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com';
 
@@ -56,18 +57,10 @@ const ClientForm: React.FC = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setLogoFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
-        setLogoPreview(result);
-        setFormData((prev) => ({ ...prev, logo: result }));
-      };
-      reader.readAsDataURL(file);
-    }
+  const handleLogoChange = (logo: string, file?: File) => {
+    setLogoFile(file || null);
+    setFormData((prev) => ({ ...prev, logo }));
+    setLogoPreview(logo);
   };
 
   const handleContactChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -299,38 +292,11 @@ const ClientForm: React.FC = () => {
             </div>
 
             {/* Logo */}
-            <div>
-              <label
-                htmlFor="logo"
-                className="block text-gray-700 dark:text-gray-300 font-medium mb-2"
-              >
-                Logo du client
-              </label>
-              <div className="flex items-center space-x-4">
-                {logoPreview && (
-                  <div className="w-20 h-20 border border-gray-300 dark:border-gray-600 rounded-md overflow-hidden">
-                    <img
-                      src={logoPreview}
-                      alt="Aperçu du logo"
-                      className="w-full h-full object-contain"
-                    />
-                  </div>
-                )}
-                <div className="flex-1">
-                  <input
-                    type="file"
-                    id="logo"
-                    name="logo"
-                    accept="image/*"
-                    onChange={handleLogoChange}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
-                  />
-                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    Format recommandé: carré, PNG ou JPG
-                  </p>
-                </div>
-              </div>
-            </div>
+            <LogoUploader 
+              currentLogo={logoPreview} 
+              onLogoChange={handleLogoChange}
+              className="mb-4"
+            />
 
             <div>
               <label

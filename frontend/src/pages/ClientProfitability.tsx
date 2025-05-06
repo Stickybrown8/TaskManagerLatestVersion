@@ -104,7 +104,7 @@ const ClientProfitability: React.FC = () => {
   // Modifiez votre useEffect pour l'utiliser
   useEffect(() => {
     fetchData();
-  }, [id, dateRange, dispatch]);
+  }, [id, period, fetchData]);  // Utiliser 'id' qui est extrait via useParams
 
   // Calculs de rentabilité
   const calculateProfitability = () => {

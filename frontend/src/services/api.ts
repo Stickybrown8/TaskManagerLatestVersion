@@ -38,6 +38,18 @@ api.interceptors.response.use(
   }
 );
 
+// Ajoutez ceci en haut du fichier api.ts
+interface Timer {
+  _id: string;
+  startTime: Date;
+  endTime?: Date;
+  duration?: number;
+  clientId?: string | {_id: string; name: string};
+  taskId?: string | {_id: string; title: string};
+  description?: string;
+  billable?: boolean;
+}
+
 // Services pour les différentes entités
 export const authService = {
   login: async (email: string, password: string) => {
@@ -151,43 +163,74 @@ export const badgesService = {
 
 export const timerService = {
   startTimer: async (timerData: any) => {
-    const response = await api.post('/api/timers/start', timerData);
-    return response.data;
+    console.log("⏱️ Démarrage du timer avec:", timerData);
+    try {
+      const response = await api.post('/api/timers', timerData);
+      console.log("⏱️ Timer démarré avec succès:", response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error("⏱️ Erreur lors du démarrage:", error.response?.data || error);
+      throw error;
+    }
   },
+  
   stopTimer: async (id: string, duration?: number) => {
-    // Changer POST à PUT (pour correspondre au backend)
-    const response = await api.put(`/api/timers/stop/${id}`, { duration });
-    return response.data;
+    console.log(`⏱️ Arrêt du timer ${id} avec duration:`, duration);
+    try {
+      // Utiliser la route correcte définie dans le backend
+      const response = await api.put(`/api/timers/stop/${id}`, { duration });
+      console.log("⏱️ Timer arrêté avec succès:", response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error("⏱️ Erreur lors de l'arrêt:", error.response?.data || error);
+      throw error;
+    }
   },
+  
+  getRunningTimer: async () => {
+    try {
+      console.log("⏱️ Recherche du timer en cours");
+      const response = await api.get('/api/timers');
+      const runningTimer = response.data.find((timer: any) => !timer.endTime);
+      console.log("⏱️ Timer en cours trouvé:", runningTimer || "Aucun");
+      return runningTimer;
+    } catch (error: any) {
+      console.error("⏱️ Erreur lors de la recherche:", error.response?.data || error);
+      throw error;
+    }
+  },
+  
   getTimerHistory: async (taskId: string) => {
-    const response = await api.get(`/api/timers/history/${taskId}`);
-    return response.data;
+    try {
+      console.log("⏱️ Récupération de l'historique pour la tâche:", taskId);
+      const response = await api.get('/api/timers');
+      const timers = response.data.filter((timer: any) => timer.taskId === taskId);
+      console.log(`⏱️ ${timers.length} timers trouvés pour cette tâche`);
+      return timers;
+    } catch (error: any) {
+      console.error("⏱️ Erreur lors de la récupération:", error.response?.data || error);
+      throw error;
+    }
   },
   getAllTimers: async () => {
-    // Cette route existe (pas "/api/timers/all")
-    const response = await api.get('/api/timers');
-    return response.data;
-  },
-  getRunningTimer: async () => {
-    const response = await api.get('/api/timers/running');
-    return response.data;
+    try {
+      console.log("⏱️ Récupération de tous les timers");
+      const response = await api.get('/api/timers'); // Corriger pour utiliser le pluriel
+      console.log(`⏱️ ${response.data.length} timers récupérés`);
+      return response.data;
+    } catch (error: any) {
+      console.error("⏱️ Erreur lors de la récupération:", error.response?.data || error);
+      throw error;
+    }
   },
   getTimerById: async (id: string) => {
     const response = await api.get(`/api/timers/${id}`);
     return response.data;
   },
-  pauseTimer: async (id: string) => {
-    const response = await api.post(`/api/timers/pause/${id}`);
-    return response.data;
-  },
-  resumeTimer: async (id: string) => {
-    const response = await api.post(`/api/timers/resume/${id}`);
-    return response.data;
-  },
   deleteTimer: async (id: string) => {
     const response = await api.delete(`/api/timers/${id}`);
     return response.data;
-  },
+  }
 };
 
 export const taskImpactService = {

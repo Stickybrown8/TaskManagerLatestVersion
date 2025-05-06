@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAppSelector, useAppDispatch } from '../hooks';
 import { updateUserProfile } from '../store/slices/authSlice';
 import { addNotification } from '../store/slices/uiSlice';
@@ -18,22 +18,30 @@ const Profile: React.FC = () => {
   const [loading, setLoading] = useState(false);
   
   // Valeurs par défaut pour le profil utilisateur
-  const defaultProfile = {
-    avatar: '/default-avatar.png',
-    theme: 'default',
-    settings: {
-      notifications: true,
-      language: 'fr',
-      soundEffects: true
-    }
-  };
+  const defaultProfile = useMemo(() => ({
+    name: '',
+    email: '',
+    role: '',
+    points: 0,
+    level: 1,
+    streakDays: 0,
+    badges: [],
+  }), []); // Utiliser useMemo pour éviter les re-renders inutiles
   
+  // Initialiser formData avec des valeurs par défaut complètes
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
     profile: {
       ...defaultProfile,
-      ...(user?.profile || {})
+      ...(user?.profile || {}),
+      // S'assurer que settings est toujours défini
+      settings: {
+        notifications: true,
+        language: 'fr',
+        soundEffects: true,
+        ...(user?.profile?.settings || {})
+      }
     }
   });
 
@@ -45,7 +53,13 @@ const Profile: React.FC = () => {
         email: user.email || '',
         profile: {
           ...defaultProfile,
-          ...(user.profile || {})
+          ...(user.profile || {}),
+          settings: {
+            notifications: true,
+            language: 'fr',
+            soundEffects: true,
+            ...(user?.profile?.settings || {})
+          }
         }
       });
     }
@@ -100,7 +114,19 @@ const Profile: React.FC = () => {
       console.log("Réponse de mise à jour du profil:", response.data);
       
       // Mettre à jour le state Redux
-      dispatch(updateUserProfile(formData));
+      dispatch(updateUserProfile({
+        ...formData,
+        profile: {
+          ...formData.profile,
+          avatar: formData.profile.avatar || '',
+          theme: formData.profile.theme || 'default', // Valeur par défaut pour theme
+          settings: {
+            notifications: !!formData.profile.settings?.notifications,
+            language: formData.profile.settings?.language || 'fr',
+            soundEffects: !!formData.profile.settings?.soundEffects
+          }
+        }
+      }));
       
       dispatch(addNotification({
         message: 'Profil mis à jour avec succès!',

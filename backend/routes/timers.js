@@ -1,126 +1,118 @@
 const express = require('express');
 const router = express.Router();
+// Correction ici - changer auth en verifyToken
 const { verifyToken } = require('../middleware/auth');
 const Timer = require('../models/Timer');
 const Task = require('../models/Task');
 
-// Obtenir tous les timers de l'utilisateur
+// GET /api/timers - Récupérer tous les timers
 router.get('/', verifyToken, async (req, res) => {
   try {
-    const timers = await Timer.find({ userId: req.userId })
-      .populate('taskId', 'title')
-      .populate('clientId', 'name');
-    res.status(200).json(timers);
-  } catch (error) {
-    res.status(500).json({ message: 'Erreur lors de la récupération des timers', error: error.message });
+    const timers = await Timer.find({ userId: req.userId }).sort({ startTime: -1 });
+    res.json(timers);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Erreur serveur');
   }
 });
 
-// Obtenir un timer spécifique
+// GET /api/timers/:id - Récupérer un timer spécifique
 router.get('/:id', verifyToken, async (req, res) => {
   try {
-    const timer = await Timer.findOne({ 
-      _id: req.params.id, 
-      userId: req.userId 
-    })
-      .populate('taskId', 'title')
-      .populate('clientId', 'name');
+    const timer = await Timer.findById(req.params.id);
     
     if (!timer) {
-      return res.status(404).json({ message: 'Timer non trouvé' });
+      return res.status(404).json({ msg: 'Timer non trouvé' });
     }
     
-    res.status(200).json(timer);
-  } catch (error) {
-    res.status(500).json({ message: 'Erreur lors de la récupération du timer', error: error.message });
+    if (timer.userId.toString() !== req.userId.toString()) {
+      return res.status(401).json({ msg: 'Non autorisé' });
+    }
+    
+    res.json(timer);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Erreur serveur');
   }
 });
 
-// Démarrer un nouveau timer
-router.post('/start', verifyToken, async (req, res) => {
+// POST /api/timers - Créer un nouveau timer
+router.post('/', verifyToken, async (req, res) => {
   try {
-    const { taskId, clientId, description } = req.body;
+    const { description, clientId, taskId, billable } = req.body;
     
-    // Vérifier s'il y a déjà un timer actif
-    const activeTimer = await Timer.findOne({ 
-      userId: req.userId,
-      endTime: null
-    });
-    
-    if (activeTimer) {
-      return res.status(400).json({ message: 'Un timer est déjà actif. Arrêtez-le avant d\'en démarrer un nouveau.' });
+    // Vérifier que clientId existe
+    if (!clientId) {
+      return res.status(400).json({ msg: 'clientId est requis' });
     }
     
-    // Créer un nouveau timer
-    const newTimer = new Timer({
-      userId: req.userId,
-      taskId,
-      clientId,
+    const timer = new Timer({
+      userId: req.userId,  // Changer user en userId
       description,
-      startTime: Date.now(),
-      endTime: null,
-      duration: 0,
-      createdAt: Date.now()
+      clientId,
+      taskId,
+      billable,
+      startTime: new Date()
     });
-    
-    await newTimer.save();
-    
-    res.status(201).json({ message: 'Timer démarré avec succès', timer: newTimer });
-  } catch (error) {
-    res.status(500).json({ message: 'Erreur lors du démarrage du timer', error: error.message });
-  }
-});
-
-// Arrêter un timer actif
-router.put('/stop/:id', verifyToken, async (req, res) => {
-  try {
-    const timer = await Timer.findOne({ 
-      _id: req.params.id, 
-      userId: req.userId,
-      endTime: null
-    });
-    
-    if (!timer) {
-      return res.status(404).json({ message: 'Timer actif non trouvé' });
-    }
-    
-    // Arrêter le timer
-    const endTime = Date.now();
-    timer.endTime = endTime;
-    timer.duration = (endTime - timer.startTime) / 1000 / 60 / 60; // Convertir en heures
     
     await timer.save();
-    
-    // Mettre à jour le temps passé sur la tâche si une tâche est associée
-    if (timer.taskId) {
-      const task = await Task.findById(timer.taskId);
-      if (task) {
-        task.actualTime = (task.actualTime || 0) + timer.duration;
-        await task.save();
-      }
-    }
-    
-    res.status(200).json({ message: 'Timer arrêté avec succès', timer });
-  } catch (error) {
-    res.status(500).json({ message: 'Erreur lors de l\'arrêt du timer', error: error.message });
+    res.json(timer);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Erreur serveur');
   }
 });
 
-// Supprimer un timer
-router.delete('/:id', verifyToken, async (req, res) => {
+// PUT /api/timers/stop/:id - Arrêter un timer
+router.put('/stop/:id', verifyToken, async (req, res) => {
   try {
-    const deletedTimer = await Timer.findOneAndDelete({ 
-      _id: req.params.id, 
-      userId: req.userId 
-    });
+    const timer = await Timer.findById(req.params.id);
     
-    if (!deletedTimer) {
-      return res.status(404).json({ message: 'Timer non trouvé' });
+    if (!timer) {
+      return res.status(404).json({ msg: 'Timer non trouvé' });
     }
     
-    res.status(200).json({ message: 'Timer supprimé avec succès' });
-  } catch (error) {
-    res.status(500).json({ message: 'Erreur lors de la suppression du timer', error: error.message });
+    if (timer.userId.toString() !== req.userId.toString()) {
+      return res.status(401).json({ msg: 'Non autorisé' });
+    }
+    
+    timer.endTime = new Date();
+    
+    if (req.body.duration) {
+      timer.duration = req.body.duration;
+    } else {
+      // Calculer la durée automatiquement
+      const start = new Date(timer.startTime).getTime();
+      const end = new Date(timer.endTime).getTime();
+      timer.duration = Math.round((end - start) / 1000); // Durée en secondes
+    }
+    
+    await timer.save();
+    res.json(timer);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Erreur serveur');
+  }
+});
+
+// DELETE /api/timers/:id - Supprimer un timer
+router.delete('/:id', verifyToken, async (req, res) => {
+  try {
+    const timer = await Timer.findById(req.params.id);
+    
+    if (!timer) {
+      return res.status(404).json({ msg: 'Timer non trouvé' });
+    }
+    
+    if (timer.userId.toString() !== req.userId.toString()) {
+      return res.status(401).json({ msg: 'Non autorisé' });
+    }
+    
+    await Timer.findByIdAndDelete(req.params.id);
+    res.json({ msg: 'Timer supprimé' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Erreur serveur');
   }
 });
 
