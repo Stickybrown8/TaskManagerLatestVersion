@@ -9,7 +9,7 @@ interface Client {
   contacts: Contact[];
   notes: string;
   tags: string[];
-  logo?: string; // Ajout de la propriété logo
+  logo?: string; // Ajout de la propriété logo test
   metrics: {
     tasksCompleted: number;
     tasksInProgress: number;
