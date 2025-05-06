@@ -51,7 +51,7 @@ const ClientForm: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
 
-  // Gestion des champs de l'étape 1
+  // Gestion des champs de l'étape 1 voilà
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
