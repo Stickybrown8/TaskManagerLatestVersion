@@ -72,7 +72,7 @@ export const useTasks = (clientId?: string, forceRefresh = false) => {
   /**
    * Fonction pour charger les tâches d'un client spécifique
    */
-  const loadClientTasks = async (id: string) => {
+  const loadClientTasks = useCallback(async (id: string) => {
     try {
       dispatch(fetchTasksStart());
       
@@ -91,7 +91,7 @@ export const useTasks = (clientId?: string, forceRefresh = false) => {
       console.error(`Erreur lors du chargement des tâches du client ${id}:`, error);
       throw error;
     }
-  };
+  }, [dispatch]);
   
   /**
    * Fonction publique pour rafraîchir les tâches
