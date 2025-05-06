@@ -78,17 +78,46 @@ export const useTasks = (clientId?: string, forceRefresh = false) => {
       
       const token = localStorage.getItem('token');
       if (!token) {
-        throw new Error("Token d'authentification manquant");
+        const error = new Error("Token d'authentification manquant");
+        dispatch(fetchTasksFailure(error.message));
+        throw error;
       }
       
       const response = await fetchWithRetry(() => axios.get(`${API_URL}/api/tasks/client/${id}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       }));
       
+      // Vérification des données reçues
+      if (!Array.isArray(response.data)) {
+        const error = new Error("Format de données invalide reçu du serveur");
+        dispatch(fetchTasksFailure(error.message));
+        throw error;
+      }
+      
       setClientTasks(response.data);
       return response.data;
     } catch (error: any) {
-      console.error(`Erreur lors du chargement des tâches du client ${id}:`, error);
+      // Gestion d'erreur plus détaillée
+      if (axios.isAxiosError(error)) {
+        if (error.response) {
+          // Erreur serveur avec réponse (4xx, 5xx)
+          const errorMessage = error.response.data?.message || `Erreur serveur: ${error.response.status}`;
+          console.error(`Erreur lors du chargement des tâches du client ${id}:`, errorMessage);
+          dispatch(fetchTasksFailure(errorMessage));
+        } else if (error.request) {
+          // Pas de réponse reçue
+          console.error(`Pas de réponse du serveur pour le client ${id}:`, error.message);
+          dispatch(fetchTasksFailure("Le serveur ne répond pas. Vérifiez votre connexion internet."));
+        } else {
+          // Erreur lors de la configuration de la requête
+          console.error(`Erreur de configuration pour le client ${id}:`, error.message);
+          dispatch(fetchTasksFailure(error.message));
+        }
+      } else {
+        // Autre type d'erreur
+        console.error(`Erreur lors du chargement des tâches du client ${id}:`, error);
+        dispatch(fetchTasksFailure(error.message));
+      }
       throw error;
     }
   }, [dispatch]);

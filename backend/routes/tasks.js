@@ -1,9 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { verifyToken } = require('../middleware/auth');
+const mongoose = require('mongoose');
 const Task = require('../models/Task');
 const User = require('../models/User');
-const Client = require('../models/Client'); // Ajout de l'importation du modèle Client
+const Client = require('../models/Client');
+const { verifyToken } = require('../middleware/auth');
+const mongoLogger = require('../utils/mongoLogger');
 
 // Obtenir toutes les tâches
 router.get('/', verifyToken, async (req, res) => {
@@ -28,45 +30,100 @@ router.get('/:id', verifyToken, async (req, res) => {
   }
 });
 
-// Créer une nouvelle tâche
+// Exemple de route avec transaction pour créer une tâche
 router.post('/', verifyToken, async (req, res) => {
+  // Vérifier si MongoDB supporte les transactions
+  if (!mongoose.connection.db.admin().serverInfo?.version) {
+    mongoLogger.warn('Impossible de vérifier la version MongoDB pour les transactions');
+  } else {
+    const version = mongoose.connection.db.admin().serverInfo.version.split('.');
+    if (parseInt(version[0]) < 4) {
+      mongoLogger.error('MongoDB < 4.0 détecté, transactions non supportées');
+      return res.status(500).json({
+        success: false,
+        message: 'Le serveur MongoDB ne supporte pas les transactions'
+      });
+    }
+  }
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  
   try {
-    const { title, description, clientId, dueDate, priority, category, estimatedTime, impactScore } = req.body;
+    const { title, description, clientId, priority, dueDate, category, estimatedTime } = req.body;
     
-    const newTask = new Task({
-      userId: req.userId,
-      clientId,
+    // 1. Vérifier si le client existe
+    const client = await Client.findById(clientId).session(session);
+    if (!client) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({
+        success: false,
+        message: 'Client non trouvé'
+      });
+    }
+    
+    // 2. Créer la tâche
+    const task = new Task({
       title,
       description,
+      userId: req.userId,
+      clientId,
+      priority: priority || 'moyenne',
       dueDate,
-      priority,
-      category,
-      status: 'à faire',
+      category: category || 'autre',
       estimatedTime,
-      actualTime: 0,
-      impactScore: impactScore || 0,
+      status: 'pending',
       createdAt: Date.now()
     });
     
-    await newTask.save();
-
-    if (newTask.clientId) {
-      // Mettre à jour les métriques du client
-      try {
-        await Client.findByIdAndUpdate(newTask.clientId, {
-          $inc: { 'metrics.tasksPending': 1 },
-          'metrics.lastActivity': Date.now()
-        });
-        console.log(`Métriques du client ${newTask.clientId} mises à jour`);
-      } catch (err) {
-        console.error("Erreur lors de la mise à jour des métriques client:", err);
-        // Ne pas faire échouer toute la requête si cette partie échoue
-      }
+    await task.save({ session });
+    mongoLogger.info('Tâche créée', { taskId: task._id, userId: req.userId });
+    
+    // 3. Mettre à jour le client (par exemple, incrémenter un compteur de tâches)
+    client.taskCount = (client.taskCount || 0) + 1;
+    client.lastActivity = Date.now();
+    await client.save({ session });
+    
+    // 4. Confirmer la transaction
+    await session.commitTransaction();
+    session.endSession();
+    
+    // 5. Vérification post-transaction
+    const savedTask = await Task.findById(task._id)
+      .populate('clientId', 'name')
+      .lean();
+    
+    if (!savedTask) {
+      mongoLogger.error('Tâche non retrouvée après sauvegarde', { taskId: task._id });
+      return res.status(500).json({
+        success: false,
+        message: 'La tâche a été créée mais n\'a pas pu être récupérée'
+      });
     }
-
-    res.status(201).json({ message: 'Tâche créée avec succès', task: newTask });
+    
+    return res.status(201).json({
+      success: true,
+      message: 'Tâche créée avec succès',
+      task: savedTask
+    });
+    
   } catch (error) {
-    res.status(500).json({ message: 'Erreur lors de la création de la tâche', error: error.message });
+    // Annuler la transaction en cas d'erreur
+    await session.abortTransaction();
+    session.endSession();
+    
+    mongoLogger.error('Erreur création tâche', { 
+      error: error.message,
+      stack: error.stack,
+      body: req.body
+    });
+    
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la création de la tâche',
+      error: process.env.NODE_ENV === 'production' ? undefined : error.message
+    });
   }
 });
 
