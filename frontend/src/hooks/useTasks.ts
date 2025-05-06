@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useAppDispatch, useAppSelector } from '../hooks';
 import { 
@@ -10,6 +10,24 @@ import {
 // Configuration de l'URL de l'API
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
+const fetchWithRetry = async <T>(
+  fetcher: () => Promise<T>, 
+  retryCount = 0, 
+  maxRetries = 3
+): Promise<T> => {
+  try {
+    return await fetcher();
+  } catch (error) {
+    if (retryCount < maxRetries) {
+      const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s...
+      console.log(`Retry ${retryCount + 1} after ${delay}ms`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return fetchWithRetry(fetcher, retryCount + 1, maxRetries);
+    }
+    throw error;
+  }
+};
 
 /**
  * Hook personnalisé pour gérer les tâches dans l'application
@@ -29,7 +47,7 @@ export const useTasks = (clientId?: string, forceRefresh = false) => {
   /**
    * Fonction pour charger toutes les tâches
    */
-  const loadAllTasks = async () => {
+  const loadAllTasks = useCallback(async () => {
     try {
       dispatch(fetchTasksStart());
       
@@ -38,9 +56,9 @@ export const useTasks = (clientId?: string, forceRefresh = false) => {
         throw new Error("Token d'authentification manquant");
       }
       
-      const response = await axios.get(`${API_URL}/api/tasks`, {
+      const response = await fetchWithRetry(() => axios.get(`${API_URL}/api/tasks`, {
         headers: { 'Authorization': `Bearer ${token}` }
-      });
+      }));
       
       dispatch(fetchTasksSuccess(response.data));
       return response.data;
@@ -49,7 +67,7 @@ export const useTasks = (clientId?: string, forceRefresh = false) => {
       dispatch(fetchTasksFailure(error.message));
       throw error;
     }
-  };
+  }, [dispatch]);
   
   /**
    * Fonction pour charger les tâches d'un client spécifique
@@ -63,9 +81,9 @@ export const useTasks = (clientId?: string, forceRefresh = false) => {
         throw new Error("Token d'authentification manquant");
       }
       
-      const response = await axios.get(`${API_URL}/api/tasks/client/${id}`, {
+      const response = await fetchWithRetry(() => axios.get(`${API_URL}/api/tasks/client/${id}`, {
         headers: { 'Authorization': `Bearer ${token}` }
-      });
+      }));
       
       setClientTasks(response.data);
       return response.data;
@@ -89,22 +107,27 @@ export const useTasks = (clientId?: string, forceRefresh = false) => {
   
   // Effet qui s'exécute au chargement du composant et quand les dépendances changent
   useEffect(() => {
+    // Chargement initial uniquement
     if (clientId) {
       loadClientTasks(clientId);
     } else {
       loadAllTasks();
     }
-    
-    // Rafraîchissement périodique si nécessaire
-    const now = Date.now();
-    if (lastFetched && now - lastFetched > REFRESH_INTERVAL) {
+    // Supprimer la vérification de lastFetched dans cet effet
+  }, [clientId, loadAllTasks, loadClientTasks]);
+
+  // Utiliser un effet séparé pour le rafraîchissement périodique
+  useEffect(() => {
+    const intervalId = setInterval(() => {
       if (clientId) {
         loadClientTasks(clientId);
       } else {
         loadAllTasks();
       }
-    }
-  }, [clientId, lastFetched, loadAllTasks, loadClientTasks]); // Ajouter les dépendances manquantes
+    }, REFRESH_INTERVAL);
+    
+    return () => clearInterval(intervalId);
+  }, [clientId, loadAllTasks, loadClientTasks]);
   
   // Retourner les données et fonctions à utiliser dans vos composants
   return {
