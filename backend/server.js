@@ -30,7 +30,7 @@ connectDB().then(() => {
 
 const app = express();
 
-// Middleware
+// Middleware configuration
 app.use(express.json({ limit: '50mb' })); // Limite augmentée pour l'upload d'images
 app.use(cors({ origin: '*' }));
 app.use(express.static('public'));
