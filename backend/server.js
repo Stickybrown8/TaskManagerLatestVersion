@@ -32,12 +32,15 @@ const app = express();
 
 // Middleware
 app.use(express.json({ limit: '50mb' })); // Limite augmentée pour l'upload d'images
+// Modifier la configuration CORS
 app.use(cors({
   origin: [
-    'https://task-manager-steven.netlify.app/', // URL de votre frontend sur Netlify
-    'http://localhost:3000' // Pour le développement local
+    'https://task-manager-steven.netlify.app', // Remplacez par votre URL Netlify
+    'http://localhost:3000'          // Pour le développement local
   ],
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token']
 }));
 app.use(express.static('public'));
 

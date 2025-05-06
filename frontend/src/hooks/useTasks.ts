@@ -8,7 +8,7 @@ import {
 } from '../store/slices/tasksSlice';
 
 // Configuration de l'URL de l'API
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const API_URL = process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com';
 const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
 /**
@@ -35,21 +35,31 @@ export const useTasks = (clientId?: string, forceRefresh = false) => {
     try {
       dispatch(fetchTasksStart());
       
+      // Récupérer le token et vérifier sa présence
       const token = localStorage.getItem('token');
       if (!token) {
-        throw new Error("Token d'authentification manquant");
+        console.error("Erreur d'authentification: token manquant");
+        dispatch(fetchTasksFailure("Vous devez vous connecter pour accéder à vos tâches"));
+        setLocalError("Session expirée. Veuillez vous reconnecter.");
+        return [];
       }
 
       console.log("Tentative de connexion à:", API_URL);
+      
+      // Ajout d'un timeout pour éviter les attentes infinies
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
       
       const response = await axios.get(`${API_URL}/api/tasks`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
           'Accept': 'application/json'
-        }
+        },
+        signal: controller.signal
       });
       
+      clearTimeout(timeoutId);
       dispatch(fetchTasksSuccess(response.data));
       return response.data;
     } catch (error: any) {
