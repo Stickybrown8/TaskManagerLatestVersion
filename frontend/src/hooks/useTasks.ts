@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useAppDispatch, useAppSelector } from '../hooks';
 import { 
@@ -21,15 +21,17 @@ export const useTasks = (clientId?: string, forceRefresh = false) => {
   const dispatch = useAppDispatch();
   
   // Récupérer l'état des tâches depuis le store Redux
-  const { tasks, loading, error, lastFetched } = useAppSelector(state => state.tasks);
+  const { tasks, loading, lastFetched } = useAppSelector(state => state.tasks);
+  const reduxError = useAppSelector(state => state.tasks.error);
   
   // État local pour gérer les tâches filtrées par client si nécessaire
   const [clientTasks, setClientTasks] = useState<any[]>([]);
+  const [localError, setLocalError] = useState<string | null>(null);
   
   /**
    * Fonction pour charger toutes les tâches
    */
-  const loadAllTasks = async () => {
+  const loadAllTasks = useCallback(async () => {
     try {
       dispatch(fetchTasksStart());
       
@@ -37,24 +39,46 @@ export const useTasks = (clientId?: string, forceRefresh = false) => {
       if (!token) {
         throw new Error("Token d'authentification manquant");
       }
+
+      console.log("Tentative de connexion à:", API_URL);
       
       const response = await axios.get(`${API_URL}/api/tasks`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
       });
       
       dispatch(fetchTasksSuccess(response.data));
       return response.data;
     } catch (error: any) {
       console.error('Erreur lors du chargement des tâches:', error);
-      dispatch(fetchTasksFailure(error.message));
+      
+      // Amélioration du logging d'erreurs
+      if (error.response) {
+        // La requête a été faite et le serveur a répondu avec un code d'état
+        console.error("Réponse du serveur:", error.response.data);
+        console.error("Status:", error.response.status);
+      } else if (error.request) {
+        // La requête a été faite mais aucune réponse n'a été reçue
+        console.error("Aucune réponse reçue:", error.request);
+      } else {
+        // Une erreur s'est produite lors de la configuration de la requête
+        console.error("Erreur de configuration:", error.message);
+      }
+      
+      const errorMessage = error.response?.data?.message || error.message || "Erreur de connexion au serveur";
+      dispatch(fetchTasksFailure(errorMessage));
+      setLocalError(errorMessage);
       throw error;
     }
-  };
+  }, [dispatch]);
   
   /**
    * Fonction pour charger les tâches d'un client spécifique
    */
-  const loadClientTasks = async (id: string) => {
+  const loadClientTasks = useCallback(async (id: string) => {
     try {
       dispatch(fetchTasksStart());
       
@@ -64,53 +88,85 @@ export const useTasks = (clientId?: string, forceRefresh = false) => {
       }
       
       const response = await axios.get(`${API_URL}/api/tasks/client/${id}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
       });
       
       setClientTasks(response.data);
       return response.data;
     } catch (error: any) {
       console.error(`Erreur lors du chargement des tâches du client ${id}:`, error);
+      
+      // Amélioration du logging d'erreurs
+      if (error.response) {
+        console.error("Réponse du serveur:", error.response.data);
+        console.error("Status:", error.response.status);
+      } else if (error.request) {
+        console.error("Aucune réponse reçue:", error.request);
+      } else {
+        console.error("Erreur de configuration:", error.message);
+      }
+      
+      const errorMessage = error.response?.data?.message || error.message || "Erreur de connexion au serveur";
+      setLocalError(errorMessage);
       throw error;
     }
-  };
+  }, [dispatch]);
   
   /**
    * Fonction publique pour rafraîchir les tâches
    * Sera exposée pour permettre aux composants de forcer un rafraîchissement
    */
-  const refreshTasks = async () => {
-    if (clientId) {
-      return loadClientTasks(clientId);
-    } else {
-      return loadAllTasks();
+  const refreshTasks = useCallback(async () => {
+    try {
+      if (clientId) {
+        return await loadClientTasks(clientId);
+      } else {
+        return await loadAllTasks();
+      }
+    } catch (error: any) {
+      console.error("Erreur lors du rafraîchissement des tâches:", error);
+      const errorMessage = error.response?.data?.message || error.message || "Erreur de connexion au serveur";
+      setLocalError(errorMessage);
+      return null;
     }
-  };
+  }, [clientId, loadAllTasks, loadClientTasks]);
   
   // Effet qui s'exécute au chargement du composant et quand les dépendances changent
   useEffect(() => {
-    if (clientId) {
-      loadClientTasks(clientId);
-    } else {
-      loadAllTasks();
+    const fetchData = async () => {
+      try {
+        if (clientId) {
+          await loadClientTasks(clientId);
+        } else {
+          await loadAllTasks();
+        }
+      } catch (error) {
+        console.error("Erreur dans useEffect:", error);
+      }
+    };
+    
+    // Charger les données immédiatement si forceRefresh ou si les données n'ont jamais été chargées
+    if (forceRefresh || !lastFetched) {
+      fetchData();
+      return;
     }
     
     // Rafraîchissement périodique si nécessaire
     const now = Date.now();
     if (lastFetched && now - lastFetched > REFRESH_INTERVAL) {
-      if (clientId) {
-        loadClientTasks(clientId);
-      } else {
-        loadAllTasks();
-      }
+      fetchData();
     }
-  }, [clientId, lastFetched, loadAllTasks, loadClientTasks]); // Ajouter les dépendances manquantes
+  }, [clientId, forceRefresh, lastFetched, loadAllTasks, loadClientTasks]);
   
   // Retourner les données et fonctions à utiliser dans vos composants
   return {
     tasks: clientId ? clientTasks : tasks,
     loading,
-    error,
+    error: localError || reduxError,
     refreshTasks
   };
 };
