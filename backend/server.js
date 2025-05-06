@@ -13,6 +13,7 @@ const taskRoutes = require('./routes/tasks');
 const userRoutes = require('./routes/users');
 const clientRoutes = require('./routes/clients');
 const authRoutes = require('./routes/auth');
+const timerRoutes = require('./routes/timers');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -37,6 +38,7 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/timers', timerRoutes);
 
 // Route de vérification d'état MongoDB
 app.get('/api/health', (req, res) => {

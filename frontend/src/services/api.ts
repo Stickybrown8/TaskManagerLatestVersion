@@ -31,8 +31,20 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Journalisation détaillée des erreurs
+    console.error("Erreur API détaillée:", {
+      url: error.config?.url,
+      method: error.config?.method,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      message: error.message
+    });
+    
     if (error.response && error.response.status === 401) {
-      store.dispatch(logout());
+      // Gérer la déconnexion
+      store.dispatch({ type: 'auth/logout' });
+      window.location.href = '/login';
     }
     return Promise.reject(error);
   }
@@ -165,11 +177,27 @@ export const timerService = {
   startTimer: async (timerData: any) => {
     console.log("⏱️ Démarrage du timer avec:", timerData);
     try {
-      const response = await api.post('/api/timers', timerData);
+      // Obtenir le token de localStorage directement
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error("Token d'authentification manquant");
+      }
+      
+      // Faire la requête avec le token explicite
+      const response = await axios({
+        method: 'post',
+        url: `${process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com'}/api/timers`,
+        data: timerData,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
       console.log("⏱️ Timer démarré avec succès:", response.data);
       return response.data;
     } catch (error: any) {
-      console.error("⏱️ Erreur lors du démarrage:", error.response?.data || error);
+      console.error("⏱️ Erreur complète lors du démarrage du timer:", error);
       throw error;
     }
   },
