@@ -4,10 +4,22 @@ const router = express.Router();
 const { verifyToken } = require('../middleware/auth');
 const Timer = require('../models/Timer');
 const Task = require('../models/Task');
-const mongoose = require('mongoose');
-const Profitability = require('../models/Profitability');
-const Client = require('../models/Client');
-const mongoLogger = require('../utils/mongoLogger');
+
+// Ajouter cette route juste après les imports, avant les autres routes
+
+// Route de test pour la connexion timer
+router.get('/test', verifyToken, (req, res) => {
+  try {
+    res.status(200).json({ 
+      message: 'Connexion au service de timer réussie',
+      userId: req.userId,
+      timestamp: new Date()
+    });
+  } catch (err) {
+    console.error('Erreur route test timer:', err);
+    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+  }
+});
 
 // GET /api/timers - Récupérer tous les timers
 router.get('/', verifyToken, async (req, res) => {
@@ -45,25 +57,53 @@ router.post('/', verifyToken, async (req, res) => {
   try {
     const { description, clientId, taskId, billable } = req.body;
     
-    // Vérifier que clientId existe
+    // Log de débogage
+    console.log('Création timer - données reçues:', { 
+      description, 
+      clientId, 
+      taskId, 
+      billable, 
+      userId: req.userId 
+    });
+    
+    // Vérification des paramètres
     if (!clientId) {
-      return res.status(400).json({ msg: 'clientId est requis' });
+      return res.status(400).json({ 
+        msg: 'clientId est requis',
+        received: req.body
+      });
     }
     
+    // Vérifier que le clientId est un ObjectId valide
+    if (!mongoose.Types.ObjectId.isValid(clientId)) {
+      return res.status(400).json({ 
+        msg: 'clientId invalide',
+        received: clientId
+      });
+    }
+    
+    // Création avec valeurs par défaut pour les champs optionnels
     const timer = new Timer({
-      userId: req.userId,  // Changer user en userId
-      description,
+      userId: req.userId,
+      description: description || '',
       clientId,
-      taskId,
-      billable,
+      taskId: taskId || null,
+      billable: billable !== undefined ? billable : true,
       startTime: new Date()
     });
     
-    await timer.save();
-    res.json(timer);
+    const savedTimer = await timer.save();
+    console.log('Timer créé avec succès:', savedTimer._id);
+    res.json(savedTimer);
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Erreur serveur');
+    console.error('Erreur détaillée lors de la création du timer:', err);
+    
+    // Réponse d'erreur améliorée
+    res.status(500).json({ 
+      msg: 'Erreur serveur', 
+      error: err.message,
+      stack: process.env.NODE_ENV === 'production' ? undefined : err.stack
+    });
   }
 });
 
@@ -96,97 +136,6 @@ router.put('/stop/:id', verifyToken, async (req, res) => {
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Erreur serveur');
-  }
-});
-
-// PATCH /api/timers/:id/stop - Utiliser une transaction
-router.patch('/:id/stop', verifyToken, async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-  
-  try {
-    // 1. Trouver et mettre à jour le timer
-    const timer = await Timer.findOne({ 
-      _id: req.params.id, 
-      userId: req.userId,
-      endTime: null  // Seulement les timers en cours
-    }).session(session);
-    
-    if (!timer) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(404).json({ message: 'Timer non trouvé ou déjà arrêté' });
-    }
-    
-    const now = new Date();
-    timer.endTime = now;
-    timer.duration = Math.round((now - timer.startTime) / 1000);  // En secondes
-    await timer.save({ session });
-    
-    // 2. Si le timer est lié à un client, mettre à jour sa profitabilité
-    if (timer.clientId && timer.billable) {
-      // Convertir les secondes en heures pour la profitabilité
-      const hoursSpent = timer.duration / 3600;
-      
-      // Chercher des données de profitabilité existantes
-      let profitability = await Profitability.findOne({
-        userId: req.userId,
-        clientId: timer.clientId
-      }).session(session);
-      
-      if (profitability) {
-        // Mettre à jour les heures passées
-        profitability.actualHours += hoursSpent;
-        
-        // Recalculer les métriques de rentabilité
-        const cost = profitability.hourlyRate * profitability.actualHours;
-        profitability.profit = profitability.revenue - cost;
-        profitability.profitability = profitability.revenue > 0 ? 
-          (profitability.profit / profitability.revenue) * 100 : 0;
-        profitability.remainingHours = profitability.targetHours - profitability.actualHours;
-        profitability.updatedAt = now;
-        
-        await profitability.save({ session });
-      }
-      
-      // 3. Mettre à jour la dernière activité du client
-      await Client.findByIdAndUpdate(
-        timer.clientId,
-        { lastActivity: now },
-        { session }
-      );
-    }
-    
-    // 4. Si le timer est lié à une tâche, mettre à jour son temps actuel
-    if (timer.taskId && timer.duration > 0) {
-      const task = await Task.findById(timer.taskId).session(session);
-      
-      if (task) {
-        // Convertir les secondes en minutes pour la tâche
-        const minutesSpent = Math.round(timer.duration / 60);
-        task.actualTime = (task.actualTime || 0) + minutesSpent;
-        await task.save({ session });
-      }
-    }
-    
-    // 5. Valider la transaction
-    await session.commitTransaction();
-    session.endSession();
-    
-    res.json(timer);
-  } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    
-    mongoLogger.error('Erreur arrêt timer', {
-      error: error.message,
-      timerId: req.params.id
-    });
-    
-    res.status(500).json({ 
-      message: 'Erreur lors de l\'arrêt du timer', 
-      error: error.message 
-    });
   }
 });
 

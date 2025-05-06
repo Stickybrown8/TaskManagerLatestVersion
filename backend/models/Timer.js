@@ -8,7 +8,8 @@ const TimerSchema = new mongoose.Schema({
   },
   taskId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Task'
+    ref: 'Task',
+    required: false  // Rendre optionnel si nécessaire
   },
   clientId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -17,14 +18,17 @@ const TimerSchema = new mongoose.Schema({
   },
   description: {
     type: String,
-    default: ''
+    required: false  // Rendre optionnel
   },
   startTime: {
     type: Date,
-    default: Date.now
+    default: Date.now,
+    required: true
   },
   endTime: {
-    type: Date
+    type: Date,
+    default: null,
+    required: false
   },
   duration: {
     type: Number, // en secondes
@@ -162,7 +166,8 @@ TimerSchema.methods.resume = function() {
 };
 
 // Ajout d'index pour améliorer les performances
-TimerSchema.index({ startTime: 1 });
-TimerSchema.index({ userId: 1, isRunning: 1 });
+TimerSchema.index({ userId: 1 });
+TimerSchema.index({ clientId: 1 });
+TimerSchema.index({ startTime: -1 });
 
 module.exports = mongoose.model('Timer', TimerSchema);

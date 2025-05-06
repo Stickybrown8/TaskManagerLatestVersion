@@ -7,6 +7,18 @@ const Client = require('../models/Client');
 const { verifyToken } = require('../middleware/auth');
 const mongoLogger = require('../utils/mongoLogger');
 
+// Ajouter cette fonction de débogage juste après les imports
+
+// Fonction de débogage pour les erreurs de validation
+const logValidationError = (err) => {
+  if (err.name === 'ValidationError') {
+    console.error('Erreur de validation détaillée:');
+    for (let field in err.errors) {
+      console.error(`Champ: ${field}, Message: ${err.errors[field].message}, Valeur: ${err.errors[field].value}`);
+    }
+  }
+};
+
 // Obtenir toutes les tâches
 router.get('/', verifyToken, async (req, res) => {
   try {
@@ -404,6 +416,11 @@ router.delete('/:id', verifyToken, async (req, res) => {
       error: error.message 
     });
   }
+});
+
+// Ajoutez une route de test pour le timer
+router.get('/test', verifyToken, (req, res) => {
+  res.status(200).json({ message: 'Connexion au service de timer réussie' });
 });
 
 module.exports = router;

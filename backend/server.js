@@ -75,6 +75,38 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Middleware pour capturer les erreurs détaillées
+app.use((err, req, res, next) => {
+  // Journaliser l'erreur
+  console.error('Erreur non gérée:', {
+    route: req.originalUrl,
+    method: req.method,
+    message: err.message,
+    stack: err.stack
+  });
+  
+  // Format de réponse standardisé pour les erreurs
+  res.status(err.statusCode || 500).json({
+    success: false,
+    message: err.message || 'Erreur serveur interne',
+    errorCode: err.code || 'SERVER_ERROR',
+    // Ne pas exposer la stack trace en production
+    details: process.env.NODE_ENV === 'production' ? undefined : {
+      stack: err.stack,
+      ...err
+    }
+  });
+});
+
+// Gestionnaire pour les routes non trouvées
+app.use('*', (req, res) => {
+  res.status(404).json({
+    success: false,
+    message: `Route non trouvée: ${req.originalUrl}`,
+    errorCode: 'NOT_FOUND'
+  });
+});
+
 app.listen(PORT, () => {
   mongoLogger.info(`Serveur démarré sur le port ${PORT}`);
 });
