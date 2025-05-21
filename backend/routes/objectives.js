@@ -1,3 +1,31 @@
+/*
+ * ROUTES DE GESTION DES OBJECTIFS - /workspaces/TaskManagerLatestVersion/backend/routes/objectives.js
+ *
+ * Explication simple:
+ * Ce fichier contient toutes les fonctions qui permettent de gérer les objectifs dans l'application.
+ * Il définit comment créer un nouvel objectif, voir la liste des objectifs, modifier leur progression
+ * ou les supprimer. Les objectifs sont des buts importants qu'on veut atteindre pour un client,
+ * avec un pourcentage de progression et une date limite.
+ *
+ * Explication technique:
+ * Module Express.js contenant les routes API RESTful pour la gestion des objectifs,
+ * incluant des opérations CRUD avec transactions MongoDB et vérification d'authentification.
+ *
+ * Où ce fichier est utilisé:
+ * Appelé par le serveur backend lors des requêtes API relatives aux objectifs,
+ * utilisé par le frontend pour afficher et manipuler les données des objectifs.
+ *
+ * Connexions avec d'autres fichiers:
+ * - Utilise les modèles Objective et Client pour accéder aux données
+ * - Importe le middleware auth.js pour la vérification des tokens
+ * - Utilise mongoLogger pour journaliser les erreurs et événements importants
+ * - Ses routes sont montées dans le fichier principal du serveur (server.js/app.js)
+ * - Appelé par les composants frontend qui gèrent les objectifs
+ */
+
+// === Début : Importation des dépendances ===
+// Explication simple : On rassemble tous les outils dont on a besoin pour gérer les objectifs.
+// Explication technique : Importation des modules Express pour le routage, du middleware d'authentification, des modèles Mongoose et des utilitaires pour la journalisation et les transactions.
 const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../middleware/auth');
@@ -5,7 +33,11 @@ const Objective = require('../models/Objective');
 const mongoose = require('mongoose');
 const mongoLogger = require('../utils/mongoLogger');
 const Client = require('../models/Client');
+// === Fin : Importation des dépendances ===
 
+// === Début : Route pour récupérer tous les objectifs ===
+// Explication simple : Cette fonction permet de voir la liste de tous les objectifs qui appartiennent à l'utilisateur connecté, en incluant aussi le nom du client pour chaque objectif.
+// Explication technique : Endpoint GET qui récupère tous les documents de la collection Objective filtrés par l'identifiant de l'utilisateur authentifié, avec un populate sur le champ clientId pour obtenir les noms des clients.
 // Obtenir tous les objectifs
 router.get('/', verifyToken, async (req, res) => {
   try {
@@ -15,7 +47,11 @@ router.get('/', verifyToken, async (req, res) => {
     res.status(500).json({ message: 'Erreur lors de la récupération des objectifs', error: error.message });
   }
 });
+// === Fin : Route pour récupérer tous les objectifs ===
 
+// === Début : Route pour récupérer les objectifs d'un client spécifique ===
+// Explication simple : Cette fonction permet de voir tous les objectifs liés à un seul client, comme une liste de missions pour ce client particulier.
+// Explication technique : Endpoint GET paramétré qui récupère les documents Objective filtrés à la fois par l'identifiant de l'utilisateur authentifié et par l'identifiant du client fourni dans l'URL.
 // Obtenir les objectifs d'un client spécifique
 router.get('/client/:clientId', verifyToken, async (req, res) => {
   try {
@@ -28,7 +64,11 @@ router.get('/client/:clientId', verifyToken, async (req, res) => {
     res.status(500).json({ message: 'Erreur lors de la récupération des objectifs du client', error: error.message });
   }
 });
+// === Fin : Route pour récupérer les objectifs d'un client spécifique ===
 
+// === Début : Route pour récupérer un objectif spécifique ===
+// Explication simple : Cette fonction permet de voir les détails d'un seul objectif quand on connaît son numéro d'identification, en incluant aussi le nom du client associé.
+// Explication technique : Endpoint GET paramétré qui récupère un document Objective spécifique par son ID avec vérification du propriétaire, et effectue un populate sur le champ clientId pour obtenir le nom du client.
 // Obtenir un objectif par ID
 router.get('/:id', verifyToken, async (req, res) => {
   try {
@@ -46,7 +86,11 @@ router.get('/:id', verifyToken, async (req, res) => {
     res.status(500).json({ message: 'Erreur lors de la récupération de l\'objectif', error: error.message });
   }
 });
+// === Fin : Route pour récupérer un objectif spécifique ===
 
+// === Début : Route pour créer un nouvel objectif ===
+// Explication simple : Cette fonction permet d'ajouter un nouvel objectif dans notre liste, en vérifiant d'abord que le client existe, puis en calculant le pourcentage de progression initial et en mettant à jour les compteurs du client.
+// Explication technique : Endpoint POST qui crée un nouveau document Objective, utilisant une transaction MongoDB pour garantir l'intégrité des données lors de la mise à jour simultanée des compteurs dans la collection Client.
 // Créer un nouvel objectif
 router.post('/', verifyToken, async (req, res) => {
   const session = await mongoose.startSession();
@@ -115,7 +159,11 @@ router.post('/', verifyToken, async (req, res) => {
     res.status(500).json({ message: 'Erreur lors de la création de l\'objectif', error: error.message });
   }
 });
+// === Fin : Route pour créer un nouvel objectif ===
 
+// === Début : Route pour mettre à jour un objectif existant ===
+// Explication simple : Cette fonction permet de modifier les informations d'un objectif qui existe déjà, en recalculant sa progression et en mettant à jour les compteurs du client si l'objectif change de statut ou de client.
+// Explication technique : Endpoint PUT paramétré qui met à jour un document Objective existant, avec gestion des transactions MongoDB pour maintenir l'intégrité des données lors de modifications qui affectent également les compteurs dans la collection Client.
 // Mettre à jour un objectif
 router.put('/:id', verifyToken, async (req, res) => {
   const session = await mongoose.startSession();
@@ -222,7 +270,11 @@ router.put('/:id', verifyToken, async (req, res) => {
     res.status(500).json({ message: 'Erreur lors de la mise à jour de l\'objectif', error: error.message });
   }
 });
+// === Fin : Route pour mettre à jour un objectif existant ===
 
+// === Début : Route pour supprimer un objectif ===
+// Explication simple : Cette fonction permet d'effacer complètement un objectif, tout en mettant à jour les compteurs du client pour qu'ils restent exacts, comme quand on retire un livre d'une étagère et qu'on met à jour le nombre total de livres.
+// Explication technique : Endpoint DELETE paramétré qui supprime un document Objective, utilisant une transaction MongoDB pour garantir que les compteurs associés dans la collection Client sont correctement décrémentés selon l'état de l'objectif supprimé.
 // Supprimer un objectif - Ajouter transaction
 router.delete('/:id', verifyToken, async (req, res) => {
   const session = await mongoose.startSession();
@@ -283,5 +335,10 @@ router.delete('/:id', verifyToken, async (req, res) => {
     res.status(500).json({ message: 'Erreur lors de la suppression de l\'objectif', error: error.message });
   }
 });
+// === Fin : Route pour supprimer un objectif ===
 
+// === Début : Exportation du routeur ===
+// Explication simple : Cette ligne rend toutes nos fonctions disponibles pour que l'application puisse les utiliser.
+// Explication technique : Exportation du routeur Express configuré pour être intégré dans l'application principale via le système de middleware Express.
 module.exports = router;
+// === Fin : Exportation du routeur ===

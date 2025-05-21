@@ -1,3 +1,28 @@
+/*
+ * COMPOSANT TABLEAU DE BORD GAMIFIÉ - src/pages/Dashboard.tsx
+ * 
+ * Explication simple:
+ * Ce fichier crée un tableau de bord ludique qui montre les statistiques de l'utilisateur,
+ * ses défis quotidiens, ses badges et l'état de ses tâches, avec des animations et récompenses
+ * pour encourager l'utilisateur à être plus productif.
+ * 
+ * Explication technique:
+ * Composant React fonctionnel qui implémente une interface gamifiée intégrant des mécanismes
+ * de récompense, avec gestion d'état via Redux, animations via Framer Motion, et optimisations
+ * de performance (useMemo, useCallback, etc.). Inclut la gestion des erreurs, des états de
+ * chargement et des notifications.
+ * 
+ * Où ce fichier est utilisé:
+ * Dans le routeur principal de l'application, probablement affiché comme page principale après
+ * connexion de l'utilisateur.
+ * 
+ * Connexions avec d'autres fichiers:
+ * - Utilise le store Redux via hooks (useAppDispatch, useAppSelector)
+ * - Importe des composants UI comme MonthlyProfitabilityWidget et ConfettiEffect
+ * - Appelle des services API comme gamificationService, profitabilityRewardService, soundService
+ * - Interagit avec les slices Redux pour la gestion des notifications (uiSlice)
+ */
+
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useAppDispatch, useAppSelector } from '../hooks';
 import { motion } from 'framer-motion';
@@ -8,6 +33,9 @@ import ConfettiEffect from '../components/gamification/ConfettiEffect';
 import { profitabilityRewardService } from '../services/profitabilityRewardService';
 import { soundService, SoundTypes, SoundType } from '../services/soundService';
 
+// === Début : Interfaces et Types ===
+// Explication simple : Ces blocs définissent la forme des données que le composant va utiliser, comme un plan pour construire une maison.
+// Explication technique : Déclarations d'interfaces TypeScript pour assurer la cohérence des types de données utilisés dans le composant, notamment pour les challenges et les notifications.
 // Définition de l'interface Challenge pour résoudre l'erreur TypeScript
 interface Challenge {
   id: number;
@@ -23,10 +51,17 @@ interface Notification {
   message: string;
   type: 'success' | 'warning' | 'error' | 'info';
 }
+// === Fin : Interfaces et Types ===
 
-// Composant pour afficher un tableau de bord ludique
+// === Début : Composant principal Dashboard ===
+// Explication simple : Cette fonction crée toute la page du tableau de bord avec toutes ses parties (statistiques, défis, etc.).
+// Explication technique : Composant fonctionnel React qui orchestre l'affichage des différents widgets et la logique d'interaction utilisateur. Point d'entrée principal pour la page dashboard.
 const Dashboard = () => {
   const dispatch = useAppDispatch();
+  
+  // === Début : Initialisation des références et états ===
+  // Explication simple : On crée des "boîtes" pour stocker différentes informations qui peuvent changer avec le temps.
+  // Explication technique : Déclaration des hooks useState pour gérer l'état local du composant et useRef pour conserver des références entre les rendus.
   
   // Référence pour stocker les timers
   const timersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -57,7 +92,11 @@ const Dashboard = () => {
   const [showGlobalConfetti, setShowGlobalConfetti] = useState(false);
   const [dailyChallenges, setDailyChallenges] = useState<Challenge[]>([]);
   const [notificationQueue, setNotificationQueue] = useState<Notification[]>([]);
+  // === Fin : Initialisation des références et états ===
   
+  // === Début : Traitement des tâches et calcul des statistiques ===
+  // Explication simple : On organise et compte les tâches selon leur statut (terminées, en cours, à faire).
+  // Explication technique : Filtrage et agrégation des tâches pour calculer les métriques d'avancement utilisées dans l'interface.
   // S'assurer que tasks est un tableau et que chaque tâche a un statut valide
   const isValidTask = (task: any): boolean => 
     task && typeof task === 'object' && 'status' in task && 
@@ -69,14 +108,22 @@ const Dashboard = () => {
   const inProgressTasks = validTasks.filter(task => task.status === 'en cours').length;
   const totalTasks = validTasks.length;
   const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+  // === Fin : Traitement des tâches et calcul des statistiques ===
   
+  // === Début : Traitement des badges ===
+  // Explication simple : On s'assure que les badges sont valides et on prend seulement les 4 premiers pour les afficher.
+  // Explication technique : Validation et filtrage des données de badges pour assurer l'intégrité de l'UI et limiter le nombre d'éléments affichés.
   // Vérifier que badges est un tableau et filtrer les badges valides
   const recentBadges = Array.isArray(badges) 
     ? badges
         .filter(badge => badge && typeof badge === 'object' && '_id' in badge && 'icon' in badge && 'name' in badge)
         .slice(0, 4) 
     : [];
+  // === Fin : Traitement des badges ===
   
+  // === Début : Gestion responsive des confettis ===
+  // Explication simple : On ajuste le nombre de confettis selon la taille de l'écran pour éviter de ralentir les petits appareils.
+  // Explication technique : Adaptation responsive du nombre de particules de confettis selon la largeur de l'écran, avec un gestionnaire d'événement de redimensionnement.
   // Nombre de particules adaptatif selon la taille de l'écran
   const [particleCount, setParticleCount] = useState(200);
   
@@ -97,7 +144,11 @@ const Dashboard = () => {
       window.removeEventListener('resize', handleResize);
     };
   }, []);
+  // === Fin : Gestion responsive des confettis ===
   
+  // === Début : Fonction de déclenchement des confettis ===
+  // Explication simple : Cette fonction lance l'effet de confettis avec un son optionnel et les fait disparaître après 5 secondes.
+  // Explication technique : Fonction mémoïsée qui gère l'animation de confettis et la lecture des effets sonores, avec vérification de validité du type de son.
   // Fonction centralisée pour déclencher les confettis
   const triggerConfetti = useCallback((soundEffect?: string) => {
     if (!showGlobalConfetti) {
@@ -110,7 +161,11 @@ const Dashboard = () => {
       setTimeout(() => setShowGlobalConfetti(false), 5000);
     }
   }, [showGlobalConfetti]);
+  // === Fin : Fonction de déclenchement des confettis ===
   
+  // === Début : Gestion des notifications ===
+  // Explication simple : Cette fonction permet d'ajouter des messages en file d'attente pour les afficher un par un, en priorisant les messages importants.
+  // Explication technique : Système de gestion de file d'attente pour les notifications avec priorisation des types error/warning, et limitation du nombre maximum d'éléments.
   // Fonction centralisée pour gérer les notifications avec priorisation
   const addNotificationToQueue = useCallback((notification: Notification) => {
     setNotificationQueue(prevQueue => {
@@ -148,7 +203,11 @@ const Dashboard = () => {
       }, 500); // Délai court pour éviter les notifications simultanées
     }
   }, [notificationQueue, dispatch]); // dispatch inclus comme dépendance
+  // === Fin : Gestion des notifications ===
   
+  // === Début : Chargement des défis quotidiens ===
+  // Explication simple : On charge les défis du jour avec plusieurs tentatives en cas d'échec, et on affiche un état de chargement.
+  // Explication technique : Fonction de chargement des défis avec mécanisme de retry basé sur l'exponentiel backoff, validation des données reçues, et gestion complète des états (loading, error).
   // État pour suivre le chargement des défis
   const [isChallengesLoading, setIsChallengesLoading] = useState(false);
   const [challengesError, setChallengesError] = useState<string | null>(null);
@@ -262,7 +321,11 @@ const Dashboard = () => {
       });
     };
   }, [completedTasks, addNotificationToQueue]); // completedTasks pour la progression + addNotificationToQueue comme dépendance
+  // === Fin : Chargement des défis quotidiens ===
   
+  // === Début : Vérification des événements spéciaux ===
+  // Explication simple : On vérifie s'il y a des événements spéciaux comme un anniversaire ou le premier jour du mois pour afficher des surprises.
+  // Explication technique : Système de détection d'événements spéciaux (anniversaire, premier jour du mois) avec gestion de timeouts pour les requêtes API et validation des données.
   // Référence pour vérifier si les événements spéciaux ont déjà été vérifiés
   const alreadyChecked = useRef(false);
 
@@ -353,7 +416,11 @@ const Dashboard = () => {
       alreadyChecked.current = false;
     };
   }, [dispatch, memoizedUser, triggerConfetti, addNotificationToQueue]); // Toutes les dépendances explicitées
+  // === Fin : Vérification des événements spéciaux ===
   
+  // === Début : Gestion des récompenses de défis ===
+  // Explication simple : Cette partie permet de réclamer des récompenses quand un défi est terminé, avec des confettis et des points.
+  // Explication technique : Système de réclamation des récompenses avec validation d'état, gestion optimiste de l'UI, et appel API pour enregistrer les points gagnés.
   // État pour traquer les récompenses réclamées
   const [claimedRewardIds, setClaimedRewardIds] = useState<number[]>([]);
   
@@ -425,7 +492,11 @@ const Dashboard = () => {
       });
     }
   };
+  // === Fin : Gestion des récompenses de défis ===
   
+  // === Début : Nettoyage des timers ===
+  // Explication simple : On s'assure que toutes les minuteries sont arrêtées quand on quitte la page pour éviter les fuites de mémoire.
+  // Explication technique : Hook de nettoyage pour éviter les memory leaks en supprimant tous les timers enregistrés lors du démontage du composant.
   // Effet pour nettoyer tous les timers au démontage du composant
   useEffect(() => {
     return () => {
@@ -436,7 +507,11 @@ const Dashboard = () => {
       timersRef.current = {};
     };
   }, []);
+  // === Fin : Nettoyage des timers ===
   
+  // === Début : Vérification des données requises ===
+  // Explication simple : On vérifie que toutes les données nécessaires sont bien disponibles avant d'afficher la page complète.
+  // Explication technique : Validation des données critiques avec mémorisation pour optimiser les performances et gestion d'un état de chargement conditionnel.
   // Vérifier que nous avons les données nécessaires avant de rendre le composant
   // et identifier les problèmes spécifiques
   const dataStatus = useMemo(() => {
@@ -491,7 +566,11 @@ const Dashboard = () => {
       </div>
     );
   }
+  // === Fin : Vérification des données requises ===
   
+  // === Début : Rendu du tableau de bord ===
+  // Explication simple : C'est la partie qui dessine tous les éléments de la page avec leurs styles et animations.
+  // Explication technique : Rendu JSX principal du tableau de bord avec animations via Framer Motion, gestion d'états conditionnels et structure responsive.
   return (
     <div className="container mx-auto">
       {/* Effet de confettis global */}
@@ -841,6 +920,8 @@ const Dashboard = () => {
       )}
     </div>
   );
+  // === Fin : Rendu du tableau de bord ===
 };
+// === Fin : Composant principal Dashboard ===
 
 export default Dashboard;

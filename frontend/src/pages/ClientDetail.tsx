@@ -1,3 +1,34 @@
+/*
+ * PAGE DE DÉTAIL CLIENT - frontend/src/pages/ClientDetail.tsx
+ *
+ * Explication simple:
+ * Ce fichier crée la page qui te montre toutes les informations sur un client spécifique. 
+ * Tu peux y voir son nom, sa description, son logo, ses contacts, etc. Tu peux aussi 
+ * modifier ces informations, voir les tâches associées à ce client, et même supprimer 
+ * le client si nécessaire. C'est comme une fiche d'identité complète que tu peux consulter 
+ * et modifier.
+ *
+ * Explication technique:
+ * Composant React fonctionnel qui implémente une page de visualisation et d'édition détaillée
+ * d'un client. Il gère la récupération des données depuis l'API, l'affichage conditionnel
+ * selon les différents états (chargement, édition, erreur), la mise à jour des informations
+ * client incluant les données de rentabilité, et l'intégration avec les tâches associées.
+ *
+ * Où ce fichier est utilisé:
+ * Rendu comme page principale dans l'application lorsque l'utilisateur navigue vers la route
+ * '/clients/:id', où ':id' est l'identifiant unique du client à afficher.
+ *
+ * Connexions avec d'autres fichiers:
+ * - Utilise les hooks personnalisés useAppSelector et useAppDispatch depuis '../hooks'
+ * - Importe actions depuis '../store/slices/clientsSlice' et '../store/slices/uiSlice'
+ * - Utilise le hook useTasks depuis '../hooks/useTasks' pour récupérer les tâches liées
+ * - Importe les composants LogoUploader et ClientLogo depuis '../components/Clients/'
+ * - Communique avec l'API backend via axios pour les opérations CRUD sur les clients
+ */
+
+// === Début : Importation des dépendances ===
+// Explication simple : On prend tous les outils dont on a besoin pour faire fonctionner notre page de client, comme quand tu rassembles tes jouets avant de commencer à jouer.
+// Explication technique : Importation des hooks React pour la gestion d'état et du cycle de vie, des composants de routage, des hooks Redux personnalisés, des actions Redux, des services d'API, des composants UI spécifiques et des bibliothèques tierces.
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../hooks';
@@ -11,7 +42,11 @@ import LogoUploader from '../components/Clients/LogoUploader';
 import ClientLogo from '../components/Clients/ClientLogo';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com';
+// === Fin : Importation des dépendances ===
 
+// === Début : Définition des interfaces TypeScript ===
+// Explication simple : On explique à l'ordinateur à quoi ressemble une tâche, avec toutes ses caractéristiques, comme quand tu décris à quoi ressemble un animal.
+// Explication technique : Déclaration d'une interface TypeScript qui définit la structure d'objet pour les tâches, avec typage strict des propriétés et gestion des cas où clientId peut être soit une chaîne, soit un objet.
 interface Task {
   _id: string;
   title: string;
@@ -20,8 +55,17 @@ interface Task {
   dueDate?: string;
   clientId?: string | { _id: string; name?: string };
 }
+// === Fin : Définition des interfaces TypeScript ===
 
+// === Début : Composant principal ClientDetail ===
+// Explication simple : C'est le grand chef d'orchestre qui va organiser toute la page de détail du client, comme le chef d'une cuisine qui supervise la préparation d'un repas.
+// Explication technique : Définition du composant fonctionnel React avec typage explicite, qui encapsule toute la logique et l'interface utilisateur de la page de détail client.
 const ClientDetail: React.FC = () => {
+// === Fin : Composant principal ClientDetail ===
+
+  // === Début : Initialisation des hooks et des états ===
+  // Explication simple : On prépare tous les ingrédients et ustensiles dont on aura besoin pour notre recette, comme quand tu sors tout ce qu'il te faut avant de cuisiner.
+  // Explication technique : Configuration des hooks de routage pour l'identifiant et la navigation, initialisation du dispatcher Redux, récupération de l'état client depuis le store, et définition des états locaux pour le mode d'édition, la confirmation de suppression et les données du formulaire.
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
@@ -50,8 +94,11 @@ const ClientDetail: React.FC = () => {
   // États pour gérer le logo
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string>('');
+  // === Fin : Initialisation des hooks et des états ===
 
-  // Charger les données du client
+  // === Début : Chargement des données du client ===
+  // Explication simple : Quand tu ouvres la page, on va chercher automatiquement toutes les informations sur le client, comme quand ton téléphone se connecte tout seul au Wi-Fi quand tu rentres chez toi.
+  // Explication technique : Hook useEffect qui s'exécute au montage du composant et lors des changements d'identifiant pour récupérer les données du client depuis l'API avec gestion des erreurs et mise à jour du state local.
   useEffect(() => {
     const loadClient = async () => {
       if (id) {
@@ -118,14 +165,21 @@ const ClientDetail: React.FC = () => {
 
     loadClient();
   }, [dispatch, id]);
+  // === Fin : Chargement des données du client ===
 
-  // Au chargement du client, initialiser le preview
+  // === Début : Initialisation du logo ===
+  // Explication simple : On prépare l'image du logo du client pour la montrer, comme quand tu prépares une photo dans un cadre.
+  // Explication technique : Hook useEffect qui surveille les changements du client courant pour initialiser l'aperçu du logo avec l'URL du logo existant.
   useEffect(() => {
     if (currentClient && currentClient.logo) {
       setLogoPreview(currentClient.logo);
     }
   }, [currentClient]);
+  // === Fin : Initialisation du logo ===
 
+  // === Début : Fonctions de gestion des formulaires ===
+  // Explication simple : Ces fonctions permettent de changer les informations du client quand tu modifies le formulaire, comme quand tu changes les réponses sur une fiche d'enquête.
+  // Explication technique : Collection de gestionnaires d'événements qui mettent à jour l'état du formulaire en réponse aux interactions utilisateur, avec logique spécifique pour les différents types de champs.
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -207,7 +261,11 @@ const ClientDetail: React.FC = () => {
     setFormData(prev => ({ ...prev, logo }));
     setLogoPreview(logo);
   };
+  // === Fin : Fonctions de gestion des formulaires ===
 
+  // === Début : Fonction de soumission du formulaire ===
+  // Explication simple : Cette fonction envoie toutes les informations modifiées du client au serveur quand tu cliques sur "Enregistrer", comme quand tu poster une lettre dans une boîte aux lettres.
+  // Explication technique : Fonction asynchrone qui gère la soumission du formulaire, dispatche les actions Redux appropriées, effectue la requête PUT pour mettre à jour le client avec gestion des erreurs et des notifications.
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -259,7 +317,11 @@ const ClientDetail: React.FC = () => {
       }));
     }
   };
+  // === Fin : Fonction de soumission du formulaire ===
 
+  // === Début : Fonction de suppression du client ===
+  // Explication simple : Cette fonction supprime complètement le client de la base de données quand tu confirmes vouloir le supprimer, comme quand tu effaces définitivement un dessin.
+  // Explication technique : Fonction asynchrone qui gère la suppression du client, dispatche les actions Redux correspondantes, effectue la requête DELETE à l'API, puis redirige l'utilisateur vers la liste des clients.
   const handleDelete = async () => {
     if (!id) return;
     
@@ -296,7 +358,11 @@ const ClientDetail: React.FC = () => {
       }));
     }
   };
+  // === Fin : Fonction de suppression du client ===
 
+  // === Début : Rendu conditionnel pour les états de chargement et d'erreur ===
+  // Explication simple : Ces parties montrent un message d'attente ou d'erreur si les informations du client ne sont pas encore prêtes ou s'il y a eu un problème, comme quand une application te dit "chargement en cours..." ou "oups, quelque chose s'est mal passé".
+  // Explication technique : Blocs de rendu conditionnel qui retournent des composants UI appropriés selon l'état du chargement, la présence d'erreurs ou l'absence de données client, avec des messages explicites et des options de navigation.
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -336,7 +402,11 @@ const ClientDetail: React.FC = () => {
       </div>
     );
   }
+  // === Fin : Rendu conditionnel pour les états de chargement et d'erreur ===
 
+  // === Début : Rendu principal du composant ===
+  // Explication simple : C'est la partie qui dessine toute la page avec toutes les informations du client, comme quand tu assembles toutes les pièces d'un puzzle pour voir l'image complète.
+  // Explication technique : Retour du JSX principal qui structure l'interface utilisateur complète de la page, avec en-tête, modale de confirmation de suppression, et rendu conditionnel entre mode édition et mode visualisation.
   return (
     <div className="container mx-auto px-4 py-6">
       <motion.div 
@@ -400,7 +470,11 @@ const ClientDetail: React.FC = () => {
             </div>
           </div>
         )}
+  // === Fin : Rendu principal du composant ===
         
+  // === Début : Rendu du formulaire d'édition ===
+  // Explication simple : C'est la partie qui montre tous les champs à remplir quand tu veux modifier les informations du client, comme un questionnaire que tu dois compléter.
+  // Explication technique : Rendu conditionnel du formulaire en mode édition, avec structure complète des champs, validation et soumission, organisé en sections logiques (informations générales, rentabilité, contacts).
         {isEditing ? (
           <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 space-y-6">
             <div className="space-y-4">
@@ -859,4 +933,10 @@ const ClientDetail: React.FC = () => {
   );
 };
 
+// === Fin : Rendu du formulaire d'édition ===
+
+  // === Début : Export du composant ===
+  // Explication simple : On rend notre page disponible pour que l'application puisse l'afficher quand on clique sur un client, comme quand tu mets ton dessin dans un livre pour que d'autres puissent le voir.
+  // Explication technique : Export par défaut du composant pour permettre son importation et son utilisation dans le système de routage de l'application.
 export default ClientDetail;
+  // === Fin : Export du composant ===

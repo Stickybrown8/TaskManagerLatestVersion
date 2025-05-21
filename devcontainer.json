@@ -1,7 +1,26 @@
+// === Ce fichier configure l'environnement de développement virtuel pour le projet === /workspaces/TaskManagerLatestVersion/devcontainer.json
+// Explication simple : Ce fichier est comme une recette pour créer une petite boîte spéciale dans ton ordinateur où le code peut fonctionner exactement de la même manière pour tous les développeurs - un peu comme une mini-cuisine complète avec tous les ustensiles nécessaires déjà installés.
+// Explication technique : Fichier de configuration JSON pour VS Code Dev Containers qui définit les paramètres d'un environnement de développement isolé basé sur Docker.
+// Utilisé dans : Chargé automatiquement par VS Code lorsqu'on ouvre le projet dans un conteneur ou qu'on utilise la commande "Reopen in Container".
+// Connecté à : Indirectement lié au package.json pour les dépendances, au Dockerfile s'il existe, et aux fichiers de configuration du projet qui seront exécutés dans l'environnement conteneurisé.
+
 {
+    // === Début : Configuration de base du conteneur ===
+    // Explication simple : Cette partie dit comment s'appelle notre boîte spéciale et quelle version de cuisine préfabriquée on va utiliser.
+    // Explication technique : Paramètres fondamentaux du conteneur incluant son nom d'affichage dans VS Code et l'image Docker de base à utiliser, ici une image officielle Microsoft avec Node.js 18 préinstallé.
     "name": "RAG Chatbot",
     "image": "mcr.microsoft.com/vscode/devcontainers/javascript-node:18",
+    // === Fin : Configuration de base du conteneur ===
+    
+    // === Début : Configuration réseau ===
+    // Explication simple : Cette ligne dit à l'ordinateur de créer un tunnel magique pour que tu puisses voir ton application dans ton navigateur même si elle tourne dans la boîte spéciale.
+    // Explication technique : Directive qui configure le transfert de port entre le conteneur et la machine hôte, permettant d'accéder à l'application servie sur le port 3000 du conteneur depuis l'hôte.
     "forwardPorts": [3000],
+    // === Fin : Configuration réseau ===
+    
+    // === Début : Commandes d'initialisation ===
+    // Explication simple : Cette ligne dit quelles actions faire automatiquement quand la boîte spéciale est créée - ici, installer tous les ingrédients (bibliothèques) dont le projet a besoin.
+    // Explication technique : Commande shell exécutée après la création du conteneur mais avant que VS Code s'y connecte, utilisée ici pour installer les dépendances Node.js définies dans package.json.
     "postCreateCommand": "npm install"
-  }
-  
+    // === Fin : Commandes d'initialisation ===
+}

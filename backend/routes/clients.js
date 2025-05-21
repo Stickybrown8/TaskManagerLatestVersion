@@ -1,3 +1,31 @@
+/*
+ * ROUTES DE GESTION DES CLIENTS - /workspaces/TaskManagerLatestVersion/backend/routes/clients.js
+ *
+ * Explication simple:
+ * Ce fichier contient toutes les fonctions qui permettent de gérer les clients dans l'application.
+ * Il définit comment créer un nouveau client, voir la liste des clients, modifier leurs informations
+ * ou les supprimer. C'est comme un carnet d'adresses intelligent qui s'occupe de toutes les 
+ * opérations liées aux clients.
+ *
+ * Explication technique:
+ * Module Express.js contenant les routes API RESTful pour la gestion des clients,
+ * incluant des opérations CRUD avec transactions MongoDB et vérification d'authentification.
+ *
+ * Où ce fichier est utilisé:
+ * Appelé par le serveur backend lors des requêtes API relatives aux clients,
+ * utilisé par le frontend pour afficher et manipuler les données des clients.
+ *
+ * Connexions avec d'autres fichiers:
+ * - Utilise les modèles Client, Task et Profitability pour accéder aux données
+ * - Importe le middleware auth.js pour la vérification des tokens
+ * - Utilise mongoLogger pour journaliser les erreurs et événements importants
+ * - Ses routes sont montées dans le fichier principal du serveur (server.js/app.js)
+ * - Appelé par les composants frontend qui gèrent les clients
+ */
+
+// === Début : Importation des dépendances ===
+// Explication simple : On fait venir tous les outils dont on a besoin pour gérer les clients.
+// Explication technique : Importation des modules Express pour le routage, du middleware d'authentification, des modèles Mongoose et des utilitaires pour la journalisation et les transactions.
 const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../middleware/auth');
@@ -5,7 +33,11 @@ const Client = require('../models/Client');
 const mongoose = require('mongoose');
 const mongoLogger = require('../utils/mongoLogger');
 const Profitability = require('../models/Profitability');
+// === Fin : Importation des dépendances ===
 
+// === Début : Route pour récupérer tous les clients ===
+// Explication simple : Cette fonction permet de voir la liste de tous les clients qui appartiennent à l'utilisateur connecté.
+// Explication technique : Endpoint GET qui récupère tous les documents de la collection Client filtrés par l'identifiant de l'utilisateur authentifié, avec gestion des erreurs.
 // Obtenir tous les clients
 router.get('/', verifyToken, async (req, res) => {
   try {
@@ -15,7 +47,11 @@ router.get('/', verifyToken, async (req, res) => {
     res.status(500).json({ message: 'Erreur lors de la récupération des clients', error: error.message });
   }
 });
+// === Fin : Route pour récupérer tous les clients ===
 
+// === Début : Route pour récupérer un client spécifique ===
+// Explication simple : Cette fonction permet de voir les détails d'un seul client quand on connaît son numéro d'identification.
+// Explication technique : Endpoint GET paramétré qui récupère un document Client spécifique par son ID, avec vérification du propriétaire et gestion des cas où le client n'existe pas.
 // Obtenir un client par ID
 router.get('/:id', verifyToken, async (req, res) => {
   try {
@@ -28,7 +64,11 @@ router.get('/:id', verifyToken, async (req, res) => {
     res.status(500).json({ message: 'Erreur lors de la récupération du client', error: error.message });
   }
 });
+// === Fin : Route pour récupérer un client spécifique ===
 
+// === Début : Route pour créer un nouveau client ===
+// Explication simple : Cette fonction permet d'ajouter un nouveau client dans notre liste, avec toutes ses informations et même des données sur combien il nous rapporte.
+// Explication technique : Endpoint POST qui crée un nouveau document Client et optionnellement un document Profitability associé, en utilisant une transaction MongoDB pour garantir l'intégrité des données.
 // Créer un nouveau client - Ajouter la transaction
 router.post('/', verifyToken, async (req, res) => {
   const session = await mongoose.startSession();
@@ -96,7 +136,11 @@ router.post('/', verifyToken, async (req, res) => {
     res.status(500).json({ message: 'Erreur lors de la création du client', error: error.message });
   }
 });
+// === Fin : Route pour créer un nouveau client ===
 
+// === Début : Route pour mettre à jour un client existant ===
+// Explication simple : Cette fonction permet de modifier les informations d'un client qui existe déjà dans notre liste.
+// Explication technique : Endpoint PUT paramétré qui met à jour un document Client existant identifié par son ID, avec vérification du propriétaire et retour du document mis à jour.
 // Mettre à jour un client
 router.put('/:id', verifyToken, async (req, res) => {
   try {
@@ -117,7 +161,11 @@ router.put('/:id', verifyToken, async (req, res) => {
     res.status(500).json({ message: 'Erreur lors de la mise à jour du client', error: error.message });
   }
 });
+// === Fin : Route pour mettre à jour un client existant ===
 
+// === Début : Route pour supprimer un client et ses données associées ===
+// Explication simple : Cette fonction permet d'effacer complètement un client et toutes les tâches qui lui sont liées, comme quand on fait un grand nettoyage.
+// Explication technique : Endpoint DELETE paramétré qui supprime un client, ses tâches et ses données de rentabilité en utilisant une transaction MongoDB, avec vérification post-transaction pour s'assurer de la suppression complète.
 // Supprimer un client et toutes ses tâches associées
 router.delete('/:id', verifyToken, async (req, res) => {
   const session = await mongoose.startSession();
@@ -183,5 +231,10 @@ router.delete('/:id', verifyToken, async (req, res) => {
     });
   }
 });
+// === Fin : Route pour supprimer un client et ses données associées ===
 
+// === Début : Exportation du routeur ===
+// Explication simple : Cette ligne rend toutes nos fonctions disponibles pour que l'application puisse les utiliser.
+// Explication technique : Exportation du routeur Express configuré pour être intégré dans l'application principale via le système de middleware Express.
 module.exports = router;
+// === Fin : Exportation du routeur ===

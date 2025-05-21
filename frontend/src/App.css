@@ -1,18 +1,44 @@
+/* === Ce fichier contrôle l'apparence visuelle de base de l'application === /workspaces/TaskManagerLatestVersion/frontend/src/App.css
+ * Explication simple : Ce fichier est comme un livre de coloriage qui définit les couleurs, les tailles et les animations de l'application - c'est lui qui rend l'application jolie et animée.
+ * Explication technique : Feuille de style CSS standard qui définit les styles de base pour les composants principaux de l'application React.
+ * Utilisé dans : App.js comme feuille de style principale importée, affectant l'apparence visuelle de l'application entière.
+ * Connecté à : App.js via l'instruction import, et potentiellement référencé par d'autres composants qui utilisent ces classes CSS.
+ */
+
+/* === Début : Styles de base de l'application ===
+ * Explication simple : Cette règle centre tout le texte dans l'application, comme quand tu écris au milieu d'une page plutôt que sur le côté.
+ * Explication technique : Sélecteur de classe CSS qui applique un alignement de texte centré à l'élément racine de l'application, affectant potentiellement tous les éléments enfants.
+ */
 .App {
   text-align: center;
 }
+/* === Fin : Styles de base de l'application === */
 
+/* === Début : Styles du logo de l'application ===
+ * Explication simple : Ces règles définissent la taille du logo et font en sorte qu'on ne puisse pas cliquer dessus, comme une image dans un livre qu'on peut voir mais pas toucher.
+ * Explication technique : Sélecteur de classe qui définit la hauteur du logo en unités relatives à la taille de la fenêtre (viewport) et désactive les événements de pointeur.
+ */
 .App-logo {
   height: 40vmin;
   pointer-events: none;
 }
+/* === Fin : Styles du logo de l'application === */
 
+/* === Début : Configuration de l'animation du logo ===
+ * Explication simple : Cette partie fait tourner le logo en rond, mais seulement si tu n'as pas demandé à ton ordinateur de réduire les animations, comme une toupie qui tourne sauf si tu préfères qu'elle reste tranquille.
+ * Explication technique : Règle média conditionnelle qui applique une animation de rotation au logo uniquement si l'utilisateur n'a pas configuré ses préférences système pour réduire les animations.
+ */
 @media (prefers-reduced-motion: no-preference) {
   .App-logo {
     animation: App-logo-spin infinite 20s linear;
   }
 }
+/* === Fin : Configuration de l'animation du logo === */
 
+/* === Début : Styles de l'en-tête de l'application ===
+ * Explication simple : Cette partie définit l'aspect de la grande section en haut de l'application - sa couleur de fond sombre, sa taille qui prend tout l'écran, et comment le texte et les images sont alignés au milieu.
+ * Explication technique : Sélecteur de classe qui configure le conteneur d'en-tête principal avec un arrière-plan sombre, une hauteur minimum de 100% de la fenêtre, et utilise flexbox pour centrer son contenu verticalement et horizontalement.
+ */
 .App-header {
   background-color: #282c34;
   min-height: 100vh;
@@ -23,11 +49,21 @@
   font-size: calc(10px + 2vmin);
   color: white;
 }
+/* === Fin : Styles de l'en-tête de l'application === */
 
+/* === Début : Styles des liens de l'application ===
+ * Explication simple : Cette règle donne aux liens une jolie couleur bleue claire, comme quand tu colories en bleu les mots spéciaux sur lesquels on peut cliquer.
+ * Explication technique : Sélecteur de classe qui définit la couleur des éléments de lien dans l'application avec une teinte de bleu clair caractéristique de React.
+ */
 .App-link {
   color: #61dafb;
 }
+/* === Fin : Styles des liens de l'application === */
 
+/* === Début : Définition de l'animation de rotation ===
+ * Explication simple : Ces lignes expliquent exactement comment le logo doit tourner, du début (position normale) jusqu'à la fin (un tour complet), comme les instructions pour faire une pirouette.
+ * Explication technique : Règle @keyframes qui définit une animation de rotation complète (360 degrés) à utiliser avec la propriété animation, créant un effet de rotation continue.
+ */
 @keyframes App-logo-spin {
   from {
     transform: rotate(0deg);
@@ -36,3 +72,4 @@
     transform: rotate(360deg);
   }
 }
+/* === Fin : Définition de l'animation de rotation === */

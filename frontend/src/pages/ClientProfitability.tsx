@@ -1,12 +1,51 @@
+/*
+ * PAGE D'ANALYSE DE RENTABILITÉ CLIENT - frontend/src/pages/ClientProfitability.tsx
+ *
+ * Explication simple:
+ * Ce fichier crée une page qui te montre si un client te rapporte suffisamment d'argent 
+ * par rapport au temps que tu passes à travailler pour lui. C'est comme une calculatrice 
+ * spéciale qui compare ce que tu gagnes avec ce client et le temps que tu y consacres. 
+ * Tu peux voir des graphiques colorés qui montrent quels jours tu as travaillé le plus,
+ * combien d'argent tu as gagné, et si tu devrais peut-être facturer plus ou travailler moins.
+ *
+ * Explication technique:
+ * Composant React fonctionnel qui implémente une page d'analyse de rentabilité client,
+ * avec calculs dynamiques basés sur le taux horaire, les temps facturables vs non-facturables,
+ * et les objectifs de rentabilité. Il fournit des visualisations temporelles, des métriques 
+ * agrégées et une ventilation détaillée des entrées de temps pour analyse commerciale.
+ *
+ * Où ce fichier est utilisé:
+ * Affiché comme page dédiée dans l'application lorsque l'utilisateur navigue vers 
+ * la route '/clients/:id/profitability' ou une route similaire pour analyser la 
+ * rentabilité d'un client spécifique.
+ *
+ * Connexions avec d'autres fichiers:
+ * - Utilise les hooks personnalisés useAppDispatch depuis '../hooks'
+ * - Importe l'action addNotification depuis '../store/slices/uiSlice'
+ * - Communique avec l'API backend via axios pour récupérer les données de temps et de rentabilité
+ * - Utilise la bibliothèque framer-motion pour les animations d'interface
+ */
+
+// === Début : Importation des dépendances ===
+// Explication simple : On prend tous les outils dont on a besoin pour créer notre page, comme quand tu rassembles tes crayons et ta règle avant de dessiner.
+// Explication technique : Importation des hooks React pour la gestion d'état et du cycle de vie, des composants de routage, des hooks Redux, des actions Redux, et des bibliothèques externes pour les requêtes HTTP et les animations.
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAppDispatch } from '../hooks';
 import { addNotification } from '../store/slices/uiSlice';
 import { motion } from 'framer-motion';
 import axios from 'axios';
+// === Fin : Importation des dépendances ===
 
+// === Début : Configuration de l'API ===
+// Explication simple : On définit l'adresse du serveur où on va chercher les informations, comme quand tu notes l'adresse d'un magasin avant d'y aller.
+// Explication technique : Définition d'une constante pour l'URL de l'API avec une valeur de repli en cas d'absence de variable d'environnement.
 const API_URL = process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com';
+// === Fin : Configuration de l'API ===
 
+// === Début : Définition des interfaces TypeScript ===
+// Explication simple : On explique à l'ordinateur à quoi ressemblent les données qu'on va utiliser, comme quand tu décris à quelqu'un l'apparence d'un objet qu'il n'a jamais vu.
+// Explication technique : Déclaration des interfaces TypeScript qui définissent la structure des objets de données manipulés dans le composant, avec typage strict des propriétés.
 interface TimerEntry {
   _id: string;
   description: string;
@@ -26,11 +65,24 @@ interface ProfitabilityData {
   isProfitable: boolean;
   remainingHours: number;
 }
+// === Fin : Définition des interfaces TypeScript ===
 
+// === Début : Composant principal ClientProfitability ===
+// Explication simple : C'est le grand chef d'orchestre qui va organiser toute la page de rentabilité, comme le chef d'un restaurant qui supervise tous les plats.
+// Explication technique : Définition du composant fonctionnel React avec typage explicite, qui encapsule toute la logique et l'interface utilisateur de la page d'analyse de rentabilité client.
 const ClientProfitability: React.FC = () => {
+// === Fin : Composant principal ClientProfitability ===
+
+  // === Début : Initialisation des hooks et récupération des états ===
+  // Explication simple : On prépare des outils spéciaux pour parler avec le "cerveau" de l'application et pour savoir quel client on est en train d'examiner.
+  // Explication technique : Configuration des hooks React et React Router pour récupérer l'identifiant client depuis l'URL et initialiser le dispatcher Redux pour les actions.
   const { id } = useParams<{ id: string }>();
   const dispatch = useAppDispatch();
+  // === Fin : Initialisation des hooks et récupération des états ===
   
+  // === Début : Définition des états locaux ===
+  // Explication simple : On crée des boîtes pour ranger toutes nos informations importantes, comme quand tu as différentes boîtes pour ranger tes jouets par catégorie.
+  // Explication technique : Initialisation des états locaux via useState pour gérer les données du client, les données de rentabilité, les timers, le chargement, les erreurs et les filtres de dates.
   const [timers, setTimers] = useState<TimerEntry[]>([]);
   const [profitability, setProfitability] = useState<ProfitabilityData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,8 +96,11 @@ const ClientProfitability: React.FC = () => {
   });
   
   const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'custom'>('month');
+  // === Fin : Définition des états locaux ===
 
-  // Déplacez cette fonction hors du useEffect pour pouvoir l'appeler ailleurs
+  // === Début : Fonction de récupération des données ===
+  // Explication simple : Cette fonction va chercher toutes les informations dont on a besoin sur le client et son temps de travail, comme quand tu vas à la bibliothèque chercher des livres sur un sujet précis.
+  // Explication technique : Fonction asynchrone qui effectue plusieurs appels API pour récupérer les données du client, sa configuration de rentabilité et les entrées de temps, avec gestion des erreurs et des états de chargement.
   const fetchData = async () => {
     if (!id) return;
     
@@ -100,13 +155,19 @@ const ClientProfitability: React.FC = () => {
       setLoading(false);
     }
   };
+  // === Fin : Fonction de récupération des données ===
 
-  // Modifiez votre useEffect pour l'utiliser
+  // === Début : Effet de chargement initial des données ===
+  // Explication simple : Cette partie s'assure que les données sont chargées automatiquement quand tu ouvres la page ou changes la période de temps, comme quand la télévision s'allume tout de suite sur ta chaîne préférée.
+  // Explication technique : Hook useEffect qui déclenche la fonction de récupération des données au montage du composant et lors des changements des dépendances clés comme l'ID client ou la période.
   useEffect(() => {
     fetchData();
   }, [id, period, fetchData]);  // Utiliser 'id' qui est extrait via useParams
+  // === Fin : Effet de chargement initial des données ===
 
-  // Calculs de rentabilité
+  // === Début : Fonction de calcul de rentabilité ===
+  // Explication simple : Cette fonction fait tous les calculs pour savoir si le client te rapporte assez d'argent par rapport au temps que tu passes, comme quand tu calcules si ton argent de poche est suffisant pour acheter ce que tu veux.
+  // Explication technique : Fonction qui calcule la rentabilité à partir des données de temps facturé et de la configuration de rentabilité, incluant le pourcentage de rentabilité, la rentabilité positive/négative et les heures restantes pour atteindre l'équilibre.
   const calculateProfitability = () => {
     if (!profitability || !timers.length) return null;
     
@@ -144,8 +205,11 @@ const ClientProfitability: React.FC = () => {
       remainingHours
     };
   };
+  // === Fin : Fonction de calcul de rentabilité ===
   
-  // Calculs de données agrégées
+  // === Début : Calcul des données agrégées ===
+  // Explication simple : Cette partie analyse toutes les entrées de temps pour créer un résumé facile à comprendre, comme quand tu fais un résumé d'un livre pour te souvenir des choses importantes.
+  // Explication technique : Hook useMemo qui calcule et mémorise les métriques agrégées à partir des données de timers, incluant les regroupements par date, les calculs de totaux facturables/non-facturables, et les conversions en heures et pourcentages.
   const aggregatedData = React.useMemo(() => {
     if (!timers.length) return null;
     
@@ -203,8 +267,11 @@ const ClientProfitability: React.FC = () => {
       billablePercentage
     };
   }, [timers, dateRange]);
+  // === Fin : Calcul des données agrégées ===
   
-  // Fonction pour définir la plage de dates en fonction de la période
+  // === Début : Fonction de gestion du changement de période ===
+  // Explication simple : Cette fonction te permet de choisir si tu veux voir les données d'aujourd'hui, de la semaine ou du mois, comme quand tu choisis de regarder les photos d'aujourd'hui ou celles de toutes tes vacances.
+  // Explication technique : Fonction qui met à jour la période sélectionnée et calcule dynamiquement les dates de début et de fin correspondantes pour filtrer les données temporelles.
   const handlePeriodChange = (newPeriod: 'day' | 'week' | 'month' | 'custom') => {
     setPeriod(newPeriod);
     
@@ -236,8 +303,11 @@ const ClientProfitability: React.FC = () => {
       endDate: today.toISOString().split('T')[0]
     });
   };
+  // === Fin : Fonction de gestion du changement de période ===
   
-  // Formater la durée en heures et minutes
+  // === Début : Fonction de formatage de la durée ===
+  // Explication simple : Cette fonction transforme des secondes en un format plus facile à lire, comme quand tu transformes 90 minutes en 1 heure et 30 minutes pour mieux comprendre la durée.
+  // Explication technique : Fonction utilitaire qui convertit une durée en secondes en une chaîne de caractères formatée en heures et minutes, avec gestion des cas particuliers.
   const formatDuration = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
@@ -248,11 +318,17 @@ const ClientProfitability: React.FC = () => {
     
     return `${hours}h${minutes > 0 ? ` ${minutes}min` : ''}`;
   };
+  // === Fin : Fonction de formatage de la durée ===
   
-  // Calculer la rentabilité
+  // === Début : Calcul des résultats de rentabilité ===
+  // Explication simple : On récupère tous les calculs de rentabilité pour les utiliser dans notre page, comme quand tu reçois le résultat d'un examen pour savoir si tu as réussi.
+  // Explication technique : Appel de la fonction de calcul de rentabilité pour obtenir les résultats et les rendre disponibles pour l'affichage dans l'interface.
   const profitabilityResults = calculateProfitability();
+  // === Fin : Calcul des résultats de rentabilité ===
 
-  // Fonction simple pour vérifier manuellement la rentabilité
+  // === Début : Fonction de vérification manuelle de la rentabilité ===
+  // Explication simple : Cette fonction permet de vérifier à nouveau la rentabilité en appuyant sur un bouton, comme quand tu recalcules ton budget pour être sûr de ne pas avoir fait d'erreur.
+  // Explication technique : Fonction asynchrone qui effectue une requête à l'API pour rafraîchir les données de rentabilité, avec gestion des états de chargement, des erreurs et des notifications.
   const verifyProfitability = async () => {
     try {
       setLoading(true);
@@ -295,7 +371,11 @@ const ClientProfitability: React.FC = () => {
       setLoading(false);
     }
   };
+  // === Fin : Fonction de vérification manuelle de la rentabilité ===
 
+  // === Début : Rendu de l'interface utilisateur ===
+  // Explication simple : C'est la partie qui dessine toute la page avec les graphiques, les chiffres et les tableaux, comme quand tu assembles un puzzle pour voir l'image complète.
+  // Explication technique : Retour du JSX qui structure l'interface utilisateur complète de la page, organisée en sections distinctes (filtres, indicateurs, graphique, tableau détaillé) avec gestion conditionnelle des états de chargement, d'erreur et d'absence de données.
   return (
     <div className="container mx-auto px-4 py-6">
       <motion.div
@@ -447,101 +527,21 @@ const ClientProfitability: React.FC = () => {
                 }`}>
                   {profitabilityResults ? Math.round(profitabilityResults.profitabilityPercentage) : 0}%
                 </div>
-                <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  {profitabilityResults && profitabilityResults.isProfitable 
-                    ? 'Client rentable' 
-                    : `Heures restantes: ${profitabilityResults ? Math.round(profitabilityResults.remainingHours * 10) / 10 : 0}h`
-                  }
-                </div>
-              </div>
-            </div>
-            
-            {/* Graphique de temps */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Temps passé par jour</h2>
-              
-              {!aggregatedData || !Object.keys(aggregatedData.entriesByDate).length ? (
-                <div className="bg-gray-100 dark:bg-gray-700 p-6 rounded-lg text-center">
-                  <p className="text-gray-600 dark:text-gray-400">Aucune donnée pour la période sélectionnée</p>
-                </div>
-              ) : (
-                <div className="h-64 relative">
-                  {/* Barres du graphique */}
-                  <div className="absolute top-0 bottom-8 left-12 right-4 flex items-end">
-                    {Object.entries(aggregatedData.entriesByDate).map(([date, data]) => {
-                      const totalHours = data.total / 3600;
-                      const maxHours = Math.max(...Object.values(aggregatedData.entriesByDate).map(d => d.total / 3600), 1);
-                      const height = totalHours > 0 ? (totalHours / maxHours) * 100 : 0;
-                      const billableHeight = (data.billable / data.total) * height || 0;
-                      const nonBillableHeight = (data.nonBillable / data.total) * height || 0;
-                      
-                      return (
-                        <div key={date} className="flex-1 mx-px group relative" title={`${date}: ${formatDuration(data.total)}`}>
-                          <div className="absolute bottom-0 w-full">
-                            {data.billable > 0 && (
-                              <div 
-                                className="bg-blue-500 dark:bg-blue-600 w-full rounded-t"
-                                style={{ height: `${billableHeight}%` }}
-                              ></div>
-                            )}
-                            {data.nonBillable > 0 && (
-                              <div 
-                                className="bg-yellow-500 dark:bg-yellow-600 w-full"
-                                style={{ height: `${nonBillableHeight}%` }}
-                              ></div>
-                            )}
-                          </div>
-                          
-                          {/* Info-bulle au survol */}
-                          <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs rounded p-2 mb-2 min-w-max">
-                            <div className="font-medium">{new Date(date).toLocaleDateString('fr-FR', {day: 'numeric', month: 'short'})}</div>
-                            <div className="flex items-center">
-                              <span className="w-2 h-2 rounded-full bg-blue-500 mr-1"></span>
-                              <span>Facturable: {formatDuration(data.billable)}</span>
-                            </div>
-                            <div className="flex items-center">
-                              <span className="w-2 h-2 rounded-full bg-yellow-500 mr-1"></span>
-                              <span>Non-facturable: {formatDuration(data.nonBillable)}</span>
-                            </div>
-                            <div className="pt-1 border-t border-gray-700 mt-1">
-                              <span className="font-medium">Total: {formatDuration(data.total)}</span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  
-                  {/* Axe X (dates) */}
-                  <div className="absolute bottom-0 left-12 right-4 flex justify-between text-xs text-gray-500 dark:text-gray-400">
-                    {Object.keys(aggregatedData.entriesByDate).length > 10 
-                      ? Object.keys(aggregatedData.entriesByDate).filter((_, i) => i % Math.ceil(Object.keys(aggregatedData.entriesByDate).length / 10) === 0).map(date => (
-                          <div key={date}>
-                            {new Date(date).toLocaleDateString('fr-FR', {day: 'numeric', month: 'short'})}
-                          </div>
-                        ))
-                      : Object.keys(aggregatedData.entriesByDate).map(date => (
-                          <div key={date}>
-                            {new Date(date).toLocaleDateString('fr-FR', {day: 'numeric', month: 'short'})}
-                          </div>
-                        ))
-                    }
-                  </div>
                   
                   {/* Axe Y (heures) */}
                   <div className="absolute top-0 bottom-8 left-0 w-10 flex flex-col justify-between text-xs text-gray-500 dark:text-gray-400">
                     {(() => {
-                      const maxHours = Math.max(...Object.values(aggregatedData.entriesByDate).map(d => d.total / 3600), 1);
+                      const maxHours = aggregatedData
+                        ? Math.max(...Object.values(aggregatedData.entriesByDate).map(d => d.total / 3600), 1)
+                        : 1;
                       const step = Math.ceil(maxHours / 5);
-                      
+
                       return Array.from({ length: 6 }, (_, i) => i * step).map(hours => (
                         <div key={hours} className="text-right pr-2">{hours}h</div>
                       )).reverse();
                     })()}
                   </div>
                 </div>
-              )}
-              
               <div className="flex justify-center mt-8 space-x-4">
                 <div className="flex items-center">
                   <span className="w-3 h-3 rounded-full bg-blue-500 mr-1"></span>

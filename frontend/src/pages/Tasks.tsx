@@ -1,3 +1,9 @@
+// === Ce fichier crée la page qui affiche la liste des tâches avec des filtres et options de recherche === /workspaces/TaskManagerLatestVersion/frontend/src/pages/Tasks.tsx
+// Explication simple : C'est comme un grand tableau où tu peux voir toutes tes tâches, les trier, les filtrer et cliquer dessus pour voir plus de détails ou les marquer comme terminées.
+// Explication technique : Composant React fonctionnel qui affiche une liste paginée des tâches avec fonctionnalités de filtrage, recherche, tri et actions rapides sur les tâches.
+// Utilisé dans : Le routeur principal de l'application, affiché comme page principale des tâches à la route /tasks
+// Connecté à : Store Redux (tasksSlice, clientsSlice, uiSlice), custom hook useTasks, service API (tasksService), Framer Motion pour les animations
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../hooks';
@@ -7,6 +13,9 @@ import { motion } from 'framer-motion';
 import { useTasks } from '../hooks/useTasks';
 import { tasksService } from '../services/api'; // Ajoutez cette ligne
 
+// === Début : Définition des interfaces TypeScript ===
+// Explication simple : On explique à l'ordinateur à quoi ressemblent les informations qu'on va utiliser, comme un client ou une tâche.
+// Explication technique : Interfaces TypeScript qui définissent la structure des données manipulées par le composant, assurant la sécurité des types.
 // Interfaces pour typer les données
 interface Client {
   _id: string;
@@ -24,8 +33,15 @@ interface Task {
   category: string;
   actionPoints: number;
 }
+// === Fin : Définition des interfaces TypeScript ===
 
+// === Début : Composant principal Tasks ===
+// Explication simple : C'est comme une grande boîte qui contient toute la page des tâches avec ses boutons et sa liste.
+// Explication technique : Composant fonctionnel React qui constitue la page principale de gestion des tâches, orchestrant l'affichage et les interactions.
 const Tasks: React.FC = () => {
+  // === Début : Configuration des hooks React et Redux ===
+  // Explication simple : On prépare les outils dont on a besoin pour faire fonctionner la page et communiquer avec le reste de l'application.
+  // Explication technique : Initialisation des hooks Redux pour le dispatch d'actions et la récupération d'état, hook de navigation React Router, et hook personnalisé pour gérer les tâches.
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const { tasks, loading, error, refreshTasks } = useTasks(); // Utiliser le hook personnalisé au lieu de useState + useEffect + fetch
@@ -33,12 +49,20 @@ const Tasks: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const tasksState = useAppSelector(state => state.tasks || {});
   const { filteredTasks = [] as Task[], filters = {} } = tasksState;
+  // === Fin : Configuration des hooks React et Redux ===
 
+  // === Début : Gestion du rafraîchissement des tâches ===
+  // Explication simple : Cette fonction permet de mettre à jour la liste des tâches quand on en crée une nouvelle.
+  // Explication technique : Handler qui déclenche le rechargement des tâches depuis l'API via le hook personnalisé useTasks après une création réussie.
   // Fonction pour après la création d'une tâche
   const handleTaskCreated = () => {
     refreshTasks(); // Rechargement automatique des tâches
   };
+  // === Fin : Gestion du rafraîchissement des tâches ===
 
+  // === Début : Gestion des filtres de tâches ===
+  // Explication simple : Cette fonction change les filtres quand tu choisis un statut, une priorité ou un client dans les menus déroulants.
+  // Explication technique : Handler qui met à jour les filtres dans le store Redux quand l'utilisateur sélectionne des options de filtrage, avec gestion des valeurs par défaut.
   // Appliquer les filtres
   const handleFilterChange = (filterName: string, value: string) => {
     dispatch(setTaskFilters({
@@ -46,7 +70,11 @@ const Tasks: React.FC = () => {
       [filterName]: value === 'tous' ? undefined : value
     }));
   };
+  // === Fin : Gestion des filtres de tâches ===
 
+  // === Début : Filtrage des tâches pour l'affichage ===
+  // Explication simple : Cette partie trie les tâches pour n'afficher que celles qui correspondent à ta recherche ou tes filtres.
+  // Explication technique : Logique de filtrage combinant la recherche textuelle et les filtres sélectionnés pour produire la liste finale des tâches à afficher.
   // Filtrer les tâches en fonction de la recherche
   const displayedTasks: Task[] = searchTerm
     ? filteredTasks.filter((task: Task) =>
@@ -60,25 +88,41 @@ const Tasks: React.FC = () => {
       }
       return true;
     });
+  // === Fin : Filtrage des tâches pour l'affichage ===
 
+  // === Début : Navigation vers les détails d'une tâche ===
+  // Explication simple : Cette fonction t'emmène sur la page détaillée d'une tâche quand tu cliques dessus.
+  // Explication technique : Fonction de navigation qui gère le clic sur une tâche et redirige vers sa page de détail, avec gestion des formats d'ID différents.
   // Naviguer vers la page de détail de la tâche
   const handleTaskClick = (taskId: string | any) => {
     const id = typeof taskId === 'object' ? taskId._id : taskId;
     navigate(`/tasks/${id}`);
   };
+  // === Fin : Navigation vers les détails d'une tâche ===
 
+  // === Début : Navigation vers la création d'une tâche ===
+  // Explication simple : Cette fonction t'emmène sur la page pour créer une nouvelle tâche quand tu cliques sur le bouton "Nouvelle tâche".
+  // Explication technique : Handler qui gère la redirection vers la page de création de tâche via le hook useNavigate de React Router.
   // Naviguer vers la page de création de tâche
   const handleCreateTask = () => {
     navigate('/tasks/new');
   };
+  // === Fin : Navigation vers la création d'une tâche ===
 
+  // === Début : Fonction utilitaire pour récupérer le nom du client ===
+  // Explication simple : Cette fonction trouve le nom du client associé à une tâche pour l'afficher.
+  // Explication technique : Fonction utilitaire qui extrait le nom du client à partir d'un ID ou d'un objet client, avec gestion défensive des cas particuliers.
   // Obtenir le nom du client à partir de son ID
   const getClientName = (clientId: string | { _id: string; name: string }) => {
     if (typeof clientId === 'object' && clientId !== null) return clientId.name;
     const client = clients.find(c => c._id === clientId);
     return client ? client.name : 'Client inconnu';
   };
+  // === Fin : Fonction utilitaire pour récupérer le nom du client ===
 
+  // === Début : Fonction de formatage des dates ===
+  // Explication simple : Cette fonction transforme les dates en textes faciles à comprendre comme "Aujourd'hui" ou "Demain".
+  // Explication technique : Fonction utilitaire qui convertit une date au format ISO en représentation textuelle relative, facilitant la lecture pour l'utilisateur.
   // Formater la date d'échéance
   const formatDueDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -95,7 +139,11 @@ const Tasks: React.FC = () => {
       return date.toLocaleDateString();
     }
   };
+  // === Fin : Fonction de formatage des dates ===
 
+  // === Début : Fonction pour les couleurs de priorité ===
+  // Explication simple : Cette fonction choisit la bonne couleur pour chaque niveau de priorité (rouge pour urgent, vert pour basse priorité, etc.).
+  // Explication technique : Fonction utilitaire qui retourne les classes CSS Tailwind appropriées en fonction du niveau de priorité, assurant la cohérence visuelle.
   // Obtenir la couleur en fonction de la priorité
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -111,7 +159,11 @@ const Tasks: React.FC = () => {
         return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
     }
   };
+  // === Fin : Fonction pour les couleurs de priorité ===
 
+  // === Début : Fonction pour les couleurs de statut ===
+  // Explication simple : Cette fonction choisit la bonne couleur pour chaque statut de tâche (gris pour "à faire", bleu pour "en cours", vert pour "terminée").
+  // Explication technique : Fonction utilitaire qui mappe les statuts de tâche aux classes CSS Tailwind correspondantes pour l'affichage visuel des badges de statut.
   // Obtenir la couleur en fonction du statut
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -125,7 +177,11 @@ const Tasks: React.FC = () => {
         return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
     }
   };
+  // === Fin : Fonction pour les couleurs de statut ===
 
+  // === Début : Fonction pour les icônes de catégorie ===
+  // Explication simple : Cette fonction choisit la bonne petite image pour chaque type de tâche (une enveloppe pour les emails, un graphique pour les rapports, etc.).
+  // Explication technique : Fonction qui retourne le composant SVG approprié en fonction de la catégorie de tâche, fournissant des repères visuels pour identifier rapidement les types de tâches.
   // Obtenir l'icône en fonction de la catégorie
   const getCategoryIcon = (category: string) => {
     switch (category) {
@@ -179,7 +235,11 @@ const Tasks: React.FC = () => {
         );
     }
   };
+  // === Fin : Fonction pour les icônes de catégorie ===
 
+  // === Début : Rendu principal de l'interface utilisateur ===
+  // Explication simple : C'est la partie qui dessine toute la page avec la barre de recherche, les filtres et la liste des tâches.
+  // Explication technique : Rendu JSX principal du composant, incluant l'en-tête, les filtres, la gestion des états (chargement/erreur/vide) et la liste des tâches avec animations Framer Motion.
   return (
     <div className="container mx-auto">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
@@ -372,6 +432,8 @@ const Tasks: React.FC = () => {
       )}
     </div>
   );
+  // === Fin : Rendu principal de l'interface utilisateur ===
 };
+// === Fin : Composant principal Tasks ===
 
 export default Tasks;

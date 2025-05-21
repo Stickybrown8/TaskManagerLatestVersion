@@ -1,6 +1,15 @@
+// === Ce fichier permet de créer rapidement un compte administrateur dans l'application === /workspaces/TaskManagerLatestVersion/frontend/src/AdminSetup.js
+// Explication simple : Ce fichier crée une page spéciale avec un gros bouton qui, quand tu cliques dessus, fabrique automatiquement un compte "super utilisateur" pour contrôler toute l'application.
+// Explication technique : Composant React fonctionnel qui offre une interface d'administration pour créer un compte utilisateur avec des privilèges d'administrateur via l'API d'authentification.
+// Utilisé dans : Route spéciale d'administration, généralement protégée ou accessible uniquement pendant le développement ou l'installation initiale de l'application.
+// Connecté à : API d'authentification (/auth/register) via Axios, potentiellement importé dans App.js ou dans le routeur principal pour être accessible via une route spécifique.
+
 import React, { useState } from 'react';
 import axios from 'axios';
 
+// === Début : Définition du composant AdminSetup ===
+// Explication simple : Cette partie crée une page spéciale avec un bouton pour ajouter un chef à l'application, comme quand tu nommes un capitaine pour ton équipe de jeu.
+// Explication technique : Composant React fonctionnel qui encapsule la logique et l'interface utilisateur pour la création d'un compte administrateur, utilisant les hooks d'état pour gérer le chargement, les résultats et les erreurs.
 const AdminSetup = () => {
   const [result, setResult] = useState('');
   const [loading, setLoading] = useState(false);
@@ -8,6 +17,9 @@ const AdminSetup = () => {
 
   const API_URL = 'https://task-manager-api-yx13.onrender.com';
 
+  // === Début : Fonction de création d'utilisateur admin ===
+  // Explication simple : Cette fonction est comme une machine automatique qui fabrique un compte spécial quand tu appuies sur le bouton, puis te dit si ça a marché ou s'il y a eu un problème.
+  // Explication technique : Fonction asynchrone qui effectue une requête POST vers l'API d'authentification pour créer un utilisateur avec le rôle 'admin', gérant les états de chargement, de succès et d'erreur via les setters du useState.
   const createUser = async ()  => {
     setLoading(true);
     setError('');
@@ -38,7 +50,11 @@ const AdminSetup = () => {
       setLoading(false);
     }
   };
+  // === Fin : Fonction de création d'utilisateur admin ===
 
+  // === Début : Rendu de l'interface utilisateur ===
+  // Explication simple : Cette partie dessine la page que tu vois à l'écran, avec le titre, le bouton pour créer un utilisateur, et les endroits où s'affichent les messages d'erreur ou de succès.
+  // Explication technique : Fonction de rendu JSX qui structure l'interface utilisateur avec un conteneur stylisé, un bouton d'action principal, des zones conditionnelles pour l'affichage des erreurs et des résultats, et un bloc d'informations sur les identifiants créés.
   return (
     <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
       <h1>Configuration Admin</h1>
@@ -80,6 +96,8 @@ const AdminSetup = () => {
       </div>
     </div>
   );
+  // === Fin : Rendu de l'interface utilisateur ===
 };
+// === Fin : Définition du composant AdminSetup ===
 
 export default AdminSetup;

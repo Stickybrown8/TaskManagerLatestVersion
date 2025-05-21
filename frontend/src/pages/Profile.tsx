@@ -1,3 +1,9 @@
+// === Ce fichier crée la page profil où l'utilisateur peut voir et modifier ses informations personnelles === /workspaces/TaskManagerLatestVersion/frontend/src/pages/Profile.tsx
+// Explication simple : C'est comme ta carte d'identité dans l'application où tu peux voir ton nom, ton email, changer tes préférences comme le mode sombre ou les sons, et gérer les options de sécurité.
+// Explication technique : Composant React fonctionnel qui permet à l'utilisateur de consulter et modifier son profil, avec gestion d'état local et global via Redux, et communication avec l'API backend pour persister les modifications.
+// Utilisé dans : Le routeur principal de l'application, accessible via la navigation utilisateur (probablement un menu ou une icône de profil)
+// Connecté à : Store Redux (authSlice et uiSlice), API utilisateur via axios, localStorage pour stockage du token
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAppSelector, useAppDispatch } from '../hooks';
 import { updateUserProfile } from '../store/slices/authSlice';
@@ -5,9 +11,19 @@ import { addNotification } from '../store/slices/uiSlice';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 
+// === Début : Configuration de l'URL de l'API ===
+// Explication simple : On définit l'adresse du serveur avec lequel notre application va communiquer.
+// Explication technique : Constante qui stocke l'URL de base de l'API, définie soit depuis les variables d'environnement, soit avec une valeur par défaut pour le développement.
 const API_URL = process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com';
+// === Fin : Configuration de l'URL de l'API ===
 
+// === Début : Composant principal Profile ===
+// Explication simple : C'est toute la page du profil avec ses formulaires et ses onglets.
+// Explication technique : Composant React fonctionnel qui gère l'affichage et la logique de la page de profil utilisateur, incluant plusieurs onglets et formulaires.
 const Profile: React.FC = () => {
+  // === Début : Configuration du Redux et accès aux données utilisateur ===
+  // Explication simple : On se connecte à la mémoire centrale de l'application pour récupérer les informations de l'utilisateur.
+  // Explication technique : Initialisation du dispatcher Redux et extraction des données utilisateur depuis le store avec gestion défensive des propriétés potentiellement undefined.
   const dispatch = useAppDispatch();
   
   // Accès sécurisé à l'état Redux
@@ -16,7 +32,11 @@ const Profile: React.FC = () => {
   
   // État local pour le loading
   const [loading, setLoading] = useState(false);
+  // === Fin : Configuration du Redux et accès aux données utilisateur ===
   
+  // === Début : Définition des valeurs par défaut du profil ===
+  // Explication simple : On prépare un modèle vide qui servira si certaines informations du profil sont manquantes.
+  // Explication technique : Utilisation de useMemo pour créer un objet de profil par défaut qui ne sera recalculé que si nécessaire, optimisant ainsi les performances.
   // Valeurs par défaut pour le profil utilisateur
   const defaultProfile = useMemo(() => ({
     name: '',
@@ -27,7 +47,11 @@ const Profile: React.FC = () => {
     streakDays: 0,
     badges: [],
   }), []); // Utiliser useMemo pour éviter les re-renders inutiles
+  // === Fin : Définition des valeurs par défaut du profil ===
   
+  // === Début : Initialisation du formulaire avec les données utilisateur ===
+  // Explication simple : On prépare le formulaire avec les informations actuelles de l'utilisateur, ou des valeurs vides si on n'a pas encore ces informations.
+  // Explication technique : État React qui contient les données du formulaire, initialisé avec les valeurs de l'utilisateur ou des valeurs par défaut, avec une structure imbriquée pour gérer le profil et ses paramètres.
   // Initialiser formData avec des valeurs par défaut complètes
   const [formData, setFormData] = useState({
     name: user?.name || '',
@@ -44,7 +68,11 @@ const Profile: React.FC = () => {
       }
     }
   });
+  // === Fin : Initialisation du formulaire avec les données utilisateur ===
 
+  // === Début : Mise à jour du formulaire quand les données utilisateur changent ===
+  // Explication simple : Si les informations de l'utilisateur changent ailleurs dans l'application, on met à jour notre formulaire pour rester synchronisé.
+  // Explication technique : Hook useEffect qui surveille les changements dans l'objet user et met à jour le formData en conséquence, garantissant la cohérence des données affichées.
   // Mettre à jour formData lorsque user change
   useEffect(() => {
     if (user) {
@@ -64,9 +92,17 @@ const Profile: React.FC = () => {
       });
     }
   }, [user, defaultProfile]);
+  // === Fin : Mise à jour du formulaire quand les données utilisateur changent ===
 
+  // === Début : Gestion des onglets de l'interface ===
+  // Explication simple : On garde en mémoire quel onglet est actuellement ouvert (Informations, Préférences ou Sécurité).
+  // Explication technique : État React qui maintient l'onglet actif, permettant un affichage conditionnel des différentes sections de l'interface.
   const [activeTab, setActiveTab] = useState('info');
+  // === Fin : Gestion des onglets de l'interface ===
   
+  // === Début : Gestion des changements dans le formulaire ===
+  // Explication simple : Cette fonction s'occupe de mettre à jour les informations quand tu modifies quelque chose dans le formulaire.
+  // Explication technique : Fonction qui gère les événements onChange des champs de formulaire, mettant à jour le state formData avec les nouvelles valeurs.
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -84,7 +120,11 @@ const Profile: React.FC = () => {
       }
     }));
   };
+  // === Fin : Gestion des changements dans le formulaire ===
   
+  // === Début : Soumission du formulaire et sauvegarde des changements ===
+  // Explication simple : Cette fonction envoie tes modifications au serveur pour les sauvegarder quand tu cliques sur le bouton "Enregistrer".
+  // Explication technique : Fonction asynchrone qui gère la soumission du formulaire, incluant la gestion des états de chargement, la communication avec l'API via axios, et les notifications de succès ou d'erreur.
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -151,7 +191,11 @@ const Profile: React.FC = () => {
       setLoading(false);
     }
   };
+  // === Fin : Soumission du formulaire et sauvegarde des changements ===
   
+  // === Début : Rendu conditionnel pendant le chargement ===
+  // Explication simple : Si on n'a pas encore les informations de l'utilisateur, on montre une animation de chargement en attendant.
+  // Explication technique : Condition de rendu qui affiche un indicateur de chargement lorsque les données utilisateur ne sont pas encore disponibles.
   if (!user) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -159,7 +203,11 @@ const Profile: React.FC = () => {
       </div>
     );
   }
+  // === Fin : Rendu conditionnel pendant le chargement ===
   
+  // === Début : Rendu principal de l'interface utilisateur ===
+  // Explication simple : C'est la partie qui dessine toute la page avec les onglets, les formulaires et les boutons.
+  // Explication technique : Rendu JSX principal du composant, comprenant l'animation d'entrée via Framer Motion, les onglets de navigation, et le contenu conditionnel basé sur l'onglet actif.
   return (
     <div className="container mx-auto">
       <motion.div 
@@ -201,6 +249,7 @@ const Profile: React.FC = () => {
           </div>
           
           <div className="p-6">
+            {/* Onglet Informations */}
             {activeTab === 'info' && (
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="flex items-center mb-6">
@@ -271,6 +320,7 @@ const Profile: React.FC = () => {
               </form>
             )}
             
+            {/* Onglet Préférences */}
             {activeTab === 'settings' && (
               <div className="space-y-6">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white">Préférences d'affichage</h3>
@@ -369,6 +419,7 @@ const Profile: React.FC = () => {
               </div>
             )}
             
+            {/* Onglet Sécurité */}
             {activeTab === 'security' && (
               <div className="space-y-6">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white">Sécurité du compte</h3>
@@ -391,6 +442,8 @@ const Profile: React.FC = () => {
       </motion.div>
     </div>
   );
+  // === Fin : Rendu principal de l'interface utilisateur ===
 };
+// === Fin : Composant principal Profile ===
 
 export default Profile;

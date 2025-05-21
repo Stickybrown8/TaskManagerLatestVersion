@@ -1,20 +1,65 @@
+/*
+ * COMPOSANT D'UPLOAD DE LOGO CLIENT - frontend/src/components/Clients/LogoUploader.tsx
+ *
+ * Explication simple:
+ * Ce composant permet d'ajouter ou de changer le logo d'un client. Il affiche soit
+ * le logo actuel, soit une zone où déposer une nouvelle image. Quand on choisit une image,
+ * il la réduit automatiquement pour qu'elle ne soit pas trop grande, puis l'affiche en
+ * aperçu et la transmet au reste de l'application. C'est comme un petit outil photo spécial
+ * pour les logos de clients.
+ *
+ * Explication technique:
+ * Composant React fonctionnel TypeScript qui gère l'upload d'images pour les logos de clients,
+ * avec prévisualisation, validation de format/taille, compression d'images via le service
+ * imageService, et transmission des données en base64 vers le composant parent.
+ *
+ * Où ce fichier est utilisé:
+ * Intégré dans les formulaires de création et d'édition de clients, permettant aux utilisateurs
+ * de télécharger et de gérer les logos des entreprises clientes.
+ *
+ * Connexions avec d'autres fichiers:
+ * - Importe la fonction compressImage depuis services/imageService.ts
+ * - Généralement utilisé dans ClientForm.tsx ou EditClientPage.tsx
+ * - Transmet les données d'image au composant parent qui gère l'envoi à l'API
+ */
+
+// === Début : Importation des dépendances ===
+// Explication simple : On fait venir les outils dont on a besoin : React pour créer notre composant et une fonction spéciale qui rend les images plus petites.
+// Explication technique : Importation de React avec le hook useState pour la gestion d'état local, et du service de compression d'image qui convertit et optimise les images.
 import React, { useState } from 'react';
 import { compressImage } from '../../services/imageService';
+// === Fin : Importation des dépendances ===
 
+// === Début : Définition de l'interface des propriétés ===
+// Explication simple : On définit quelles informations notre outil d'upload de logo a besoin pour fonctionner, comme une liste d'ingrédients avant de commencer une recette.
+// Explication technique : Interface TypeScript déclarant les props du composant : le logo actuel (optionnel), une fonction callback pour transmettre le nouveau logo, et des classes CSS optionnelles.
 interface LogoUploaderProps {
   currentLogo?: string;
   onLogoChange: (logo: string, file?: File) => void;
   className?: string;
 }
+// === Fin : Définition de l'interface des propriétés ===
 
+// === Début : Déclaration du composant fonction ===
+// Explication simple : On crée notre composant principal qui va gérer l'upload des logos, en précisant quelles informations il reçoit de l'extérieur.
+// Explication technique : Définition du composant fonctionnel React avec typage TypeScript, déstructuration des props et valeur par défaut pour la classe CSS.
 const LogoUploader: React.FC<LogoUploaderProps> = ({ 
   currentLogo,
   onLogoChange,
   className = ''
 }) => {
+// === Fin : Déclaration du composant fonction ===
+
+  // === Début : États locaux du composant ===
+  // Explication simple : On crée deux petites boîtes pour stocker des informations importantes : une pour l'image qu'on montre à l'écran, et une autre qui dit si on est en train de charger une image.
+  // Explication technique : Définition de deux états avec le hook useState - l'URL de prévisualisation initialisée avec le logo actuel ou une chaîne vide, et un booléen pour suivre l'état de chargement.
   const [previewUrl, setPreviewUrl] = useState<string>(currentLogo || '');
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  // === Fin : États locaux du composant ===
   
+  // === Début : Fonction de gestion du changement de fichier ===
+  // Explication simple : Cette fonction s'occupe de ce qui se passe quand quelqu'un choisit une nouvelle image : elle vérifie que l'image n'est pas trop grande, la compresse pour qu'elle prenne moins de place, et la montre à l'écran.
+  // Explication technique : Gestionnaire d'événement asynchrone qui traite le changement de fichier, avec validation de taille et de format, lecture du fichier en base64, compression de l'image et mise à jour de l'état et du parent via callback.
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -57,12 +102,20 @@ const LogoUploader: React.FC<LogoUploaderProps> = ({
       reader.readAsDataURL(file);
     }
   };
+  // === Fin : Fonction de gestion du changement de fichier ===
   
+  // === Début : Fonction de suppression du logo ===
+  // Explication simple : Cette fonction permet d'effacer complètement le logo, comme quand tu utilises une gomme pour effacer un dessin.
+  // Explication technique : Gestionnaire d'événement qui réinitialise l'URL de prévisualisation à une chaîne vide et notifie le composant parent de la suppression via le callback.
   const handleRemoveLogo = () => {
     setPreviewUrl('');
     onLogoChange('');
   };
+  // === Fin : Fonction de suppression du logo ===
 
+  // === Début : Rendu du composant ===
+  // Explication simple : C'est ici qu'on crée ce qu'on va voir à l'écran : soit le logo actuel avec un bouton pour le supprimer, soit une zone pour ajouter un nouveau logo.
+  // Explication technique : JSX du composant avec rendu conditionnel basé sur l'existence d'une prévisualisation, interface d'upload avec input file masqué, bouton stylisé, indicateur de chargement et instructions utilisateur.
   return (
     <div className={`${className}`}>
       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -136,6 +189,11 @@ const LogoUploader: React.FC<LogoUploaderProps> = ({
       </div>
     </div>
   );
+  // === Fin : Rendu du composant ===
 };
 
+// === Début : Export du composant ===
+// Explication simple : On rend notre composant disponible pour que d'autres parties de l'application puissent l'utiliser.
+// Explication technique : Export par défaut du composant pour permettre son importation dans d'autres modules.
 export default LogoUploader;
+// === Fin : Export du composant ===

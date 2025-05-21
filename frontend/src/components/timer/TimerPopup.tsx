@@ -1,3 +1,34 @@
+/*
+ * POPUP DE CHRONOMÈTRE - frontend/src/components/timer/TimerPopup.tsx
+ *
+ * Explication simple:
+ * Ce fichier crée une petite fenêtre flottante qui te permet de mesurer le temps que tu passes 
+ * sur différentes tâches ou pour différents clients. C'est comme un chronomètre que tu peux 
+ * démarrer, mettre en pause, reprendre et arrêter. Tu peux aussi choisir où positionner cette 
+ * fenêtre sur ton écran et changer sa taille. Quand tu chronométres ton temps, ça aide à 
+ * savoir combien d'heures tu travailles pour chaque client et si ce travail est rentable.
+ *
+ * Explication technique:
+ * Composant React fonctionnel qui implémente un widget de suivi de temps, permettant aux 
+ * utilisateurs de chronométrer leurs activités associées à des clients ou des tâches. 
+ * Il gère le cycle complet d'un timer (démarrage, pause, reprise, arrêt) et communique 
+ * avec l'API backend pour persister les données de temps.
+ *
+ * Où ce fichier est utilisé:
+ * Intégré dans le layout principal de l'application, rendant le widget de chronométrage 
+ * accessible globalement depuis n'importe quelle page via un bouton flottant et une fenêtre 
+ * popup redimensionnable et repositionnable.
+ *
+ * Connexions avec d'autres fichiers:
+ * - Interagit avec le store Redux via les hooks personnalisés et les actions du timerSlice
+ * - Communique avec l'API backend via axios pour la gestion des timers et la rentabilité
+ * - Importe les composants TaskForm et ClientDashboard pour les références aux pages
+ * - Utilise Framer Motion pour les animations de la fenêtre popup
+ */
+
+// === Début : Importation des dépendances ===
+// Explication simple : On prend tous les outils dont on a besoin pour construire notre chronomètre, comme quand tu rassembles tes jouets avant de commencer à jouer.
+// Explication technique : Importation des bibliothèques React core, des hooks Redux personnalisés, des actions du slice timer, des composants externes, et des utilitaires HTTP et d'animation.
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAppDispatch, useAppSelector } from '../../hooks';
 import {
@@ -18,12 +49,29 @@ import ClientDashboard from '../../pages/ClientDashboard';
 import { addNotification } from '../../store/slices/uiSlice';
 import { motion } from 'framer-motion';
 import axios from 'axios';
+// === Fin : Importation des dépendances ===
 
+// === Début : Configuration de l'URL API ===
+// Explication simple : On définit l'adresse où notre application va chercher et envoyer les informations sur internet, comme l'adresse de ta maison pour recevoir le courrier.
+// Explication technique : Déclaration de la constante d'URL de l'API en utilisant une variable d'environnement avec une valeur de fallback pour assurer la connexion au backend.
 const API_URL = process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com';
+// === Fin : Configuration de l'URL API ===
 
+// === Début : Définition du composant TimerPopup ===
+// Explication simple : On commence à créer notre fenêtre de chronomètre qui va nous permettre de mesurer le temps passé sur les tâches.
+// Explication technique : Déclaration du composant fonctionnel React avec typage explicite, qui encapsule toute la logique du widget de chronométrage.
 const TimerPopup: React.FC = () => {
+// === Fin : Définition du composant TimerPopup ===
+
+  // === Début : Initialisation du dispatcher Redux ===
+  // Explication simple : On prépare un messager qui va envoyer des informations au "cerveau" de l'application quand on fait quelque chose.
+  // Explication technique : Configuration du dispatcher Redux pour permettre l'émission d'actions vers le store global de l'application.
   const dispatch = useAppDispatch();
+  // === Fin : Initialisation du dispatcher Redux ===
   
+  // === Début : Extraction des données du store Redux ===
+  // Explication simple : On va chercher dans la mémoire de l'application les informations dont on a besoin sur le chronomètre, avec des valeurs par défaut au cas où.
+  // Explication technique : Utilisation du hook useAppSelector pour extraire les données du timer depuis le store Redux avec gestion défensive par destructuration et valeurs par défaut.
   // Accès sécurisé à l'état Redux avec des valeurs par défaut
   const timerState = useAppSelector(state => state.timer || {});
   const {
@@ -32,7 +80,11 @@ const TimerPopup: React.FC = () => {
     timerPopupSize = 'medium',
     timerPopupPosition = 'bottom-right'
   } = timerState;
+  // === Fin : Extraction des données du store Redux ===
   
+  // === Début : Définition des états locaux ===
+  // Explication simple : On crée des petites boîtes pour stocker et changer toutes les informations dont notre chronomètre a besoin, comme des tiroirs où ranger différentes choses.
+  // Explication technique : Initialisation de multiples états locaux avec useState pour gérer les différentes données du timer, les sélections utilisateur et l'état d'affichage.
   // États locaux
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [selectedTaskId, setSelectedTaskId] = useState<string>('');
@@ -46,7 +98,11 @@ const TimerPopup: React.FC = () => {
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [profitability, setProfitability] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  // === Fin : Définition des états locaux ===
 
+  // === Début : Effet pour charger les clients et les tâches ===
+  // Explication simple : Quand la fenêtre s'ouvre, on va automatiquement chercher la liste de tous les clients et toutes les tâches sur internet, comme si tu allais à la bibliothèque chercher des livres.
+  // Explication technique : Hook useEffect qui déclenche une requête API pour récupérer les données clients et tâches lorsque le popup est affiché, avec gestion des erreurs et états de chargement.
   // Charger les clients et les tâches
   useEffect(() => {
     const fetchClientsAndTasks = async () => {
@@ -94,7 +150,11 @@ const TimerPopup: React.FC = () => {
       fetchClientsAndTasks();
     }
   }, [dispatch, showTimerPopup]);
+  // === Fin : Effet pour charger les clients et les tâches ===
 
+  // === Début : Effet pour charger le timer en cours ===
+  // Explication simple : On vérifie s'il y a déjà un chronomètre qui tourne, comme quand tu reviens dans ta chambre et que tu vois si ton jeu est encore en marche.
+  // Explication technique : Hook useEffect qui effectue une requête API pour récupérer un timer actif lorsque le popup est affiché, et qui initialise les états locaux avec les données de ce timer.
   // Charger le timer en cours s'il existe
   useEffect(() => {
     const fetchRunningTimer = async () => {
@@ -145,7 +205,11 @@ const TimerPopup: React.FC = () => {
       fetchRunningTimer();
     }
   }, [showTimerPopup]);
+  // === Fin : Effet pour charger le timer en cours ===
 
+  // === Début : Fonction pour charger les détails d'un client ===
+  // Explication simple : Cette fonction va chercher toutes les informations sur un client spécifique, comme son nom et ses données de rentabilité, un peu comme si tu regardais la fiche d'identité de quelqu'un.
+  // Explication technique : Fonction asynchrone qui effectue des requêtes API pour récupérer les détails d'un client par son ID et les données de rentabilité associées, avec mise à jour des états locaux correspondants.
   // Récupérer les détails d'un client
   const fetchClientDetails = async (clientId: string) => {
     try {
@@ -182,7 +246,11 @@ const TimerPopup: React.FC = () => {
       setSelectedClient(null);
     }
   };
+  // === Fin : Fonction pour charger les détails d'un client ===
 
+  // === Début : Fonction pour charger les détails d'une tâche ===
+  // Explication simple : Cette fonction cherche toutes les informations sur une tâche particulière, et si cette tâche est liée à un client, elle cherche aussi les informations sur ce client.
+  // Explication technique : Fonction asynchrone qui récupère les détails d'une tâche via l'API et déclenche conditionnellement le chargement des détails du client associé si la tâche en possède un.
   // Récupérer les détails d'une tâche
   const fetchTaskDetails = async (taskId: string) => {
     try {
@@ -210,7 +278,11 @@ const TimerPopup: React.FC = () => {
       setSelectedTask(null);
     }
   };
+  // === Fin : Fonction pour charger les détails d'une tâche ===
 
+  // === Début : Fonction de formatage du temps ===
+  // Explication simple : Cette fonction transforme un nombre de secondes en un format plus joli qui montre les heures, minutes et secondes, comme quand tu transformes "90 minutes" en "1 heure et 30 minutes".
+  // Explication technique : Utilitaire qui convertit une durée en secondes en une chaîne formatée au format HH:MM:SS avec padding des zéros pour assurer une affichage uniforme.
   // Formater la durée en HH:MM:SS
   const formatDuration = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600);
@@ -219,7 +291,11 @@ const TimerPopup: React.FC = () => {
 
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
+  // === Fin : Fonction de formatage du temps ===
 
+  // === Début : Effet pour mettre à jour le timer en temps réel ===
+  // Explication simple : Cette partie fait que ton chronomètre compte les secondes en temps réel quand il est en marche, comme une vraie horloge qui avance.
+  // Explication technique : Hook useEffect qui initialise un intervalle pour incrémenter la durée du timer toutes les secondes lorsqu'il est en cours d'exécution, avec nettoyage de l'intervalle lors du démontage du composant.
   // Mettre à jour la durée du timer toutes les secondes si en cours d'exécution
   useEffect(() => {
     if (isRunning) {
@@ -230,7 +306,11 @@ const TimerPopup: React.FC = () => {
       return () => clearInterval(intervalId);
     }
   }, [isRunning]);
+  // === Fin : Effet pour mettre à jour le timer en temps réel ===
 
+  // === Début : Fonction pour démarrer le timer ===
+  // Explication simple : Cette fonction démarre le chronomètre quand tu cliques sur le bouton "Démarrer", après avoir vérifié que tu as bien choisi un client ou une tâche.
+  // Explication technique : Fonction asynchrone qui gère le démarrage d'un nouveau timer via l'API, avec validation préalable des entrées, gestion d'état de chargement, mise à jour des états locaux et du store Redux, et notification utilisateur.
   // Fonction pour démarrer un timer
   const handleStartTimer = async () => {
     try {
@@ -295,7 +375,11 @@ const TimerPopup: React.FC = () => {
       setLoading(false);
     }
   };
+  // === Fin : Fonction pour démarrer le timer ===
 
+  // === Début : Fonction pour mettre en pause le timer ===
+  // Explication simple : Cette fonction met le chronomètre en pause quand tu cliques sur "Pause", comme quand tu appuies sur pause pendant un film.
+  // Explication technique : Fonction asynchrone qui communique avec l'API pour mettre en pause un timer existant, met à jour les états locaux et globaux, et notifie l'utilisateur du succès ou de l'échec de l'opération.
   // Fonction pour mettre en pause le timer
   const handlePauseTimer = async () => {
     if (!timerId) return;
@@ -338,7 +422,11 @@ const TimerPopup: React.FC = () => {
       setLoading(false);
     }
   };
+  // === Fin : Fonction pour mettre en pause le timer ===
 
+  // === Début : Fonction pour reprendre le timer ===
+  // Explication simple : Cette fonction fait redémarrer le chronomètre après une pause, comme quand tu appuies sur "play" pour continuer ton film.
+  // Explication technique : Fonction asynchrone qui interagit avec l'API pour reprendre un timer en pause, met à jour les états correspondants et affiche une notification de confirmation à l'utilisateur.
   // Fonction pour reprendre le timer
   const handleResumeTimer = async () => {
     if (!timerId) return;
@@ -381,7 +469,11 @@ const TimerPopup: React.FC = () => {
       setLoading(false);
     }
   };
+  // === Fin : Fonction pour reprendre le timer ===
 
+  // === Début : Fonction pour arrêter le timer ===
+  // Explication simple : Cette fonction arrête complètement le chronomètre, enregistre le temps passé, et si c'était pour un client, elle met à jour les informations sur combien de temps on a travaillé pour ce client.
+  // Explication technique : Fonction asynchrone qui termine un timer via l'API, réinitialise les états locaux, met à jour le store Redux, et effectue une mise à jour conditionnelle des données de rentabilité du client selon la durée chronométrée.
   // Fonction pour arrêter le timer
   const handleStopTimer = async () => {
     if (!timerId) return;
@@ -447,7 +539,11 @@ const TimerPopup: React.FC = () => {
       setLoading(false);
     }
   };
+  // === Fin : Fonction pour arrêter le timer ===
 
+  // === Début : Gestionnaires d'événements pour les sélections ===
+  // Explication simple : Ces fonctions sont comme des réceptionnistes qui s'occupent de ce qui se passe quand tu choisis un client ou une tâche dans les listes déroulantes.
+  // Explication technique : Ensemble de gestionnaires d'événements pour les changements de sélection dans les dropdowns, qui mettent à jour les états correspondants et déclenchent le chargement des données détaillées.
   // Gérer le changement de client
   const handleClientChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const clientId = e.target.value;
@@ -473,7 +569,11 @@ const TimerPopup: React.FC = () => {
       setSelectedTask(null);
     }
   };
+  // === Fin : Gestionnaires d'événements pour les sélections ===
 
+  // === Début : Rendu conditionnel pour le bouton flottant ===
+  // Explication simple : Si la fenêtre du chronomètre n'est pas visible, on montre seulement un petit bouton rond que tu peux cliquer pour l'ouvrir.
+  // Explication technique : Bloc conditionnel qui retourne uniquement un bouton flottant circulaire lorsque le popup n'est pas affiché, avec gestionnaire de clic pour déclencher l'ouverture du popup via Redux.
   // Afficher uniquement le bouton flottant si la popup n'est pas visible
   if (!showTimerPopup) {
     return (
@@ -488,7 +588,11 @@ const TimerPopup: React.FC = () => {
       </button>
     );
   }
+  // === Fin : Rendu conditionnel pour le bouton flottant ===
 
+  // === Début : Configuration des classes CSS dynamiques ===
+  // Explication simple : On prépare différentes tailles et positions pour notre fenêtre, comme si on choisissait combien de place elle prend et où la mettre sur ton bureau.
+  // Explication technique : Définition d'objets de mapping qui associent les options de configuration (taille et position) aux classes CSS Tailwind correspondantes, utilisées dynamiquement dans le rendu.
   // Déterminer les classes CSS en fonction de la taille et de la position
   const sizeClasses = {
     small: 'w-64 h-auto',
@@ -501,7 +605,11 @@ const TimerPopup: React.FC = () => {
     'bottom-right': 'bottom-4 right-4',
     'center': 'top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2'
   };
+  // === Fin : Configuration des classes CSS dynamiques ===
 
+  // === Début : Rendu principal du composant ===
+  // Explication simple : C'est là où on dessine vraiment notre fenêtre de chronomètre avec tous ses boutons, ses informations et ses options. C'est comme assembler toutes les pièces du puzzle pour créer l'image finale.
+  // Explication technique : Retour du JSX principal qui génère le popup de timer avec Framer Motion pour l'animation, utilisant les classes dynamiques pour la taille et la position, et organisant tous les éléments d'UI en sections fonctionnelles.
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.9 }}
@@ -717,6 +825,11 @@ const TimerPopup: React.FC = () => {
       </div>
     </motion.div>
   );
+  // === Fin : Rendu principal du composant ===
 };
 
+// === Début : Export du composant ===
+// Explication simple : On rend notre chronomètre disponible pour que d'autres parties de l'application puissent l'utiliser, comme quand tu partages ton jouet avec tes amis.
+// Explication technique : Export par défaut du composant pour permettre son importation dans d'autres modules de l'application.
 export default TimerPopup;
+// === Fin : Export du composant ===

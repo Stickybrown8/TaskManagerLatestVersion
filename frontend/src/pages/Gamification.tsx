@@ -1,3 +1,28 @@
+/*
+ * PAGE DE GAMIFICATION - src/pages/Gamification.tsx
+ * 
+ * Explication simple:
+ * Ce fichier crée la page où l'utilisateur peut voir tous ses accomplissements dans l'application:
+ * ses points, son niveau, ses badges gagnés et l'historique de ses activités.
+ * C'est comme un tableau de bord personnel qui montre sa progression et ses récompenses.
+ * 
+ * Explication technique:
+ * Composant React fonctionnel qui implémente une interface utilisateur pour visualiser
+ * les métriques de gamification de l'utilisateur. Utilise Redux pour la gestion d'état,
+ * Framer Motion pour les animations, et s'intègre avec les services d'API de gamification
+ * pour récupérer le profil, les badges, les activités, et les niveaux.
+ * 
+ * Où ce fichier est utilisé:
+ * Ce composant est intégré dans le système de routage de l'application, probablement
+ * accessible depuis le menu principal ou depuis le tableau de bord utilisateur.
+ * 
+ * Connexions avec d'autres fichiers:
+ * - Utilise les hooks Redux (useAppDispatch, useAppSelector) 
+ * - Importe et dispatche des actions depuis gamificationSlice et uiSlice
+ * - Appelle des services API (gamificationService, badgesService)
+ * - Utilise la bibliothèque Framer Motion pour les animations
+ */
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAppDispatch, useAppSelector } from '../hooks';
 import {
@@ -16,29 +41,42 @@ import { gamificationService, badgesService } from '../services/api';
 import { addNotification } from '../store/slices/uiSlice';
 import { motion } from 'framer-motion';
 
+// === Début : Composant principal Gamification ===
+// Explication simple : Cette fonction crée toute la page qui montre les récompenses et la progression de l'utilisateur.
+// Explication technique : Composant fonctionnel React qui gère l'affichage et la logique de l'interface de gamification, servant de conteneur principal pour tous les sous-composants et fonctionnalités.
 const Gamification: React.FC = () => {
   const dispatch = useAppDispatch();
-  // Récupération sécurisée des états avec des valeurs par défaut
-const gamificationState = useAppSelector(state => state.gamification || {});
-const {
-  level = 1,
-  experience = 0,
-  actionPoints = 0,
-  totalPointsEarned = 0,
-  currentStreak = 0,
-  longestStreak = 0,
-  badges = [],
-  activities = [],
-  levels = [],
-  loading = false,
-  error = null
-} = gamificationState;
+  
+  // === Début : Récupération des états Redux ===
+  // Explication simple : On va chercher toutes les informations de l'utilisateur qui sont stockées dans la "mémoire" de l'application.
+  // Explication technique : Extraction des données de l'état global Redux avec valeurs par défaut pour éviter les erreurs en cas de données manquantes ou durant le chargement initial.
+  const gamificationState = useAppSelector(state => state.gamification || {});
+  const {
+    level = 1,
+    experience = 0,
+    actionPoints = 0,
+    totalPointsEarned = 0,
+    currentStreak = 0,
+    longestStreak = 0,
+    badges = [],
+    activities = [],
+    levels = [],
+    loading = false,
+    error = null
+  } = gamificationState;
+  // === Fin : Récupération des états Redux ===
 
+  // === Début : États locaux ===
+  // Explication simple : On crée des "boîtes" pour stocker des informations qui peuvent changer pendant que l'utilisateur utilise la page.
+  // Explication technique : Déclaration des états locaux avec useState pour gérer l'onglet actif et la pagination des activités.
   const [activeTab, setActiveTab] = useState('overview');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  // === Fin : États locaux ===
 
-  // Fonction utilitaire pour gérer les dates potentiellement undefined
+  // === Début : Fonction utilitaire pour les dates ===
+  // Explication simple : Cette fonction aide à éviter les erreurs quand on manipule des dates qui pourraient être manquantes.
+  // Explication technique : Fonction de sécurisation qui renvoie un objet Date valide même si la valeur d'entrée est undefined ou invalide, évitant ainsi les crashs potentiels.
   const safeDate = (dateStr: any): Date => {
     if (!dateStr) return new Date();
     try {
@@ -47,8 +85,11 @@ const {
       return new Date();
     }
   };
+  // === Fin : Fonction utilitaire pour les dates ===
 
-  // Définir loadActivities avec useCallback avant de l'utiliser dans useEffect
+  // === Début : Fonction de chargement des activités ===
+  // Explication simple : Cette fonction va chercher la liste des activités de l'utilisateur sur le serveur, page par page.
+  // Explication technique : Fonction mémoïsée avec useCallback qui interroge l'API pour récupérer les activités de l'utilisateur avec pagination, et met à jour le store Redux en conséquence.
   const loadActivities = useCallback(async (page: number) => {
     try {
       dispatch(fetchActivitiesStart());
@@ -63,8 +104,11 @@ const {
       }));
     }
   }, [dispatch]);
+  // === Fin : Fonction de chargement des activités ===
 
-  // Charger les données de gamification au chargement de la page
+  // === Début : Chargement initial des données de gamification ===
+  // Explication simple : Au démarrage de la page, on va chercher toutes les informations nécessaires comme le niveau, les badges, etc.
+  // Explication technique : Effet de côté qui s'exécute au montage du composant pour récupérer via API toutes les données de gamification et mettre à jour le store Redux.
   useEffect(() => {
     const loadGamificationData = async () => {
       try {
@@ -99,14 +143,20 @@ const {
 
     loadGamificationData();
   }, [dispatch, loadActivities]); // Maintenant loadActivities est défini avant d'être utilisé ici
+  // === Fin : Chargement initial des données de gamification ===
 
-  // Changer de page d'activités
+  // === Début : Gestion du changement de page ===
+  // Explication simple : Cette fonction permet à l'utilisateur de naviguer entre différentes pages d'activités.
+  // Explication technique : Gestionnaire d'événement qui met à jour l'état local de pagination et déclenche le rechargement des activités pour la page sélectionnée.
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
     loadActivities(page);
   };
+  // === Fin : Gestion du changement de page ===
 
-  // Formater la date - Version corrigée
+  // === Début : Formatage des dates ===
+  // Explication simple : Cette fonction transforme les dates en format lisible pour l'utilisateur.
+  // Explication technique : Fonction utilitaire qui convertit les chaînes de date en format localisé français, avec gestion des erreurs pour les dates invalides.
   const formatDate = (dateStr: any): string => {
     if (!dateStr) return 'N/A';
 
@@ -122,14 +172,20 @@ const {
       return 'Date invalide';
     }
   };
+  // === Fin : Formatage des dates ===
 
-  // Obtenir le niveau suivant
+  // === Début : Récupération du niveau suivant ===
+  // Explication simple : Cette fonction trouve le prochain niveau que l'utilisateur peut atteindre.
+  // Explication technique : Fonction utilitaire qui recherche dans le tableau des niveaux l'entrée correspondant au niveau actuel + 1.
   const getNextLevel = () => {
     if (!levels || levels.length === 0) return null;
     return levels.find(l => l.level === level + 1);
   };
+  // === Fin : Récupération du niveau suivant ===
 
-  // Calculer le pourcentage d'expérience pour le niveau suivant
+  // === Début : Calcul du pourcentage d'expérience ===
+  // Explication simple : Cette fonction calcule combien l'utilisateur a progressé vers le niveau suivant, en pourcentage.
+  // Explication technique : Fonction qui détermine la progression entre deux niveaux en calculant le ratio entre l'XP actuelle et l'XP requise pour le niveau suivant.
   const calculateExperiencePercentage = () => {
     if (!levels || levels.length === 0) return 0;
 
@@ -145,8 +201,11 @@ const {
 
     return Math.min(100, Math.max(0, Math.floor((xpProgress / xpNeeded) * 100)));
   };
+  // === Fin : Calcul du pourcentage d'expérience ===
 
-  // Obtenir la couleur en fonction de la rareté du badge
+  // === Début : Gestion des couleurs de badge ===
+  // Explication simple : Cette fonction choisit la bonne couleur pour chaque type de badge selon sa rareté.
+  // Explication technique : Fonction utilitaire qui retourne les classes CSS appropriées pour coloriser un badge en fonction de sa rareté, adaptant le style à l'environnement clair/sombre.
   const getBadgeRarityColor = (rarity: string) => {
     switch (rarity) {
       case 'commun':
@@ -161,8 +220,11 @@ const {
         return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
     }
   };
+  // === Fin : Gestion des couleurs de badge ===
 
-  // Obtenir l'icône en fonction du type d'activité
+  // === Début : Gestion des icônes d'activité ===
+  // Explication simple : Cette fonction choisit la bonne icône pour chaque type d'activité (comme terminer une tâche ou gagner un badge).
+  // Explication technique : Fonction qui génère le composant d'icône SVG approprié en fonction du type d'activité, avec des styles cohérents pour chaque catégorie.
   const getActivityIcon = (type: string) => {
     switch (type) {
       case 'tâche_complétée':
@@ -215,7 +277,11 @@ const {
         );
     }
   };
+  // === Fin : Gestion des icônes d'activité ===
 
+  // === Début : Rendu des états de chargement et d'erreur ===
+  // Explication simple : Ces blocs affichent soit une animation de chargement, soit un message d'erreur si quelque chose ne fonctionne pas.
+  // Explication technique : Rendus conditionnels qui interceptent les cas de chargement initial ou d'erreur avant de tenter d'afficher le contenu principal.
   if (loading && !badges.length && !activities.length) {
     return (
       <div className="flex justify-center items-center py-12">
@@ -231,7 +297,11 @@ const {
       </div>
     );
   }
+  // === Fin : Rendu des états de chargement et d'erreur ===
 
+  // === Début : Rendu principal du composant ===
+  // Explication simple : C'est ici que tous les éléments de la page sont assemblés et affichés à l'utilisateur.
+  // Explication technique : Structure JSX complète du composant avec mise en page responsive, système d'onglets, et rendus conditionnels pour chaque section de contenu.
   return (
     <div className="container mx-auto">
       <div className="mb-6">
@@ -570,6 +640,8 @@ const {
       </div>
     </div>
   );
+  // === Fin : Rendu principal du composant ===
 };
+// === Fin : Composant principal Gamification ===
 
 export default Gamification;
