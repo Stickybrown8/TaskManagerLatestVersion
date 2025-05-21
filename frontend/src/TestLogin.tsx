@@ -1,16 +1,16 @@
-import React, { useState } from 'react';
-import axios from 'axios';
+import React, { useState, FormEvent, ChangeEvent } from 'react';
+import { authService } from './services/api'; // Corrected import path
 
-const TestLogin = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [result, setResult] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+const TestLogin: React.FC = () => {
+  const [email, setEmail] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
+  const [result, setResult] = useState<string>('');
+  const [error, setError] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(false);
 
-  const API_URL = 'https://task-manager-api-yx13.onrender.com';
+  // API_URL is not needed if using authService which uses the configured api instance
 
-  const handleLogin = async (e) => {
+  const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError('');
@@ -19,16 +19,21 @@ const TestLogin = () => {
     try {
       console.log('Tentative de connexion...');
       
-      const response = await axios.post(`${API_URL}/api/users/login`, {
-        email,
-        password
-      });
+      // Use authService for the login request
+      const responseData = await authService.login(email, password);
       
-      console.log('Réponse reçue:', response);
-      setResult(JSON.stringify(response.data, null, 2));
-    } catch (error) {
-      console.error('Erreur complète:', error);
-      setError(error.response?.data?.message || error.message);
+      console.log('Réponse reçue:', responseData);
+      setResult(JSON.stringify(responseData, null, 2));
+    } catch (err: any) { // Catching as 'any' to inspect error structure
+      console.error('Erreur complète:', err);
+      // Attempt to get a meaningful error message
+      if (err.response && err.response.data && err.response.data.message) {
+        setError(err.response.data.message);
+      } else if (err.message) {
+        setError(err.message);
+      } else {
+        setError('Une erreur inconnue est survenue.');
+      }
     } finally {
       setLoading(false);
     }
@@ -39,21 +44,23 @@ const TestLogin = () => {
       <h1>Test de Connexion</h1>
       <form onSubmit={handleLogin}>
         <div style={{ marginBottom: '15px' }}>
-          <label>Email:</label>
+          <label htmlFor="test-login-email">Email:</label>
           <input 
-            type="email" 
+            type="email"
+            id="test-login-email" 
             value={email} 
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
             style={{ display: 'block', width: '100%', padding: '8px', marginTop: '5px' }}
             required
           />
         </div>
         <div style={{ marginBottom: '15px' }}>
-          <label>Mot de passe:</label>
+          <label htmlFor="test-login-password">Mot de passe:</label>
           <input 
-            type="password" 
+            type="password"
+            id="test-login-password" 
             value={password} 
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
             style={{ display: 'block', width: '100%', padding: '8px', marginTop: '5px' }}
             required
           />
