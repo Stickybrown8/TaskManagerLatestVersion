@@ -8,7 +8,6 @@ const connectDB = require('./config/db');
 // const chatRoutes = require('./routes/chat');
 
 // Routes imports
-const registerRoute = require('./routes/register');
 const userRoutes = require('./routes/users');
 const clientRoutes = require('./routes/clients');
 const taskRoutes = require('./routes/tasks');
@@ -204,7 +203,6 @@ app.get('/debug/env', (req, res) => {
 });
 
 // Routes API
-app.use('/api/register', registerRoute);
 app.use('/api/users', userRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/tasks', taskRoutes);
