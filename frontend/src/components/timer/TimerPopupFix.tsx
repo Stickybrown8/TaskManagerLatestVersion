@@ -22,7 +22,7 @@ import { RootState } from '../../store';
 import { updateTaskImpact } from '../../store/slices/taskImpactSlice';
 import { useGamification } from '../../hooks/useGamification';
 import { useTasks } from '../../hooks/useTasks';
-import { timerService } from '../../services/api';
+import { timerService } from '../../services/timerService';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com';
 
@@ -431,7 +431,7 @@ const TimerPopupFix: React.FC = () => {
       
       // Au lieu de mettre en pause via une API, on va arrêter le timer avec duration = timerDuration
       // puis en recréer un nouveau si l'utilisateur reprend
-      await timerService.stopTimer(timerId, timerDuration);
+      await timerService.stopTimer(timerId, { duration: timerDuration });
       
       // Mettre à jour l'état local
       setIsRunning(false);

@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { profitabilityService } from '../../services/api';
+import { profitabilityService } from '../../services/profitabilityService';
 
 // Définition des interfaces pour les types
 interface UpdateHourlyRateParams {
