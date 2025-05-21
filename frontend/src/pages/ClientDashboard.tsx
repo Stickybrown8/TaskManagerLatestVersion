@@ -1,3 +1,33 @@
+/*
+ * TABLEAU DE BORD DU TEMPS PAR CLIENT - frontend/src/pages/ClientDashboard.tsx
+ *
+ * Explication simple:
+ * Ce fichier crée une page qui te montre combien de temps tu as passé à travailler pour 
+ * chaque client. C'est comme un journal du temps que tu peux filtrer par jour, semaine 
+ * ou mois. Tu peux voir quels clients ont pris le plus de ton temps, sur quelles tâches 
+ * tu as travaillé, et un graphique qui montre comment ton temps de travail a changé jour 
+ * après jour.
+ *
+ * Explication technique:
+ * Composant React fonctionnel qui implémente un tableau de bord analytique pour visualiser
+ * les données de suivi du temps par client et par tâche. Il gère la récupération des données
+ * temporelles depuis l'API, le filtrage par plage de dates, et la présentation des métriques
+ * sous forme de statistiques et de visualisations.
+ *
+ * Où ce fichier est utilisé:
+ * Affiché comme page principale dans l'application, accessible via le menu de navigation latéral,
+ * généralement sous une route comme '/client-statistics' ou '/time-dashboard'.
+ *
+ * Connexions avec d'autres fichiers:
+ * - Utilise les hooks personnalisés useAppDispatch et useAppSelector depuis '../hooks'
+ * - Importe et dispatch l'action addNotification depuis '../store/slices/uiSlice'
+ * - Communique avec l'API backend via axios pour récupérer les données de suivi du temps
+ * - Utilise la bibliothèque framer-motion pour les animations d'interface
+ */
+
+// === Début : Importation des dépendances et configuration ===
+// Explication simple : On prend tous les outils dont on a besoin pour créer notre tableau de bord, comme quand tu rassembles tes crayons, règles et papiers avant de dessiner.
+// Explication technique : Importation des hooks React nécessaires pour la gestion d'état et du cycle de vie, des hooks Redux personnalisés pour accéder au store, de l'action de notification, de la bibliothèque d'animation et d'axios pour les requêtes HTTP.
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAppDispatch, useAppSelector } from '../hooks';
 import { addNotification } from '../store/slices/uiSlice';
@@ -5,7 +35,11 @@ import { motion } from 'framer-motion';
 import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com';
+// === Fin : Importation des dépendances et configuration ===
 
+// === Début : Définition des interfaces TypeScript ===
+// Explication simple : On explique à l'ordinateur à quoi ressemblent nos données, comme quand tu décris les règles d'un jeu avant de commencer à jouer.
+// Explication technique : Déclaration des interfaces TypeScript qui définissent la structure des objets de données utilisés dans le composant, avec typage strict pour assurer l'intégrité des données manipulées.
 // Types
 interface TimeEntry {
   _id: string;
@@ -32,10 +66,23 @@ interface ClientSummary {
     duration: number; // en secondes
   }[];
 }
+// === Fin : Définition des interfaces TypeScript ===
 
+// === Début : Composant principal ClientDashboard ===
+// Explication simple : C'est le grand tableau de bord qui va afficher toutes les informations sur ton temps de travail, comme un tableau d'affichage à l'école qui montre tous les résultats.
+// Explication technique : Définition du composant fonctionnel React avec typage explicite, qui encapsule toute la logique et l'interface utilisateur du tableau de bord d'analyse temporelle.
 const ClientDashboard: React.FC = () => {
+// === Fin : Composant principal ClientDashboard ===
+
+  // === Début : Initialisation des hooks Redux ===
+  // Explication simple : On prépare notre messager qui va pouvoir envoyer des messages au "cerveau" de l'application.
+  // Explication technique : Configuration du dispatcher Redux pour émettre des actions et interagir avec le store global de l'application.
   const dispatch = useAppDispatch();
+  // === Fin : Initialisation des hooks Redux ===
   
+  // === Début : Configuration des états locaux ===
+  // Explication simple : On crée des boîtes pour ranger toutes nos informations et pouvoir les changer facilement, comme des tiroirs dans une commode.
+  // Explication technique : Initialisation des états locaux via useState pour gérer les données des entrées temporelles, les résumés par client, l'état de chargement et les filtres de date.
   // États locaux
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
   const [clientSummaries, setClientSummaries] = useState<ClientSummary[]>([]);
@@ -48,7 +95,11 @@ const ClientDashboard: React.FC = () => {
     endDate: new Date().toISOString().split('T')[0] // Aujourd'hui
   });
   const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'year' | 'custom'>('month');
+  // === Fin : Configuration des états locaux ===
   
+  // === Début : Fonction de récupération des données temporelles ===
+  // Explication simple : Cette fonction va chercher toutes les informations sur ton temps de travail sur le serveur, comme quand tu demandes à la bibliothèque de te donner tous les livres sur un sujet.
+  // Explication technique : Fonction mémorisée avec useCallback qui effectue une requête HTTP pour récupérer les données de suivi du temps, puis les traite pour construire les structures de données nécessaires à l'affichage.
   const fetchTimeData = useCallback(async () => {
     try {
       setLoading(true);
@@ -146,12 +197,20 @@ const ClientDashboard: React.FC = () => {
       setLoading(false);
     }
   }, [dateRange, dispatch]);
+  // === Fin : Fonction de récupération des données temporelles ===
   
+  // === Début : Effet de chargement initial des données ===
+  // Explication simple : Cette partie s'assure que les données sont chargées automatiquement quand tu ouvres la page, comme quand la lumière s'allume automatiquement quand tu entres dans une pièce.
+  // Explication technique : Hook useEffect qui déclenche le chargement des données au montage du composant et lorsque la fonction de récupération change (notamment suite à un changement de plage de dates).
   // Charger les données
   useEffect(() => {
     fetchTimeData();
   }, [fetchTimeData]);
+  // === Fin : Effet de chargement initial des données ===
   
+  // === Début : Fonction de formatage de la durée ===
+  // Explication simple : Cette fonction transforme des secondes en un format plus facile à lire avec des heures et des minutes, comme quand tu convertis des centimètres en mètres pour mieux comprendre la taille.
+  // Explication technique : Fonction utilitaire qui convertit une durée en secondes en une chaîne de caractères formatée en heures et minutes, avec gestion conditionnelle de l'affichage selon la valeur.
   // Formater la durée en heures et minutes
   const formatDuration = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600);
@@ -163,7 +222,11 @@ const ClientDashboard: React.FC = () => {
     
     return `${hours}h${minutes > 0 ? ` ${minutes}min` : ''}`;
   };
+  // === Fin : Fonction de formatage de la durée ===
   
+  // === Début : Fonction de changement de période ===
+  // Explication simple : Cette fonction permet de changer rapidement la période que tu veux voir (aujourd'hui, la semaine, le mois...), comme quand tu zoomes ou dézoomes sur une carte pour voir différentes échelles.
+  // Explication technique : Gestionnaire d'événement qui met à jour l'état de la période sélectionnée et calcule dynamiquement la plage de dates correspondante pour filtrer les données affichées.
   // Fonction pour définir la plage de dates en fonction de la période
   const handlePeriodChange = (newPeriod: 'day' | 'week' | 'month' | 'year' | 'custom') => {
     setPeriod(newPeriod);
@@ -201,7 +264,11 @@ const ClientDashboard: React.FC = () => {
       endDate: today.toISOString().split('T')[0]
     });
   };
+  // === Fin : Fonction de changement de période ===
   
+  // === Début : Calcul des statistiques globales ===
+  // Explication simple : On additionne tous les temps pour avoir une vue d'ensemble, comme quand tu comptes tous tes bonbons pour savoir combien tu en as au total.
+  // Explication technique : Calcul des métriques agrégées à partir des données client pour afficher les statistiques globales et les pourcentages relatifs.
   // Calculer les totaux
   const totalDuration = clientSummaries.reduce((sum, client) => sum + client.totalDuration, 0);
   const totalHours = Math.floor(totalDuration / 3600);
@@ -212,7 +279,11 @@ const ClientDashboard: React.FC = () => {
     if (totalDuration === 0) return 0;
     return (clientDuration / totalDuration) * 100;
   };
+  // === Fin : Calcul des statistiques globales ===
   
+  // === Début : Rendu du composant ===
+  // Explication simple : C'est là qu'on dessine tout notre tableau de bord avec toutes ses parties, comme quand tu assembles un puzzle pour voir l'image complète.
+  // Explication technique : Retour du JSX qui structure l'interface utilisateur complète du tableau de bord, organisé en sections distinctes avec animations via Framer Motion.
   return (
     <div className="container mx-auto">
       <motion.div
@@ -222,7 +293,9 @@ const ClientDashboard: React.FC = () => {
       >
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Tableau de bord du temps</h1>
         
-        {/* Filtres de date */}
+        {/* === Début : Section des filtres de date === */}
+        {/* Explication simple : Cette partie te permet de choisir quelle période de temps tu veux voir, comme quand tu choisis si tu veux regarder les photos d'aujourd'hui ou de toute la semaine. */}
+        {/* Explication technique : Panneau de filtrage temporel qui permet à l'utilisateur de sélectionner une période prédéfinie ou personnalisée, avec des contrôles adaptatifs selon le choix de période. */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
           <div className="flex flex-col md:flex-row md:items-center mb-4 space-y-4 md:space-y-0">
             <div className="flex flex-wrap gap-2 md:mr-6">
@@ -330,8 +403,11 @@ const ClientDashboard: React.FC = () => {
             </button>
           </div>
         </div>
+        {/* === Fin : Section des filtres de date === */}
         
-        {/* Résumé global */}
+        {/* === Début : Section de résumé global === */}
+        {/* Explication simple : Cette partie montre les grands chiffres importants : combien de temps total tu as travaillé, pour combien de clients, et combien de temps en moyenne par jour. */}
+        {/* Explication technique : Affichage des métriques agrégées clés sous forme de cartes, présentant le temps total, le nombre de clients et la moyenne quotidienne, avec conversion automatique des unités. */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Temps total</h2>
@@ -369,8 +445,11 @@ const ClientDashboard: React.FC = () => {
             </p>
           </div>
         </div>
+        {/* === Fin : Section de résumé global === */}
         
-        {/* Répartition par client */}
+        {/* === Début : Section de répartition par client === */}
+        {/* Explication simple : Cette partie montre en détail pour chaque client combien de temps tu as travaillé et sur quelles tâches, comme quand tu fais l'inventaire de tes jouets en les regroupant par type. */}
+        {/* Explication technique : Visualisation détaillée des données par client, avec barres de progression pour les pourcentages de temps, logos conditionnels, et liste hiérarchique des tâches par durée. */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Répartition par client</h2>
           
@@ -445,8 +524,11 @@ const ClientDashboard: React.FC = () => {
             </div>
           )}
         </div>
+        {/* === Fin : Section de répartition par client === */}
         
-        {/* Graphique (version simplifiée sans D3 ou Recharts) */}
+        {/* === Début : Section de graphique d'évolution === */}
+        {/* Explication simple : Cette partie montre un graphique qui te permet de voir comment ton temps de travail a changé jour après jour, comme quand tu dessines une ligne qui monte et qui descend pour montrer tes progrès. */}
+        {/* Explication technique : Visualisation graphique de l'évolution temporelle, implémentée sous forme de graphique à barres avec tooltips interactifs, construit manuellement à partir des données d'entrées temporelles regroupées par date. */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Évolution du temps par jour</h2>
           
@@ -563,9 +645,15 @@ const ClientDashboard: React.FC = () => {
             </div>
           )}
         </div>
+        {/* === Fin : Section de graphique d'évolution === */}
       </motion.div>
     </div>
   );
+  // === Fin : Rendu du composant ===
 };
 
+// === Début : Export du composant ===
+// Explication simple : On rend notre tableau de bord disponible pour que d'autres parties de l'application puissent l'afficher, comme quand tu partages ton dessin pour que tout le monde puisse le voir.
+// Explication technique : Export par défaut du composant pour permettre son importation dans le système de routage de l'application.
 export default ClientDashboard;
+// === Fin : Export du composant ===

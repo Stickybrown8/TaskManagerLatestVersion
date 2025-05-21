@@ -1,3 +1,28 @@
+/*
+ * PAGE DÉTAIL DE TÂCHE - src/pages/TaskDetail.tsx
+ * 
+ * Explication simple:
+ * Ce fichier crée la page qui affiche tous les détails d'une tâche spécifique.
+ * Il permet de voir, modifier ou supprimer une tâche, et aussi de la marquer comme terminée.
+ * C'est comme une fiche d'identité complète pour chaque tâche avec toutes ses informations.
+ * 
+ * Explication technique:
+ * Composant React fonctionnel qui affiche et gère les opérations CRUD pour une tâche individuelle.
+ * Utilise React Router pour la navigation et les paramètres d'URL, Redux pour la gestion d'état,
+ * et s'intègre avec les services API pour les opérations sur la tâche.
+ * 
+ * Où ce fichier est utilisé:
+ * Dans les routes de l'application, accessible lorsqu'un utilisateur clique sur une tâche
+ * spécifique depuis la liste des tâches, généralement via l'URL "/tasks/:id".
+ * 
+ * Connexions avec d'autres fichiers:
+ * - Utilise les hooks Redux (useAppDispatch, useAppSelector)
+ * - Importe et dispatche des actions depuis tasksSlice et taskActions
+ * - Appelle le service API tasksService pour les opérations CRUD
+ * - Utilise la bibliothèque Framer Motion pour les animations
+ * - Interagit avec le store pour les notifications via uiSlice
+ */
+
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../hooks';
@@ -7,12 +32,19 @@ import { tasksService } from '../services/api';
 import { motion } from 'framer-motion';
 import { addNotification } from '../store/slices/uiSlice';
 
+// === Début : Interface Client ===
+// Explication simple : Cette "boîte" définit à quoi ressemble un client dans notre application.
+// Explication technique : Interface TypeScript définissant la structure d'un objet Client avec des propriétés typées.
 interface Client {
   _id: string;
   name: string;
   // ...autres propriétés si besoin
 }
+// === Fin : Interface Client ===
 
+// === Début : Fonction de calcul du temps restant ===
+// Explication simple : Cette fonction calcule combien de temps il reste avant l'échéance d'une tâche et le présente de façon compréhensible.
+// Explication technique : Fonction utilitaire qui convertit une date d'échéance en chaîne lisible indiquant le temps restant, avec gestion des cas particuliers (retard, aujourd'hui, etc.).
 function formatRemainingDays(dueDate: string) {
   if (!dueDate) return "Pas d'échéance";
   const now = new Date();
@@ -26,8 +58,15 @@ function formatRemainingDays(dueDate: string) {
   const days = diff % 30;
   return `${months} mois${months > 1 ? 's' : ''}${days > 0 ? ` et ${days} jour${days > 1 ? 's' : ''}` : ''} restants`;
 }
+// === Fin : Fonction de calcul du temps restant ===
 
+// === Début : Composant principal TaskDetail ===
+// Explication simple : Ce composant est le "cerveau" de la page qui affiche et gère une tâche unique.
+// Explication technique : Composant fonctionnel React qui encapsule toute la logique et l'interface utilisateur pour la visualisation et l'édition d'une tâche.
 const TaskDetail: React.FC = () => {
+  // === Début : Hooks et états ===
+  // Explication simple : On récupère l'identifiant de la tâche depuis l'URL et on prépare des "boîtes" pour stocker les informations.
+  // Explication technique : Initialisation des hooks React et Redux pour la navigation, l'extraction des paramètres, et la gestion d'état locale et globale.
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
@@ -44,7 +83,11 @@ const TaskDetail: React.FC = () => {
   });
 
   const clients: Client[] = useAppSelector(state => state.clients.clients);
+  // === Fin : Hooks et états ===
 
+  // === Début : Chargement initial des données ===
+  // Explication simple : Quand la page s'ouvre, on va chercher les informations de la tâche sur le serveur.
+  // Explication technique : Effect hook qui s'exécute au montage du composant et lorsque l'ID change, récupérant les données de la tâche et initialisant le formulaire.
   useEffect(() => {
     const loadTask = async () => {
       if (id) {
@@ -71,7 +114,11 @@ const TaskDetail: React.FC = () => {
 
     loadTask();
   }, [id, dispatch, tasks]);
+  // === Fin : Chargement initial des données ===
 
+  // === Début : Gestionnaires d'événements du formulaire ===
+  // Explication simple : Ces fonctions s'occupent de ce qui se passe quand l'utilisateur remplit ou soumet le formulaire.
+  // Explication technique : Gestionnaires d'événements pour les modifications de champs de formulaire et la soumission du formulaire de mise à jour.
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -99,11 +146,19 @@ const TaskDetail: React.FC = () => {
       }
     }
   };
+  // === Fin : Gestionnaires d'événements du formulaire ===
 
+  // === Début : Rendus conditionnels ===
+  // Explication simple : Ces blocs affichent différents messages selon l'état de chargement ou les erreurs.
+  // Explication technique : Rendus conditionnels pour gérer les états de chargement, d'erreur et d'absence de données avant d'afficher le contenu principal.
   if (loading) return <div className="p-4">Chargement...</div>;
   if (error) return <div className="p-4 text-red-500">Erreur: {error}</div>;
   if (!task) return <div className="p-4">Tâche non trouvée</div>;
+  // === Fin : Rendus conditionnels ===
 
+  // === Début : Rendu principal du composant ===
+  // Explication simple : C'est l'apparence finale de la page avec tous ses éléments, boutons et informations.
+  // Explication technique : Structure JSX complète du composant avec animation d'entrée, en-tête avec actions, et interface conditionnelle basée sur l'état d'édition.
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -172,6 +227,9 @@ const TaskDetail: React.FC = () => {
       </div>
 
       {isEditing ? (
+        // === Début : Formulaire d'édition ===
+        // Explication simple : C'est le formulaire qui permet de modifier les informations de la tâche.
+        // Explication technique : Formulaire contrôlé avec des champs pour chaque propriété de la tâche, utilisant les gestionnaires d'événements pour les modifications et la soumission.
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block mb-1">Titre</label>
@@ -255,7 +313,11 @@ const TaskDetail: React.FC = () => {
             Enregistrer
           </button>
         </form>
+        // === Fin : Formulaire d'édition ===
       ) : (
+        // === Début : Affichage des détails ===
+        // Explication simple : C'est la vue qui montre toutes les informations de la tâche de façon organisée et lisible.
+        // Explication technique : Présentation en lecture seule des informations de la tâche dans une mise en page structurée avec des sections distinctes pour différentes catégories d'informations.
         <div className="space-y-4">
           <div className="bg-white p-4 rounded shadow">
             <h2 className="text-lg font-semibold mb-2">Description</h2>
@@ -303,9 +365,12 @@ const TaskDetail: React.FC = () => {
             </div>
           </div>
         </div>
+        // === Fin : Affichage des détails ===
       )}
     </motion.div>
   );
+  // === Fin : Rendu principal du composant ===
 };
+// === Fin : Composant principal TaskDetail ===
 
 export default TaskDetail;

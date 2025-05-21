@@ -1,5 +1,38 @@
+<!--
+ * FICHIER HTML PRINCIPAL - frontend/public/index.html
+ *
+ * Explication simple:
+ * Ce fichier est comme le squelette vide de notre application web.
+ * C'est la seule page HTML réelle de notre application React, qui servira 
+ * de conteneur dans lequel tout le contenu dynamique sera injecté.
+ * Imagine-le comme une feuille de papier vierge sur laquelle React va dessiner.
+ *
+ * Explication technique:
+ * Document HTML statique qui sert de point d'entrée à l'application React
+ * et contient l'élément racine (#root) où l'application React sera montée,
+ * ainsi que les métadonnées et liens vers les ressources statiques.
+ *
+ * Où ce fichier est utilisé:
+ * Servi par le serveur web comme page unique initiale de l'application SPA (Single Page Application).
+ * C'est la première chose que le navigateur télécharge avant que React ne prenne le relais.
+ *
+ * Connexions avec d'autres fichiers:
+ * - Chargé par le serveur web (nginx, Apache, etc.) ou le serveur de développement React
+ * - Fait référence aux fichiers statiques du dossier public (favicon.ico, manifest.json, etc.)
+ * - Point de montage pour le fichier index.js qui initialise l'application React
+ * - Le bundle JavaScript généré par webpack y est automatiquement injecté lors du build
+-->
+
+<!-- === Début : Déclaration du type de document et élément HTML === -->
+<!-- Explication simple : Ces lignes disent au navigateur que c'est une page web moderne en français. -->
+<!-- Explication technique : Déclaration HTML5 DOCTYPE et élément racine HTML avec attribut lang définissant la langue par défaut du document. -->
 <!DOCTYPE html>
 <html lang="en">
+<!-- === Fin : Déclaration du type de document et élément HTML === -->
+
+  <!-- === Début : Section head avec métadonnées === -->
+  <!-- Explication simple : Cette partie contient des informations sur la page web comme son titre et son icône, mais que les utilisateurs ne voient pas directement sur la page. -->
+  <!-- Explication technique : Section head contenant les métadonnées du document (charset, viewport, title), les liens vers les ressources externes (favicon, manifeste) et autres balises meta pour SEO et compatibilité mobile. -->
   <head>
     <meta charset="utf-8" />
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
@@ -26,6 +59,11 @@
     -->
     <title>React App</title>
   </head>
+  <!-- === Fin : Section head avec métadonnées === -->
+
+  <!-- === Début : Corps du document et conteneur racine React === -->
+  <!-- Explication simple : C'est la partie visible de la page où React va afficher toute notre application. Le message "You need to enable JavaScript" n'apparaît que si JavaScript est désactivé. -->
+  <!-- Explication technique : Section body contenant l'élément div#root qui servira de point de montage pour l'application React, et un fallback noscript pour les utilisateurs ayant désactivé JavaScript. -->
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
@@ -40,4 +78,5 @@
       To create a production bundle, use `npm run build` or `yarn build`.
     -->
   </body>
+  <!-- === Fin : Corps du document et conteneur racine React === -->
 </html>

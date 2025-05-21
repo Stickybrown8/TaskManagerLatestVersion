@@ -1,231 +1,182 @@
-// server.js
-const express = require('express');
-const dotenv = require('dotenv');
-const cors = require('cors');
-const fs = require('fs');
-const path = require('path');
-const connectDB = require('./config/db');
-// const chatRoutes = require('./routes/chat');
+/*
+ * FICHIER PRINCIPAL DU SERVEUR - backend/server.js
+ *
+ * Explication simple:
+ * Ce fichier est le cerveau de notre application. C'est lui qui démarre le serveur,
+ * connecte la base de données, et dirige toutes les demandes vers le bon endroit,
+ * comme un chef d'orchestre qui coordonne tous les musiciens. Il s'assure aussi que
+ * tout fonctionne de manière sécurisée et gère les erreurs qui pourraient survenir.
+ *
+ * Explication technique:
+ * Point d'entrée principal de l'application backend Node.js utilisant Express.js,
+ * responsable de l'initialisation du serveur HTTP, de la connexion à MongoDB,
+ * de la configuration des middlewares de sécurité et du montage des routes API.
+ *
+ * Où ce fichier est utilisé:
+ * Appelé directement par les commandes de démarrage (npm start, npm run dev)
+ * et est le point de départ de toute l'application backend.
+ *
+ * Connexions avec d'autres fichiers:
+ * - Utilise la configuration dans .env pour les variables d'environnement
+ * - Importe la fonction connectDB depuis config/db.js
+ * - Importe et monte tous les fichiers de routes depuis le dossier routes/
+ * - Utilise mongoLogger depuis utils/mongoLogger.js pour la journalisation
+ * - Point d'entrée référencé dans package.json pour les scripts de démarrage
+ */
 
-// Routes imports
+// === Début : Importation des dépendances ===
+// Explication simple : On prend tous les outils dont on a besoin pour faire fonctionner le serveur, comme quand tu prépares tous tes crayons et cahiers avant de commencer tes devoirs.
+// Explication technique : Importation des modules Node.js nécessaires - dotenv pour les variables d'environnement, express pour le framework web, cors pour la gestion des requêtes cross-origin, helmet pour la sécurité HTTP, et d'autres utilitaires de sécurité et de connexion.
+// server.js
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const mongoSanitize = require('express-mongo-sanitize');
+const { connectDB } = require('./config/db');
+const mongoLogger = require('./utils/mongoLogger');
+const mongoose = require('mongoose');
+// === Fin : Importation des dépendances ===
+
+// === Début : Importation des routes ===
+// Explication simple : On importe les cartes qui indiquent vers où diriger les visiteurs selon ce qu'ils demandent, comme des panneaux d'indication dans un grand magasin.
+// Explication technique : Importation des modules de routage Express organisés par domaine fonctionnel (tâches, utilisateurs, clients, authentification, timers), qui définissent les endpoints API disponibles.
+// Routes
+const taskRoutes = require('./routes/tasks');
 const userRoutes = require('./routes/users');
 const clientRoutes = require('./routes/clients');
-const taskRoutes = require('./routes/tasks');
-const badgeRoutes = require('./routes/badges');
-const gamificationRoutes = require('./routes/gamification');
-const imageRoutes = require('./routes/images');
+const authRoutes = require('./routes/auth');
 const timerRoutes = require('./routes/timers');
+// === Fin : Importation des routes ===
 
-// Load environment variables
-dotenv.config({ path: process.env.NODE_ENV === 'production' ? '.env.production' : '.env' });
-
-// Connect to database
-console.log('Tentative de connexion à MongoDB...');
-connectDB().then(() => {
-  console.log('MongoDB connecté avec succès');
-}).catch(err => {
-  console.error('ERREUR de connexion MongoDB:', err);
-});
-
+// === Début : Initialisation de l'application Express ===
+// Explication simple : On crée notre serveur et on définit sur quelle porte il va écouter les visiteurs, comme quand on prépare une salle pour accueillir des invités.
+// Explication technique : Création de l'instance Express et définition du port d'écoute à partir des variables d'environnement ou utilisation d'une valeur par défaut (5000).
 const app = express();
+const PORT = process.env.PORT || 5000;
+// === Fin : Initialisation de l'application Express ===
 
-// Middleware
-app.use(express.json({ limit: '50mb' })); // Limite augmentée pour l'upload d'images
-// Modifier la configuration CORS
-app.use(cors({
-  origin: [
-    'https://task-manager-steven.netlify.app', // Remplacez par votre URL Netlify
-    'http://localhost:3000'          // Pour le développement local
-  ],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token']
-}));
-app.use(express.static('public'));
+// === Début : Configuration des middlewares de sécurité ===
+// Explication simple : On met en place des gardiens qui vérifient que les visiteurs ne font rien de dangereux, comme les agents de sécurité à l'entrée d'un concert.
+// Explication technique : Application de middlewares Express pour renforcer la sécurité - helmet pour les en-têtes HTTP, cors pour gérer les requêtes cross-origin, parsers JSON et URL avec limites de taille, et mongoSanitize pour prévenir les injections NoSQL.
+// Sécurité et middleware
+app.use(helmet()); // Sécurité des headers HTTP
+app.use(cors());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(mongoSanitize()); // Prévention des injections NoSQL
+// === Fin : Configuration des middlewares de sécurité ===
 
-/**
- * Fonction récursive améliorée pour lire la structure des répertoires
- * @param {string} dir - Chemin du répertoire à explorer
- * @param {number} depth - Profondeur maximale de récursion (défaut: 5)
- * @param {number} maxFilesPerDir - Nombre maximum de fichiers par répertoire (défaut: 100)
- * @returns {Object} Structure arborescente du répertoire
- */
-function readDirRecursive(dir, depth = 5, maxFilesPerDir = 100) {
-  try {
-    const name = path.basename(dir);
-    
-    // Arrêter la récursion si on atteint la profondeur limite
-    if (depth < 0) return { name, type: 'dir', children: [] };
-    
-    // Liste des dossiers à ignorer
-    const ignoreDirs = ['node_modules', '.git', 'dist', 'build', '.cache'];
-    
-    // Lire le contenu du répertoire avec gestion d'erreur
-    let dirents;
-    try {
-      dirents = fs.readdirSync(dir, { withFileTypes: true });
-    } catch (err) {
-      console.warn(`Impossible de lire le répertoire ${dir}: ${err.message}`);
-      return { name, type: 'dir', error: err.message, children: [] };
-    }
-    
-    // Filtrage et limitation du nombre de fichiers pour éviter les problèmes de performance
-    const filteredDirents = dirents
-      .filter(d => !ignoreDirs.includes(d.name))
-      .slice(0, maxFilesPerDir);  // Limite le nombre de fichiers par dossier
-    
-    // Traitement des enfants
-    const children = filteredDirents.map(d => {
-      const fullPath = path.join(dir, d.name);
-      
-      if (d.isDirectory()) {
-        return { 
-          name: d.name, 
-          type: 'dir', 
-          children: readDirRecursive(fullPath, depth - 1, maxFilesPerDir).children 
-        };
-      }
-      
-      return { name: d.name, type: 'file' };
-    });
-    
-    return { name, type: 'dir', children };
-  } catch (err) {
-    console.error(`Erreur lors de la lecture de l'arborescence ${dir}:`, err);
-    return { 
-      name: path.basename(dir), 
-      type: 'dir', 
-      error: 'Erreur lors de la lecture du répertoire', 
-      children: [] 
-    };
-  }
-}
-
-// Route pour obtenir l'arborescence des fichiers
-app.get('/api/file-tree', (req, res) => {
-  try {
-    // Paramètres de requête configurables
-    const depth = parseInt(req.query.depth) || 5;  // Profondeur par défaut augmentée à 5
-    const maxFilesPerDir = parseInt(req.query.maxFiles) || 100;
-    
-    // Chemin racine du projet
-    const rootDir = path.resolve(__dirname, '..');
-    
-    // Générer l'arborescence avec log de performance
-    console.time('file-tree-generation');
-    const tree = readDirRecursive(rootDir, depth, maxFilesPerDir);
-    console.timeEnd('file-tree-generation');
-    
-    // Ajouter des informations sur la configuration utilisée
-    tree.config = { depth, maxFilesPerDir };
-    
-    res.json(tree);
-  } catch (error) {
-    console.error("Erreur lors de la génération de l'arborescence:", error);
-    res.status(500).json({
-      error: "Erreur lors de la génération de l'arborescence",
-      message: error.message
-    });
+// === Début : Connexion à MongoDB ===
+// Explication simple : On établit le lien avec notre base de données et on vérifie que tout va bien, comme quand tu branches ton ordinateur à l'électricité avant de l'utiliser.
+// Explication technique : Établissement asynchrone de la connexion à MongoDB via la fonction connectDB, avec gestion des erreurs adaptative selon l'environnement (développement/production) et journalisation des problèmes.
+// Connexion à MongoDB avec gestion améliorée
+connectDB().then(connected => {
+  if (!connected && process.env.NODE_ENV === 'production') {
+    mongoLogger.error('Impossible de se connecter à MongoDB en production');
+    process.exit(1);
   }
 });
+// === Fin : Connexion à MongoDB ===
 
-// Route pour obtenir le contenu complet d'un fichier
-app.get('/api/file', (req, res) => {
-  const relPath = req.query.path;
-  if (!relPath) return res.status(400).send('Missing path query parameter');
-  
-  const filePath = path.resolve(__dirname, '..', relPath);
-  
-  // Vérification de sécurité pour éviter la traversée de répertoire
-  if (!filePath.startsWith(path.resolve(__dirname, '..'))) {
-    return res.status(400).send('Invalid path');
-  }
-  
-  // Vérifier que le fichier existe et est bien un fichier
-  if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
-    return res.status(404).send('File not found');
-  }
-  
-  try {
-    const content = fs.readFileSync(filePath, 'utf8');
-    res.type('text/plain').send(content);
-  } catch (error) {
-    res.status(500).send(`Erreur lors de la lecture du fichier: ${error.message}`);
-  }
-});
-
-// Debug: liste de toutes les routes enregistrées
-app.get('/debug/routes', (req, res) => {
-  const routes = app._router.stack
-    .filter(layer => layer.route)
-    .map(layer => ({
-      path: layer.route.path,
-      methods: Object.keys(layer.route.methods).join(',').toUpperCase()
-    }));
-  res.json(routes);
-});
-
-// Route de test simple
-app.get('/api/test', (req, res) => {
-  res.json({ message: 'Route de test fonctionnelle' });
-});
-
-// Test de connexion MongoDB
-app.get('/api/db-test', async (req, res) => {
-  try {
-    const mongoose = require('mongoose');
-    const connectionState = mongoose.connection.readyState;
-    const states = {
-      0: 'Déconnecté',
-      1: 'Connecté',
-      2: 'En cours de connexion',
-      3: 'En cours de déconnexion'
-    };
-    res.json({
-      status: 'success',
-      connection: states[connectionState] || 'Inconnu',
-      readyState: connectionState,
-      dbName: mongoose.connection.db ? mongoose.connection.db.databaseName : 'Aucun'
-    });
-  } catch (err) {
-    res.status(500).json({ status: 'error', message: err.message });
-  }
-});
-
-// Debug des variables d'environnement
-app.get('/debug/env', (req, res) => {
-  res.json({
-    nodeEnv: process.env.NODE_ENV,
-    hasMongoUri: !!process.env.MONGO_URI,
-    hasJwtSecret: !!process.env.JWT_SECRET,
-    port: process.env.PORT || 5000
-  });
-});
-
+// === Début : Montage des routes API ===
+// Explication simple : On connecte toutes les routes à notre serveur, comme quand on installe les différents stands dans un parc d'attractions pour que les visiteurs puissent s'y rendre.
+// Explication technique : Configuration du routage Express en associant les modules de routes importés à leurs préfixes d'URL respectifs, définissant ainsi la structure de l'API REST.
 // Routes API
+app.use('/api/tasks', taskRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/clients', clientRoutes);
-app.use('/api/tasks', taskRoutes);
-app.use('/api/badges', badgeRoutes);
-app.use('/api/gamification', gamificationRoutes);
-app.use('/api/timers', timerRoutes); // Assurez-vous que cette ligne est présente
-app.use('/api/images', imageRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/timers', timerRoutes);
+// === Fin : Montage des routes API ===
 
-// Route de base
-app.get('/', (req, res) => {
-  res.json({ message: 'API Task Manager fonctionnelle' });
+// === Début : Route de vérification d'état ===
+// Explication simple : Cette route permet de vérifier si notre serveur et notre base de données fonctionnent bien, comme quand tu appuies sur un bouton "test" pour voir si une machine marche.
+// Explication technique : Endpoint de diagnostic qui expose l'état de la connexion MongoDB via la propriété readyState de mongoose, ainsi que des métriques de base comme la durée de fonctionnement du serveur.
+// Route de vérification d'état MongoDB
+app.get('/api/health', (req, res) => {
+  const mongoState = mongoose.connection.readyState;
+  const states = {
+    0: 'déconnecté',
+    1: 'connecté',
+    2: 'connexion en cours',
+    3: 'déconnexion en cours'
+  };
+  
+  res.json({
+    status: 'ok',
+    mongodb: {
+      state: states[mongoState] || 'inconnu',
+      connected: mongoState === 1
+    },
+    uptime: process.uptime()
+  });
 });
+// === Fin : Route de vérification d'état ===
 
-// Afficher les routes dans la console
-const routes = app._router.stack
-  .filter(layer => layer.route)
-  .map(layer => `${layer.route.stack[0].method.toUpperCase()} ${layer.route.path}`);
-routes.forEach(r => console.log('Route:', r));
+// === Début : Middleware de gestion des erreurs ===
+// Explication simple : Ce code attrape les erreurs qui surviennent et les note dans un journal pour qu'on puisse comprendre ce qui s'est passé, comme un policier qui fait un rapport d'accident.
+// Explication technique : Middleware Express de gestion globale des erreurs qui capture les exceptions non traitées, les journalise via mongoLogger et retourne une réponse d'erreur standardisée, avec masquage des détails techniques en production.
+// Middleware d'erreurs
+app.use((err, req, res, next) => {
+  mongoLogger.error('Erreur non gérée', { 
+    error: err.message,
+    stack: err.stack,
+    path: req.originalUrl
+  });
+  
+  res.status(500).json({
+    success: false,
+    message: 'Erreur serveur',
+    error: process.env.NODE_ENV === 'production' ? undefined : err.message
+  });
+});
+// === Fin : Middleware de gestion des erreurs ===
 
-// Démarrer le serveur
-const PORT = process.env.PORT || 5000;
+// === Début : Middleware de capture des erreurs détaillées ===
+// Explication simple : Ce code donne plus de détails sur les erreurs, en expliquant exactement ce qui s'est passé, mais seulement aux développeurs - un peu comme quand un médecin explique une maladie en termes compliqués aux autres médecins, mais simplement aux patients.
+// Explication technique : Second middleware de gestion d'erreurs qui fournit des réponses plus détaillées avec des informations structurées, incluant le code HTTP, le code d'erreur personnalisé et, en développement uniquement, la stack trace complète pour le débogage.
+// Middleware pour capturer les erreurs détaillées
+app.use((err, req, res, next) => {
+  // Journaliser l'erreur
+  console.error('Erreur non gérée:', {
+    route: req.originalUrl,
+    method: req.method,
+    message: err.message,
+    stack: err.stack
+  });
+  
+  // Format de réponse standardisé pour les erreurs
+  res.status(err.statusCode || 500).json({
+    success: false,
+    message: err.message || 'Erreur serveur interne',
+    errorCode: err.code || 'SERVER_ERROR',
+    // Ne pas exposer la stack trace en production
+    details: process.env.NODE_ENV === 'production' ? undefined : {
+      stack: err.stack,
+      ...err
+    }
+  });
+});
+// === Fin : Middleware de capture des erreurs détaillées ===
+
+// === Début : Gestion des routes non trouvées ===
+// Explication simple : Ce code s'occupe des visiteurs qui cherchent quelque chose qui n'existe pas, comme un guide qui dit poliment "Désolé, cette attraction n'existe pas dans notre parc" quand quelqu'un demande quelque chose qui n'est pas sur la carte.
+// Explication technique : Middleware catch-all placé en dernier qui intercepte toutes les requêtes ne correspondant à aucune route définie et retourne une réponse 404 standardisée avec des informations sur la route demandée.
+// Gestionnaire pour les routes non trouvées
+app.use('*', (req, res) => {
+  res.status(404).json({
+    success: false,
+    message: `Route non trouvée: ${req.originalUrl}`,
+    errorCode: 'NOT_FOUND'
+  });
+});
+// === Fin : Gestion des routes non trouvées ===
+
+// === Début : Démarrage du serveur ===
+// Explication simple : Cette ligne démarre vraiment le serveur et nous dit qu'il est prêt à recevoir des visiteurs, comme quand on allume l'enseigne "Ouvert" d'un magasin.
+// Explication technique : Démarrage du serveur HTTP sur le port configuré, avec journalisation de l'événement de démarrage via mongoLogger pour confirmation de la disponibilité de l'application.
 app.listen(PORT, () => {
-  console.log(`Serveur démarré sur le port ${PORT}`);
+  mongoLogger.info(`Serveur démarré sur le port ${PORT}`);
 });
-
-module.exports = app;
+// === Fin : Démarrage du serveur ===

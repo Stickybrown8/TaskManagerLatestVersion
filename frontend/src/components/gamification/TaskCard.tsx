@@ -1,3 +1,32 @@
+/*
+ * CARTE DE TÂCHE GAMIFIÉE - frontend/src/components/gamification/TaskCard.tsx
+ *
+ * Explication simple:
+ * Ce fichier crée une jolie carte qui affiche une tâche avec des couleurs et des animations
+ * spéciales. Elle montre les informations importantes de la tâche et propose un bouton pour
+ * la marquer comme terminée rapidement. Quand tu termines une tâche, des confettis tombent
+ * et tu gagnes des points, comme dans un jeu vidéo !
+ *
+ * Explication technique:
+ * Composant React fonctionnel qui affiche une tâche dans une carte interactive avec des
+ * éléments de gamification (points d'action, animations, effets visuels) et qui permet
+ * une complétion rapide avec récompense, utilisant Framer Motion pour les animations.
+ *
+ * Où ce fichier est utilisé:
+ * Intégré dans les listes de tâches sur le tableau de bord, dans la page des tâches et
+ * dans la vue Kanban pour afficher chaque tâche individuelle de manière interactive.
+ *
+ * Connexions avec d'autres fichiers:
+ * - Utilise les hooks Redux personnalisés depuis '../../hooks'
+ * - Importe et utilise le composant ConfettiEffect
+ * - Interagit avec les services API (gamificationService, tasksService, soundService)
+ * - Dispatch des actions aux slices uiSlice et gamificationSlice
+ * - Consomme les états clients et ui du store Redux
+ */
+
+// === Début : Importation des dépendances ===
+// Explication simple : On prend tous les outils dont on a besoin pour faire fonctionner notre carte de tâche, comme quand tu prépares tous tes jouets avant de commencer à jouer.
+// Explication technique : Importation des bibliothèques et services React, Redux, Framer Motion et des services API locaux nécessaires à la création du composant.
 import React, { useState, useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '../../hooks';
 import { motion } from 'framer-motion';
@@ -6,25 +35,42 @@ import { addActionPointsSuccess } from '../../store/slices/gamificationSlice';
 import { gamificationService, tasksService } from '../../services/api';
 import ConfettiEffect from '../gamification/ConfettiEffect';
 import { soundService } from '../../services/soundService';
+// === Fin : Importation des dépendances ===
 
+// === Début : Définition de l'interface Client ===
+// Explication simple : On définit à quoi ressemble un client dans notre application, comme si on dessinait un modèle de personnage pour un jeu.
+// Explication technique : Interface TypeScript déclarant la structure minimale requise des objets client utilisés dans ce composant, avec un identifiant unique et un nom.
 interface Client {
   _id: string;
   name: string;
   // autres propriétés si besoin
 }
+// === Fin : Définition de l'interface Client ===
 
+// === Début : Déclaration du composant TaskCard ===
+// Explication simple : On crée notre carte de tâche spéciale qui va afficher les informations et réagir quand on clique dessus ou qu'on passe la souris dessus.
+// Explication technique : Définition du composant fonctionnel React avec ses props typées, incluant la tâche à afficher et le callback à exécuter lors du clic sur la carte.
 // Composant pour afficher une tâche avec des éléments ludiques
 const TaskCard: React.FC<{
   task: any;
   onClick: () => void;
 }> = ({ task, onClick }) => {
+// === Fin : Déclaration du composant TaskCard ===
+
+  // === Début : Initialisation des hooks ===
+  // Explication simple : On prépare tous les outils dont notre carte a besoin pour fonctionner et se souvenir des choses importantes.
+  // Explication technique : Configuration des hooks Redux pour dispatcher des actions et accéder au store, et des hooks d'état locaux pour gérer les états d'animation et d'interface utilisateur.
   const dispatch = useAppDispatch();
   const { soundEnabled } = useAppSelector(state => state.ui);
   const clients = useAppSelector(state => state.clients.clients) as Client[];
   const [isHovered, setIsHovered] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+  // === Fin : Initialisation des hooks ===
 
+  // === Début : Fonction de couleur de priorité ===
+  // Explication simple : Cette fonction décide quelle couleur utiliser pour montrer si une tâche est très urgente ou pas du tout, comme un code couleur dans un jeu.
+  // Explication technique : Fonction utilitaire qui retourne les classes CSS appropriées en fonction du niveau de priorité de la tâche, avec support du mode sombre.
   // Obtenir la couleur en fonction de la priorité
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -40,7 +86,11 @@ const TaskCard: React.FC<{
         return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
     }
   };
+  // === Fin : Fonction de couleur de priorité ===
 
+  // === Début : Fonction de couleur de statut ===
+  // Explication simple : Cette fonction choisit la couleur qui montre où en est la tâche : pas encore commencée, en train d'être faite, ou terminée.
+  // Explication technique : Fonction utilitaire qui attribue des classes CSS de couleur en fonction du statut de la tâche, adaptées au thème clair ou sombre.
   // Obtenir la couleur en fonction du statut
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -54,7 +104,11 @@ const TaskCard: React.FC<{
         return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
     }
   };
+  // === Fin : Fonction de couleur de statut ===
 
+  // === Début : Fonction de gestion des sons ===
+  // Explication simple : Cette fonction joue un son différent selon ce qui se passe, comme quand ton jeu fait "ding!" quand tu gagnes des points.
+  // Explication technique : Utilitaire qui gère la lecture des effets sonores via le soundService, avec vérification préalable des préférences utilisateur.
   // Jouer un son
   const playSound = (type: string) => {
     if (!soundEnabled) return;
@@ -74,7 +128,11 @@ const TaskCard: React.FC<{
         break;
     }
   };
+  // === Fin : Fonction de gestion des sons ===
 
+  // === Début : Fonction de complétion rapide ===
+  // Explication simple : Cette fonction s'occupe de tout ce qui se passe quand tu cliques sur le bouton pour terminer une tâche : elle change son statut, te donne des points, fait tomber des confettis et joue un son joyeux.
+  // Explication technique : Gestionnaire d'événement asynchrone qui traite la complétion rapide de la tâche, incluant la mise à jour du statut via l'API, l'attribution de points, la notification utilisateur et le déclenchement d'effets visuels/sonores.
   // Gérer le clic sur le bouton de complétion rapide
   const handleQuickComplete = async (e: React.MouseEvent) => {
     e.stopPropagation(); // Empêcher la propagation du clic à la carte
@@ -126,13 +184,21 @@ const TaskCard: React.FC<{
       }));
     }
   };
+  // === Fin : Fonction de complétion rapide ===
 
+  // === Début : Fonction de récupération du nom du client ===
+  // Explication simple : Cette fonction trouve le nom du client associé à la tâche, comme quand tu cherches qui a commandé un jouet dans un magasin.
+  // Explication technique : Utilitaire qui résout le nom du client à partir de son ID ou de l'objet client directement, avec gestion des cas particuliers et valeur par défaut.
   const getClientName = (clientId: string | { _id: string; name: string }) => {
     if (typeof clientId === 'object' && clientId !== null) return clientId.name;
     const client = clients.find((c: Client) => c._id === clientId);
     return client ? client.name : 'Client inconnu';
   };
+  // === Fin : Fonction de récupération du nom du client ===
 
+  // === Début : Rendu du composant ===
+  // Explication simple : C'est la partie qui dessine vraiment notre carte sur l'écran, avec toutes ses couleurs, ses animations et ses boutons.
+  // Explication technique : Retour du JSX du composant, incluant l'effet de confettis conditionnel et la carte de tâche avec animations Framer Motion, rendu conditionnel des badges et boutons, et gestion des événements de souris.
   return (
     <>
       {/* Effet de confettis */}
@@ -212,6 +278,11 @@ const TaskCard: React.FC<{
       </motion.div>
     </>
   );
+  // === Fin : Rendu du composant ===
 };
 
+// === Début : Export du composant ===
+// Explication simple : On rend notre carte disponible pour que d'autres parties de l'application puissent l'utiliser.
+// Explication technique : Export par défaut du composant pour permettre son importation dans d'autres modules React.
 export default TaskCard;
+// === Fin : Export du composant ===

@@ -1,3 +1,9 @@
+// === Ce fichier affiche des statistiques détaillées pour les clients avec des graphiques === /workspaces/TaskManagerLatestVersion/frontend/src/pages/ClientStatistics.tsx
+// Explication simple : C'est comme un tableau de bord qui montre combien de temps on a passé à travailler pour chaque client, combien d'argent on a gagné, et si c'était rentable ou pas. Il y a des graphiques pour voir tout ça facilement.
+// Explication technique : Composant React fonctionnel qui affiche des métriques et visualisations de données pour analyser la performance des clients en termes de temps passé, rentabilité et revenus générés via Chart.js.
+// Utilisé dans : Probablement dans un Router principal comme page accessible depuis la navigation
+// Connecté à : uiSlice.ts (notifications), API backend pour les clients et les timers, Chart.js pour les visualisations, ClientLogo pour l'affichage visuel
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAppDispatch } from '../hooks';
 import { addNotification } from '../store/slices/uiSlice';
@@ -17,6 +23,9 @@ import {
 } from 'chart.js';
 import ClientLogo from '../components/Clients/ClientLogo';
 
+// === Début : Configuration de l'API et Chart.js ===
+// Explication simple : On prépare les outils dont on a besoin pour faire des beaux graphiques et parler avec le serveur.
+// Explication technique : Configuration de l'URL de l'API et enregistrement des composants nécessaires pour Chart.js qui permettront de créer différents types de visualisations.
 const API_URL = process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com';
 
 // Enregistrement des composants Chart.js (après tous les imports)
@@ -31,13 +40,24 @@ ChartJS.register(
   Legend,
   ArcElement
 );
+// === Fin : Configuration de l'API et Chart.js ===
 
+// === Début : Interface pour la plage de dates ===
+// Explication simple : C'est comme un petit formulaire qui dit "je veux voir les données de cette date à cette date".
+// Explication technique : Interface TypeScript définissant la structure pour stocker la plage de dates utilisée pour filtrer les données statistiques.
 interface DateRange {
   startDate: string;
   endDate: string;
 }
+// === Fin : Interface pour la plage de dates ===
 
+// === Début : Composant principal des statistiques client ===
+// Explication simple : C'est toute la page qui montre les statistiques des clients avec des graphiques et des nombres.
+// Explication technique : Composant React fonctionnel principal qui gère l'affichage et la logique des statistiques clients avec visualisation de données.
 const ClientStatistics: React.FC = () => {
+  // === Début : États et variables du composant ===
+  // Explication simple : On prépare toutes les petites boîtes où on va ranger les informations dont on a besoin.
+  // Explication technique : Initialisation des hooks d'état React pour stocker les données clients, les plages de dates, les statistiques et contrôler l'état de chargement.
   const dispatch = useAppDispatch();
   const [clients, setClients] = useState<any[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string>('');
@@ -53,8 +73,11 @@ const ClientStatistics: React.FC = () => {
   const [timeData, setTimeData] = useState<any>({ labels: [], datasets: [] });
   const [profitabilityData, setProfitabilityData] = useState<any>({ labels: [], datasets: [] });
   const [selectedClient, setSelectedClient] = useState<any>(null);
+  // === Fin : États et variables du composant ===
 
-  // Charger les clients au démarrage
+  // === Début : Chargement initial des clients ===
+  // Explication simple : Quand la page s'ouvre, on va chercher la liste de tous les clients pour pouvoir choisir celui qu'on veut voir.
+  // Explication technique : Hook useEffect qui s'exécute au montage du composant pour récupérer la liste des clients depuis l'API, en utilisant le token d'authentification stocké.
   useEffect(() => {
     const fetchClients = async () => {
       try {
@@ -73,8 +96,11 @@ const ClientStatistics: React.FC = () => {
     
     fetchClients();
   }, []);
+  // === Fin : Chargement initial des clients ===
 
-  // Fonction pour récupérer les données du client sélectionné
+  // === Début : Fonction de récupération des données du client sélectionné ===
+  // Explication simple : Cette fonction va chercher toutes les informations importantes sur le client que tu as choisi : combien de temps on a travaillé pour lui, combien il paie, etc.
+  // Explication technique : Fonction callback qui effectue plusieurs requêtes API asynchrones pour récupérer les détails du client, ses données de temps (timers) et sa rentabilité, puis met à jour les états correspondants.
   const fetchClientData = useCallback(async () => {
     try {
       setLoading(true);
@@ -126,15 +152,21 @@ const ClientStatistics: React.FC = () => {
       setLoading(false);
     }
   }, [selectedClientId, dateRange, dispatch]);
+  // === Fin : Fonction de récupération des données du client sélectionné ===
 
-  // Un seul useEffect pour les deux cas
+  // === Début : Déclenchement de la récupération des données au changement de client ou de dates ===
+  // Explication simple : Dès que tu choisis un client différent ou des dates différentes, on met à jour toutes les informations pour montrer les bonnes statistiques.
+  // Explication technique : Hook useEffect qui surveille les changements de client sélectionné ou de plage de dates pour déclencher une nouvelle récupération des données.
   useEffect(() => {
     if (selectedClientId) {
       fetchClientData();
     }
   }, [selectedClientId, dateRange, fetchClientData]);
+  // === Fin : Déclenchement de la récupération des données au changement de client ou de dates ===
 
-  // Préparer les données pour les graphiques
+  // === Début : Préparation des données pour les graphiques ===
+  // Explication simple : Cette fonction transforme les informations brutes en un format que les graphiques peuvent comprendre et afficher.
+  // Explication technique : Fonction qui traite les données des timers pour créer les structures de données nécessaires aux visualisations Chart.js, avec regroupement par date et séparation du temps facturable et non facturable.
   const prepareChartData = (timersData: any[]) => {
     if (!timersData.length) {
       setTimeData({ labels: [], datasets: [] });
@@ -231,8 +263,11 @@ const ClientStatistics: React.FC = () => {
       setProfitabilityData(profitabilityChartData);
     }
   };
+  // === Fin : Préparation des données pour les graphiques ===
 
-  // Fonction pour définir la plage de dates en fonction de la période
+  // === Début : Gestion du changement de période ===
+  // Explication simple : Cette fonction permet de choisir facilement si on veut voir les données pour aujourd'hui, la semaine, le mois ou l'année.
+  // Explication technique : Fonction qui met à jour la plage de dates en fonction de la période sélectionnée (jour, semaine, mois, année ou personnalisée), en calculant les dates de début et de fin appropriées.
   const handlePeriodChange = (newPeriod: 'day' | 'week' | 'month' | 'year' | 'custom') => {
     setPeriod(newPeriod);
     
@@ -264,8 +299,11 @@ const ClientStatistics: React.FC = () => {
       endDate: today.toISOString().split('T')[0]
     });
   };
+  // === Fin : Gestion du changement de période ===
 
-  // Formater la durée en heures et minutes
+  // === Début : Formatage de la durée ===
+  // Explication simple : Cette fonction transforme des secondes en un format plus facile à lire comme "2h 30min".
+  // Explication technique : Fonction utilitaire qui convertit une durée en secondes en format horaire lisible (heures et minutes) pour l'affichage dans l'interface.
   const formatDuration = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
@@ -276,8 +314,11 @@ const ClientStatistics: React.FC = () => {
     
     return `${hours}h${minutes > 0 ? ` ${minutes}min` : ''}`;
   };
+  // === Fin : Formatage de la durée ===
 
-  // Calculer les totaux
+  // === Début : Calculs des statistiques totales ===
+  // Explication simple : On calcule tous les totaux importants : combien de temps total, combien d'argent gagné, etc.
+  // Explication technique : Calcul des métriques agrégées à partir des données des timers pour afficher les totaux de temps facturable, non facturable, pourcentage facturable, revenus et taux horaire effectif.
   const totalBillableSeconds = timers.reduce((total, timer) => {
     // Convertir la durée en secondes si elle est en heures
     const durationInSeconds = timer.billable ? (timer.duration * (timer.duration < 100 ? 3600 : 1)) : 0;
@@ -294,7 +335,11 @@ const ClientStatistics: React.FC = () => {
   const billablePercentage = totalSeconds > 0 ? Math.round((totalBillableSeconds / totalSeconds) * 100) : 0;
   const revenue = profitability && profitability.hourlyRate ? (totalBillableSeconds / 3600) * profitability.hourlyRate : 0;
   const effectiveHourlyRate = totalSeconds > 0 ? revenue / (totalSeconds / 3600) : 0;
+  // === Fin : Calculs des statistiques totales ===
 
+  // === Début : Rendu de l'interface ===
+  // Explication simple : C'est tout ce qu'on va voir à l'écran : les filtres, les graphiques et les chiffres.
+  // Explication technique : Fonction de rendu JSX qui affiche l'interface utilisateur avec les filtres de sélection, les statistiques agrégées et les visualisations de données, avec gestion conditionnelle des états de chargement et d'erreur.
   return (
     <div className="container mx-auto px-4 py-6">
       <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
@@ -582,6 +627,8 @@ const ClientStatistics: React.FC = () => {
       )}
     </div>
   );
+  // === Fin : Rendu de l'interface ===
 };
+// === Fin : Composant principal des statistiques client ===
 
 export default ClientStatistics;

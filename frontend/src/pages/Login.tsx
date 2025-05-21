@@ -1,3 +1,9 @@
+// === Ce fichier gère la page de connexion où les utilisateurs entrent leur email et mot de passe === /workspaces/TaskManagerLatestVersion/frontend/src/pages/Login.tsx
+// Explication simple : C'est comme la porte d'entrée de l'application où tu dois donner ton nom et ton mot secret pour pouvoir entrer et utiliser l'app.
+// Explication technique : Composant React fonctionnel qui gère l'authentification des utilisateurs avec gestion d'état local et global (Redux), animations (Framer Motion) et navigation programmatique.
+// Utilisé dans : Le routeur principal de l'application, affiché quand l'utilisateur n'est pas connecté ou visite explicitement /login
+// Connecté à : authService (API), authSlice et uiSlice (Redux), react-router pour la navigation
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch } from '../hooks';
@@ -6,14 +12,28 @@ import { authService } from '../services/api';
 import { addNotification } from '../store/slices/uiSlice';
 import { motion } from 'framer-motion';
 
+// === Début : Composant principal de la page de connexion ===
+// Explication simple : Cette fonction crée toute la page de connexion avec le formulaire et les boutons.
+// Explication technique : Composant fonctionnel React qui encapsule la logique d'authentification et le rendu de l'interface utilisateur du formulaire de connexion.
 const Login: React.FC = () => {
+  // === Début : Configuration des hooks React et Redux ===
+  // Explication simple : On prépare les outils spéciaux dont on a besoin pour faire fonctionner la page.
+  // Explication technique : Initialisation du dispatcher Redux pour les actions d'état global et du hook de navigation pour les redirections.
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  // === Fin : Configuration des hooks React et Redux ===
 
+  // === Début : États locaux du formulaire ===
+  // Explication simple : Ce sont les boîtes qui vont contenir ce que l'utilisateur va taper (email, mot de passe) et si la page est en train de charger.
+  // Explication technique : Déclaration des états React locaux avec useState pour gérer les entrées du formulaire et l'état de chargement.
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  // === Fin : États locaux du formulaire ===
 
+  // === Début : Fonction de soumission du formulaire ===
+  // Explication simple : Cette fonction s'occupe d'envoyer ton email et ton mot de passe au serveur quand tu cliques sur "Se connecter".
+  // Explication technique : Fonction asynchrone qui gère la soumission du formulaire, avec validation des entrées, appel à l'API d'authentification, gestion des réponses et des erreurs, et navigation post-connexion.
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -57,9 +77,13 @@ const Login: React.FC = () => {
       setLoading(false);
     }
   };
+  // === Fin : Fonction de soumission du formulaire ===
 
   console.log("Login.tsx rendu !");
 
+  // === Début : Rendu de l'interface utilisateur ===
+  // Explication simple : C'est ce qui dessine la jolie page avec les cases où tu vas taper ton email et ton mot de passe.
+  // Explication technique : Rendu JSX du composant avec animation d'entrée via Framer Motion, structuration responsive, gestion conditionnelle des états de chargement, et navigation vers l'inscription.
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-secondary-50 dark:from-gray-900 dark:to-gray-800 p-4">
       <motion.div
@@ -143,6 +167,8 @@ const Login: React.FC = () => {
       </motion.div>
     </div>
   );
+  // === Fin : Rendu de l'interface utilisateur ===
 };
+// === Fin : Composant principal de la page de connexion ===
 
 export default Login;

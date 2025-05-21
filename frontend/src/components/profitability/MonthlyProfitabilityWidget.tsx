@@ -1,3 +1,34 @@
+/*
+ * WIDGET DE RENTABILITÉ MENSUELLE - frontend/src/components/profitability/MonthlyProfitabilityWidget.tsx
+ *
+ * Explication simple:
+ * Ce fichier crée une boîte spéciale qui affiche combien d'argent tes clients te rapportent 
+ * chaque mois. Elle te montre quels clients atteignent leurs objectifs et lesquels non. 
+ * Tu peux cliquer sur un bouton pour vérifier, et si beaucoup de clients sont rentables, 
+ * tu gagnes des points et des confettis apparaissent pour fêter ça! C'est comme un tableau 
+ * de score qui te récompense quand ton entreprise va bien.
+ *
+ * Explication technique:
+ * Composant React fonctionnel qui affiche et calcule les métriques de rentabilité des clients 
+ * sur une base mensuelle. Il interagit avec l'API de profitabilité, déclenche des récompenses 
+ * gamifiées via Redux et peut être affiché en mode compact ou complet avec des visualisations 
+ * de données.
+ *
+ * Où ce fichier est utilisé:
+ * Intégré dans le tableau de bord principal et potentiellement dans des pages de reporting 
+ * financier, offrant une vue d'ensemble de la rentabilité des projets clients.
+ *
+ * Connexions avec d'autres fichiers:
+ * - Utilise les hooks Redux personnalisés depuis '../../hooks'
+ * - Importe le composant ConfettiEffect depuis '../gamification/ConfettiEffect'
+ * - Consomme les services profitabilityRewardService et soundService
+ * - Interagit avec l'API backend via axios pour récupérer les données de rentabilité
+ * - Dispatch des actions au slice uiSlice pour les notifications
+ */
+
+// === Début : Importation des dépendances ===
+// Explication simple : On prend tous les outils dont on a besoin pour faire fonctionner notre widget, comme quand tu prépares tous tes matériaux avant de construire quelque chose.
+// Explication technique : Importation des bibliothèques et modules requis, notamment React pour les hooks, Framer Motion pour les animations, les hooks Redux personnalisés, et divers services pour la gestion des API et des effets.
 // src/components/profitability/MonthlyProfitabilityWidget.tsx
 
 import React, { useState } from 'react';
@@ -8,10 +39,18 @@ import ConfettiEffect from '../gamification/ConfettiEffect';
 import { profitabilityRewardService } from '../../services/profitabilityRewardService';
 import { soundService } from '../../services/soundService';
 import axios from 'axios';
+// === Fin : Importation des dépendances ===
 
+// === Début : Configuration de l'URL API ===
+// Explication simple : On définit l'adresse où notre application va chercher les informations sur internet, comme quand tu mémorises l'adresse de ton école.
+// Explication technique : Déclaration de la constante d'URL de l'API en utilisant une variable d'environnement avec une valeur de fallback, pour permettre des environnements de déploiement flexibles.
 // Ajouter cette ligne après les imports
 const API_URL = process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com';
+// === Fin : Configuration de l'URL API ===
 
+// === Début : Définition des interfaces TypeScript ===
+// Explication simple : On explique à l'ordinateur à quoi ressemblent les informations qu'on va utiliser, comme quand tu décris la forme d'un jouet à quelqu'un.
+// Explication technique : Déclaration des interfaces TypeScript qui définissent la structure des props du composant et des données de rentabilité reçues de l'API, assurant la sécurité de type.
 interface MonthlyProfitabilityWidgetProps {
   displayMode?: 'compact' | 'full';
 }
@@ -25,10 +64,19 @@ interface ProfitabilityData {
   actualHours: number;
   profitabilityPercentage: number;
 }
+// === Fin : Définition des interfaces TypeScript ===
 
+// === Début : Déclaration du composant principal ===
+// Explication simple : On commence à créer notre boîte spéciale qui affichera les informations sur l'argent gagné, comme quand tu dessines le contour d'une maison avant de la construire.
+// Explication technique : Définition du composant fonctionnel React avec typage TypeScript, déstructuration des props avec valeur par défaut pour le mode d'affichage.
 const MonthlyProfitabilityWidget: React.FC<MonthlyProfitabilityWidgetProps> = ({
   displayMode = 'full'
 }) => {
+// === Fin : Déclaration du composant principal ===
+
+  // === Début : Initialisation des hooks ===
+  // Explication simple : On prépare des boîtes spéciales pour stocker et changer les informations dont notre widget a besoin, comme des tiroirs où tu ranges différentes choses.
+  // Explication technique : Configuration des hooks React et Redux - dispatcher pour les actions, états locaux pour gérer le chargement, les erreurs, les données de rentabilité et les effets visuels.
   const dispatch = useAppDispatch();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +95,11 @@ const MonthlyProfitabilityWidget: React.FC<MonthlyProfitabilityWidgetProps> = ({
 
   // 🟢 Hook utilisé DIRECTEMENT dans le composant :
   const { soundEnabled } = useAppSelector(state => state.ui || { soundEnabled: true });
+  // === Fin : Initialisation des hooks ===
 
+  // === Début : Fonction de détection de fin de mois ===
+  // Explication simple : Cette fonction vérifie si on est proche de la fin du mois pour te rappeler de vérifier la rentabilité, comme quand maman te rappelle qu'il est bientôt l'heure de ranger ta chambre.
+  // Explication technique : Méthode qui calcule si la date courante est à 3 jours ou moins de la fin du mois calendaire, pour déclencher une notification visuelle incitant l'utilisateur à vérifier les données avant la clôture mensuelle.
   // Vérifier si nous sommes à la fin du mois pour afficher un badge de notification
   const isEndOfMonth = () => {
     const today = new Date();
@@ -55,7 +107,11 @@ const MonthlyProfitabilityWidget: React.FC<MonthlyProfitabilityWidgetProps> = ({
     const daysUntilEnd = lastDayOfMonth.getDate() - today.getDate();
     return daysUntilEnd <= 3;
   };
+  // === Fin : Fonction de détection de fin de mois ===
 
+  // === Début : Fonction de formatage de date ===
+  // Explication simple : Cette fonction transforme une date technique en mots faciles à comprendre, comme quand on écrit "10 juin 2023" au lieu de "10/06/2023".
+  // Explication technique : Fonction utilitaire qui convertit une chaîne de date ISO en format localisé pour l'affichage, avec gestion des cas d'absence de date et des erreurs de parsing.
   // Formater la date de dernier contrôle
   const formatLastChecked = (dateStr: string | null) => {
     if (!dateStr) return 'Jamais';
@@ -70,7 +126,11 @@ const MonthlyProfitabilityWidget: React.FC<MonthlyProfitabilityWidgetProps> = ({
       return 'Date invalide';
     }
   };
+  // === Fin : Fonction de formatage de date ===
 
+  // === Début : Fonction de vérification de rentabilité ===
+  // Explication simple : Cette fonction va vérifier sur internet combien d'argent chaque client te rapporte, compte les clients rentables, te donne des points et fait apparaître des confettis si c'est une bonne nouvelle.
+  // Explication technique : Fonction asynchrone qui effectue une requête HTTP vers l'API de rentabilité, calcule les métriques, met à jour l'état local, dispatch des notifications et déclenche des effets visuels/sonores conditionnels selon les résultats.
   // Remplacer cette fonction dans MonthlyProfitabilityWidget.tsx
   const checkMonthlyProfitability = async (soundEnabled: boolean) => {
     try {
@@ -122,7 +182,11 @@ const MonthlyProfitabilityWidget: React.FC<MonthlyProfitabilityWidgetProps> = ({
       setLoading(false);
     }
   };
+  // === Fin : Fonction de vérification de rentabilité ===
 
+  // === Début : Rendu en mode compact ===
+  // Explication simple : Si on choisit d'afficher une petite version du widget (comme une mini-carte), cette partie dessine une boîte simple avec juste un titre et un bouton.
+  // Explication technique : Bloc conditionnel de rendu qui retourne une version simplifiée de l'interface avec un minimum d'éléments UI lorsque le mode compact est sélectionné, optimisé pour les espaces restreints.
   // Version compacte
   if (displayMode === 'compact') {
     return (
@@ -149,7 +213,11 @@ const MonthlyProfitabilityWidget: React.FC<MonthlyProfitabilityWidgetProps> = ({
       </div>
     );
   }
+  // === Fin : Rendu en mode compact ===
 
+  // === Début : Rendu en mode complet ===
+  // Explication simple : C'est la grande version de notre widget qui montre beaucoup plus d'informations, avec des jolies couleurs et animations pour célébrer quand tu as de bons résultats.
+  // Explication technique : Rendu principal du widget en mode complet, comprenant l'effet de confettis, l'en-tête avec alerte de fin de mois, la grille des métriques clés avec styling contextuel, la gestion des erreurs et le bouton d'action principal avec indicateur de chargement.
   return (
     <>
       <ConfettiEffect 
@@ -225,6 +293,11 @@ const MonthlyProfitabilityWidget: React.FC<MonthlyProfitabilityWidgetProps> = ({
       </div>
     </>
   );
+  // === Fin : Rendu en mode complet ===
 };
 
+// === Début : Export du composant ===
+// Explication simple : On rend notre widget disponible pour que d'autres parties de l'application puissent l'utiliser, comme quand tu partages ton jouet avec tes amis.
+// Explication technique : Export par défaut du composant pour permettre son importation dans d'autres modules de l'application.
 export default MonthlyProfitabilityWidget;
+// === Fin : Export du composant ===

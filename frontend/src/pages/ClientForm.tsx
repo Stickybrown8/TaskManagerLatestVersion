@@ -1,3 +1,33 @@
+/*
+ * FORMULAIRE DE CRÉATION DE CLIENT - frontend/src/pages/ClientForm.tsx
+ *
+ * Explication simple:
+ * Ce fichier crée une page qui te permet d'ajouter un nouveau client à l'application.
+ * C'est comme remplir une fiche d'inscription pour un nouveau membre dans un club.
+ * Tu remplis ses informations en deux étapes: d'abord ses coordonnées et contacts,
+ * puis dans une deuxième étape, tu configures sa rentabilité (combien tu facturas,
+ * combien de temps tu vas travailler pour lui, etc.).
+ *
+ * Explication technique:
+ * Composant React fonctionnel qui implémente un formulaire multi-étapes pour la création
+ * de nouveaux clients. Il gère la validation des données, le téléchargement de logo,
+ * la configuration de la rentabilité avec calculs dynamiques, et l'envoi des données
+ * à l'API backend via Redux.
+ *
+ * Où ce fichier est utilisé:
+ * Rendu comme page principale dans l'application lorsque l'utilisateur navigue vers
+ * la route '/clients/new' ou un chemin similaire pour l'ajout d'un client.
+ *
+ * Connexions avec d'autres fichiers:
+ * - Utilise les hooks personnalisés useAppDispatch depuis '../hooks'
+ * - Importe les actions depuis '../store/slices/clientsSlice' et '../store/slices/uiSlice'
+ * - Communique avec l'API backend via axios pour créer de nouveaux clients
+ * - Utilise le composant LogoUploader depuis '../components/Clients/LogoUploader'
+ */
+
+// === Début : Importation des dépendances ===
+// Explication simple : On prend tous les outils dont on a besoin pour construire notre formulaire, comme quand tu rassembles tes crayons et ton papier avant de dessiner.
+// Explication technique : Importation des hooks React, des composants de routage, des hooks Redux personnalisés, des actions Redux, des services d'API, et d'autres bibliothèques nécessaires.
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch } from '../hooks';
@@ -14,13 +44,30 @@ import { addNotification } from '../store/slices/uiSlice';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import LogoUploader from '../components/Clients/LogoUploader';
+// === Fin : Importation des dépendances ===
 
+// === Début : Configuration de l'API ===
+// Explication simple : On définit l'adresse du serveur où on va envoyer les informations, comme quand tu écris l'adresse sur une enveloppe avant de l'envoyer.
+// Explication technique : Déclaration d'une constante qui stocke l'URL de l'API avec une valeur par défaut en cas d'absence de variable d'environnement.
 const API_URL = process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com';
+// === Fin : Configuration de l'API ===
 
+// === Début : Composant principal ClientForm ===
+// Explication simple : C'est le grand chef d'orchestre qui va organiser toute la page de création de client, comme le chef d'une cuisine qui supervise la préparation d'un plat.
+// Explication technique : Définition du composant fonctionnel React avec typage explicite, qui encapsule toute la logique et l'interface utilisateur du formulaire multi-étapes.
 const ClientForm: React.FC = () => {
+// === Fin : Composant principal ClientForm ===
+
+  // === Début : Initialisation des hooks et récupération des états de navigation ===
+  // Explication simple : On prépare des outils pour parler avec le "cerveau" de l'application et pour pouvoir changer de page quand on a fini.
+  // Explication technique : Configuration du dispatcher Redux pour les actions et du hook de navigation pour les redirections après soumission.
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  // === Fin : Initialisation des hooks et récupération des états de navigation ===
 
+  // === Début : Configuration des états du formulaire - informations générales ===
+  // Explication simple : On crée une grande boîte pour stocker toutes les informations sur le client, comme une fiche avec différentes sections à remplir.
+  // Explication technique : Initialisation de l'état local avec useState pour stocker les données du formulaire, avec structure complète et valeurs par défaut.
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -38,31 +85,54 @@ const ClientForm: React.FC = () => {
     tags: [] as string[],
     logo: '',
   });
+  // === Fin : Configuration des états du formulaire - informations générales ===
 
+  // === Début : États pour la gestion du logo ===
+  // Explication simple : On prépare un espace spécial pour l'image du logo du client, comme quand tu gardes un cadre photo prêt pour y mettre une nouvelle photo.
+  // Explication technique : Initialisation des états locaux pour gérer le fichier du logo et son aperçu, avec typage explicite pour le fichier.
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string>('');
+  // === Fin : États pour la gestion du logo ===
 
+  // === Début : Configuration des états de rentabilité ===
+  // Explication simple : On crée une boîte spéciale pour les informations sur l'argent que le client va rapporter, comme quand tu notes combien coûtent les choses dans ton tirelire.
+  // Explication technique : Initialisation de l'état local pour les données de rentabilité avec structure et valeurs par défaut pour les calculs dynamiques.
   const [profitabilityData, setProfitabilityData] = useState({
     hourlyRate: 100,
     targetHours: 0,
     monthlyBudget: 0,
   });
+  // === Fin : Configuration des états de rentabilité ===
 
+  // === Début : États de l'interface utilisateur ===
+  // Explication simple : On prépare des indicateurs pour savoir si le formulaire est en train d'envoyer des données et à quelle étape on se trouve, comme des panneaux indicateurs sur un chemin.
+  // Explication technique : Initialisation des états locaux pour le statut de chargement et l'étape courante du formulaire multi-étapes.
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
+  // === Fin : États de l'interface utilisateur ===
 
-  // Gestion des champs de l'étape 1
+  // === Début : Gestion des champs du formulaire général ===
+  // Explication simple : Cette fonction s'occupe de mettre à jour les informations quand tu écris quelque chose dans un champ du formulaire, comme quand tu remplis une case sur un dessin "relier les points".
+  // Explication technique : Fonction de gestion des événements onChange pour les champs de formulaire génériques, mettant à jour l'état formData de manière immutable.
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
+  // === Fin : Gestion des champs du formulaire général ===
 
+  // === Début : Gestion du logo ===
+  // Explication simple : Cette fonction s'occupe de sauvegarder l'image du logo quand tu en choisis une, comme quand tu colles une photo dans un album.
+  // Explication technique : Fonction callback pour gérer la mise à jour du logo via le composant LogoUploader, stockant à la fois le fichier et l'aperçu.
   const handleLogoChange = (logo: string, file?: File) => {
     setLogoFile(file || null);
     setFormData((prev) => ({ ...prev, logo }));
     setLogoPreview(logo);
   };
+  // === Fin : Gestion du logo ===
 
+  // === Début : Gestion des contacts ===
+  // Explication simple : Ces fonctions permettent d'ajouter, modifier ou supprimer des contacts pour le client, comme quand tu ajoutes ou enlèves des personnes dans ta liste d'amis.
+  // Explication technique : Collection de fonctions pour manipuler le tableau de contacts dans l'état formData, avec mise à jour immutable de l'état et gestion des index.
   const handleContactChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     const updatedContacts = [...formData.contacts];
@@ -85,8 +155,11 @@ const ClientForm: React.FC = () => {
     updatedContacts.splice(index, 1);
     setFormData((prev) => ({ ...prev, contacts: updatedContacts }));
   };
+  // === Fin : Gestion des contacts ===
 
-  // Gestion des champs de rentabilité (étape 2)
+  // === Début : Gestion des champs de rentabilité ===
+  // Explication simple : Cette fonction fait des calculs automatiques quand tu changes un nombre dans la partie rentabilité, comme une calculatrice magique qui remplit les autres cases toute seule.
+  // Explication technique : Fonction de gestion des événements onChange pour les champs de rentabilité, incluant des calculs interdépendants entre taux horaire, heures cibles et budget mensuel.
   const handleProfitabilityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     const numValue = parseFloat(value);
@@ -122,8 +195,11 @@ const ClientForm: React.FC = () => {
       }));
     }
   };
+  // === Fin : Gestion des champs de rentabilité ===
 
-  // Navigation entre étapes
+  // === Début : Navigation entre les étapes ===
+  // Explication simple : Ces fonctions te permettent d'avancer à l'étape suivante ou de revenir en arrière dans le formulaire, comme tourner les pages d'un livre d'images.
+  // Explication technique : Fonctions pour la navigation entre les étapes du formulaire multi-étapes, avec validation basique pour l'étape 1 et notification d'erreur si nécessaire.
   const nextStep = () => {
     if (formData.name.trim() === '') {
       dispatch(
@@ -140,8 +216,11 @@ const ClientForm: React.FC = () => {
   const prevStep = () => {
     setStep(1);
   };
+  // === Fin : Navigation entre les étapes ===
 
-  // Soumission du formulaire
+  // === Début : Soumission du formulaire ===
+  // Explication simple : Cette fonction envoie toutes les informations remplies au serveur quand tu as fini de compléter le formulaire, comme poster une lettre dans une boîte aux lettres.
+  // Explication technique : Fonction asynchrone de gestion de la soumission du formulaire, avec validation, combinaison des données, appel à l'API via axios, gestion des états de chargement et des erreurs via Redux, et redirection après succès.
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -221,7 +300,11 @@ const ClientForm: React.FC = () => {
       setLoading(false);
     }
   };
+  // === Fin : Soumission du formulaire ===
 
+  // === Début : Rendu de l'interface utilisateur ===
+  // Explication simple : C'est la partie qui dessine tout le formulaire sur l'écran, comme quand tu assembles toutes les pièces d'un puzzle pour voir l'image complète.
+  // Explication technique : Retour du JSX principal qui structure l'interface utilisateur complète du formulaire, avec animations via framer-motion et rendu conditionnel des différentes étapes.
   return (
     <div className="container mx-auto">
       <motion.div
@@ -241,7 +324,9 @@ const ClientForm: React.FC = () => {
           </button>
         </div>
 
-        {/* Indicateur d'étape */}
+        {/* === Début : Indicateur d'étape === */}
+        {/* Explication simple : Cette partie montre où tu en es dans le formulaire, comme une barre de progression qui te dit combien d'étapes il reste. */}
+        {/* Explication technique : Composant visuel qui indique la progression à travers les étapes du formulaire, avec coloration conditionnelle basée sur l'étape actuelle. */}
         <div className="mb-6">
           <div className="flex items-center">
             <div
@@ -269,8 +354,11 @@ const ClientForm: React.FC = () => {
             <div className="flex-1 text-center text-sm">Rentabilité</div>
           </div>
         </div>
+        {/* === Fin : Indicateur d'étape === */}
 
-        {/* Étape 1: Informations du client */}
+        {/* === Début : Étape 1 - Informations du client === */}
+        {/* Explication simple : Cette section contient tous les champs pour les informations générales du client comme son nom, son logo et ses contacts, comme une carte d'identité que tu remplis. */}
+        {/* Explication technique : Rendu conditionnel de la première étape du formulaire, avec champs pour les informations de base du client, téléchargement de logo et gestion des contacts, organisé en sections distinctes. */}
         {step === 1 && (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 space-y-4">
             <div>
@@ -450,8 +538,11 @@ const ClientForm: React.FC = () => {
             </div>
           </div>
         )}
+        {/* === Fin : Étape 1 - Informations du client === */}
 
-        {/* Étape 2: Rentabilité */}
+        {/* === Début : Étape 2 - Configuration de la rentabilité === */}
+        {/* Explication simple : Cette section contient les champs pour définir combien le client va te payer et combien de temps tu vas travailler pour lui, comme quand tu établis un budget pour tes dépenses. */}
+        {/* Explication technique : Rendu conditionnel de la deuxième étape du formulaire, avec champs interconnectés pour la rentabilité, calculs dynamiques, analyse conditionnelle, et boutons de navigation et de soumission. */}
         {step === 2 && (
           <form
             onSubmit={handleSubmit}
@@ -607,9 +698,15 @@ const ClientForm: React.FC = () => {
             </div>
           </form>
         )}
+        {/* === Fin : Étape 2 - Configuration de la rentabilité === */}
       </motion.div>
     </div>
   );
+  // === Fin : Rendu de l'interface utilisateur ===
 };
 
+// === Début : Export du composant ===
+// Explication simple : On rend notre formulaire disponible pour que d'autres parties de l'application puissent l'utiliser, comme quand tu partages ton jouet avec tes amis.
+// Explication technique : Export par défaut du composant pour permettre son importation dans le système de routage de l'application.
 export default ClientForm;
+// === Fin : Export du composant ===

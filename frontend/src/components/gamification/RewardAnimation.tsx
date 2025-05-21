@@ -1,14 +1,54 @@
+/*
+ * ANIMATION DE RÉCOMPENSE - frontend/src/components/gamification/RewardAnimation.tsx
+ *
+ * Explication simple:
+ * Ce fichier crée une jolie animation qui apparaît quand tu gagnes quelque chose dans
+ * l'application, comme un badge, des points, ou quand tu montes de niveau. C'est comme
+ * la petite fête qui se lance avec des confettis et des effets visuels pour te féliciter
+ * lorsque tu réussis quelque chose d'important.
+ *
+ * Explication technique:
+ * Composant React fonctionnel qui affiche une animation modale pour célébrer l'obtention de
+ * récompenses (badges, niveaux, points, expérience), avec des effets visuels générés par
+ * Framer Motion et un comportement adaptatif selon le type de récompense.
+ *
+ * Où ce fichier est utilisé:
+ * Intégré dans le layout principal de l'application et déclenché par le store Redux
+ * lorsque l'utilisateur obtient une récompense suite à ses actions dans l'application.
+ *
+ * Connexions avec d'autres fichiers:
+ * - Utilise les hooks Redux personnalisés depuis '../../hooks'
+ * - Interagit avec le store via l'action hideRewardAnimation du slice gamificationSlice
+ * - Consomme les états gamification et ui du store Redux
+ * - Utilise Framer Motion pour les animations
+ */
+
+// === Début : Importation des dépendances ===
+// Explication simple : On prend tous les outils dont on a besoin pour créer notre animation de récompense, comme quand tu rassembles tes crayons et papiers avant de dessiner.
+// Explication technique : Importation de React et useEffect pour la gestion du cycle de vie, framer-motion pour les animations, et des hooks Redux personnalisés pour interagir avec le store global.
 import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useAppSelector, useAppDispatch } from '../../hooks';
 import { hideRewardAnimation } from '../../store/slices/gamificationSlice';
+// === Fin : Importation des dépendances ===
 
+// === Début : Définition du composant fonction principal ===
+// Explication simple : On crée notre animation spéciale qui va montrer différentes sortes de récompenses avec des effets jolis et colorés.
+// Explication technique : Définition du composant fonctionnel React avec typage TypeScript, qui servira de conteneur pour l'animation des récompenses.
 const RewardAnimation: React.FC = () => {
+// === Fin : Définition du composant fonction principal ===
+
+  // === Début : Initialisation des hooks Redux ===
+  // Explication simple : On prépare ce qu'il faut pour parler avec le "cerveau" de l'application et récupérer les informations sur la récompense à afficher.
+  // Explication technique : Configuration du dispatcher Redux et extraction des données pertinentes depuis le store global avec useAppSelector pour accéder aux états des slices gamification et ui.
   const dispatch = useAppDispatch();
   const { rewardAnimation } = useAppSelector(state => state.gamification);
   const { soundEnabled } = useAppSelector(state => state.ui);
+  // === Fin : Initialisation des hooks Redux ===
 
-  // Masquer l'animation après un délai
+  // === Début : Effet pour gérer l'affichage temporisé de l'animation ===
+  // Explication simple : Cette partie fait en sorte que l'animation ne reste pas affichée trop longtemps. Elle disparaît automatiquement après quelques secondes, comme un feu d'artifice qui s'éteint.
+  // Explication technique : Hook useEffect qui déclenche un timer pour masquer l'animation après 3 secondes et gère conditionnellement la lecture audio en fonction des préférences utilisateur.
   useEffect(() => {
     if (rewardAnimation.show) {
       const timer = setTimeout(() => {
@@ -23,18 +63,28 @@ const RewardAnimation: React.FC = () => {
       return () => clearTimeout(timer);
     }
   }, [rewardAnimation.show, dispatch, soundEnabled]);
+  // === Fin : Effet pour gérer l'affichage temporisé de l'animation ===
 
-  // Fonction pour jouer un son en fonction du type de récompense
+  // === Début : Fonction de gestion des sons ===
+  // Explication simple : Cette fonction jouerait un son joyeux quand tu reçois ta récompense, différent selon ce que tu as gagné, comme une petite musique de victoire.
+  // Explication technique : Fonction utilitaire qui gère la lecture audio en fonction du type de récompense obtenue, actuellement implémentée comme un placeholder avec logging console.
   const playRewardSound = (type: string | null) => {
     // Implémentation à venir avec des sons réels
     console.log(`Playing sound for ${type}`);
   };
+  // === Fin : Fonction de gestion des sons ===
 
+  // === Début : Rendu conditionnel - Vérification d'affichage ===
+  // Explication simple : Si aucune récompense n'est à montrer, alors on n'affiche rien du tout.
+  // Explication technique : Guard clause qui retourne null si l'état show est false, empêchant tout rendu du composant lorsqu'aucune récompense n'est active.
   if (!rewardAnimation.show) {
     return null;
   }
+  // === Fin : Rendu conditionnel - Vérification d'affichage ===
 
-  // Animations différentes selon le type de récompense
+  // === Début : Fonction de rendu conditionnel selon le type de récompense ===
+  // Explication simple : Cette fonction décide quelle sorte d'animation montrer en fonction de ce que tu as gagné : un badge, un niveau, des points ou de l'expérience.
+  // Explication technique : Fonction complexe qui utilise un switch statement pour générer différents JSX basés sur le type de récompense, chacun avec ses propres animations Framer Motion et structure visuelle adaptée.
   const renderRewardContent = () => {
     switch (rewardAnimation.type) {
       case 'badge':
@@ -185,7 +235,11 @@ const RewardAnimation: React.FC = () => {
         );
     }
   };
+  // === Fin : Fonction de rendu conditionnel selon le type de récompense ===
 
+  // === Début : Rendu principal du composant ===
+  // Explication simple : C'est la partie qui affiche vraiment l'animation sur l'écran, avec un fond sombre, une boîte blanche au milieu, et plein de confettis colorés qui tombent pour célébrer.
+  // Explication technique : Rendu JSX principal qui crée un modal animé avec overlay semi-transparent, contenu dynamique basé sur le type de récompense, et effet de confettis généré dynamiquement avec des animations individuelles pour chaque particule.
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -235,6 +289,11 @@ const RewardAnimation: React.FC = () => {
       </motion.div>
     </motion.div>
   );
+  // === Fin : Rendu principal du composant ===
 };
 
+// === Début : Export du composant ===
+// Explication simple : On rend notre animation disponible pour que d'autres parties de l'application puissent l'utiliser.
+// Explication technique : Export par défaut du composant pour permettre son importation dans d'autres modules de l'application.
 export default RewardAnimation;
+// === Fin : Export du composant ===

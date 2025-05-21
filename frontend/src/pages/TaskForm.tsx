@@ -1,3 +1,9 @@
+// === Ce fichier crée le formulaire de création d'une nouvelle tâche dans l'application === /workspaces/TaskManagerLatestVersion/frontend/src/pages/TaskForm.tsx
+// Explication simple : C'est comme une fiche à remplir pour ajouter une nouvelle tâche, avec différents champs comme le titre, la description, la date limite, etc.
+// Explication technique : Composant React fonctionnel qui gère le formulaire de création de tâche avec validation des entrées, communication API, et gestion d'état Redux.
+// Utilisé dans : Le routeur principal de l'application, accessible via la route /tasks/new ou un bouton "Nouvelle tâche" depuis la liste des tâches
+// Connecté à : Store Redux (tasksSlice, clientsSlice, uiSlice), services API (clientsService), axios pour les requêtes HTTP directes
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../hooks';
@@ -8,16 +14,29 @@ import { clientsService } from '../services/api';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 
+// === Début : Configuration de l'URL de l'API ===
+// Explication simple : On définit l'adresse du serveur avec lequel notre application va communiquer.
+// Explication technique : Constante qui stocke l'URL de base de l'API, récupérée depuis les variables d'environnement ou utilisant une valeur par défaut si non définie.
 const API_URL = process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com';
+// === Fin : Configuration de l'URL de l'API ===
 
+// === Début : Composant principal TaskForm ===
+// Explication simple : C'est toute la page du formulaire avec tous les champs pour créer une nouvelle tâche.
+// Explication technique : Composant React fonctionnel qui gère l'affichage et la logique du formulaire de création de tâche, avec état local, requêtes API et validation.
 const TaskForm: React.FC = () => {
+  // === Début : Configuration des hooks React et Redux ===
+  // Explication simple : On prépare les outils dont on a besoin pour faire fonctionner le formulaire et communiquer avec le reste de l'application.
+  // Explication technique : Initialisation des hooks Redux pour le dispatch d'actions et la récupération d'état, ainsi que du hook de navigation de React Router.
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   
   // Récupérer les clients depuis le state
   const { clients, loading: clientsLoading } = useAppSelector(state => state.clients);
+  // === Fin : Configuration des hooks React et Redux ===
   
-  // État local pour le formulaire
+  // === Début : Initialisation des états locaux du formulaire ===
+  // Explication simple : On crée des petites boîtes qui vont stocker toutes les informations que l'utilisateur va entrer dans le formulaire.
+  // Explication technique : Définition des états React avec useState pour gérer les données du formulaire, l'état de chargement et le client sélectionné.
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -34,8 +53,11 @@ const TaskForm: React.FC = () => {
   
   const [loading, setLoading] = useState(false);
   const [selectedClient, setSelectedClient] = useState<any>(null);
+  // === Fin : Initialisation des états locaux du formulaire ===
   
-  // Charger les clients s'ils ne sont pas déjà chargés
+  // === Début : Chargement initial des clients ===
+  // Explication simple : Cette partie va chercher la liste des clients si on ne l'a pas déjà, comme préparer une liste des personnes pour qui on peut travailler.
+  // Explication technique : Hook useEffect qui déclenche le chargement des clients depuis l'API si la liste est vide, avec gestion des états Redux associés.
   useEffect(() => {
     const loadClients = async () => {
       if (clients.length === 0) {
@@ -55,8 +77,11 @@ const TaskForm: React.FC = () => {
     
     loadClients();
   }, [dispatch, clients.length]);
+  // === Fin : Chargement initial des clients ===
   
-  // Mettre à jour le client sélectionné quand clientId change
+  // === Début : Mise à jour du client sélectionné ===
+  // Explication simple : Quand on choisit un client dans la liste déroulante, cette partie trouve toutes ses informations détaillées.
+  // Explication technique : Hook useEffect qui réagit aux changements de l'ID client sélectionné pour mettre à jour l'objet client complet avec ses détails.
   useEffect(() => {
     if (formData.clientId) {
       const client = clients.find(c => c._id === formData.clientId);
@@ -65,7 +90,11 @@ const TaskForm: React.FC = () => {
       setSelectedClient(null);
     }
   }, [formData.clientId, clients]);
+  // === Fin : Mise à jour du client sélectionné ===
   
+  // === Début : Gestionnaires de changements des champs du formulaire ===
+  // Explication simple : Ces fonctions s'occupent de mettre à jour les informations quand tu tapes ou sélectionnes quelque chose dans le formulaire.
+  // Explication technique : Ensemble de fonctions handler qui gèrent les différents types de changements dans le formulaire (texte/select, nombre, case à cocher).
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -80,7 +109,11 @@ const TaskForm: React.FC = () => {
     const { name, checked } = e.target;
     setFormData(prev => ({ ...prev, [name]: checked }));
   };
+  // === Fin : Gestionnaires de changements des champs du formulaire ===
   
+  // === Début : Soumission du formulaire ===
+  // Explication simple : Cette fonction s'occupe d'envoyer toutes les informations de la nouvelle tâche au serveur quand tu cliques sur le bouton "Créer la tâche".
+  // Explication technique : Fonction asynchrone qui gère la soumission du formulaire avec validation des entrées, communication API via axios, et gestion des états de succès ou d'erreur.
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -144,8 +177,11 @@ const TaskForm: React.FC = () => {
       setLoading(false);
     }
   };
+  // === Fin : Soumission du formulaire ===
   
-  // Obtenir la liste des catégories
+  // === Début : Définition des catégories de tâches ===
+  // Explication simple : C'est la liste des types de tâches parmi lesquels l'utilisateur peut choisir, comme une liste de menus dans un restaurant.
+  // Explication technique : Tableau de paires clé-valeur représentant les options disponibles pour le champ catégorie, utilisé dans le select du formulaire.
   const categories = [
     { value: 'campagne', label: 'Campagne Marketing' },
     { value: 'landing', label: 'Landing Page' },
@@ -156,7 +192,11 @@ const TaskForm: React.FC = () => {
     { value: 'cro', label: 'Optimisation de Conversion (CRO)' },
     { value: 'autre', label: 'Autre' }
   ];
+  // === Fin : Définition des catégories de tâches ===
   
+  // === Début : Rendu de l'interface utilisateur ===
+  // Explication simple : C'est la partie qui dessine le formulaire à l'écran avec tous les champs et le bouton pour créer la tâche.
+  // Explication technique : Rendu JSX du composant, utilisant Framer Motion pour les animations et structurant le formulaire en sections logiques avec une mise en page responsive via Tailwind CSS.
   return (
     <div className="container mx-auto">
       <motion.div 
@@ -404,6 +444,8 @@ const TaskForm: React.FC = () => {
       </motion.div>
     </div>
   );
+  // === Fin : Rendu de l'interface utilisateur ===
 };
+// === Fin : Composant principal TaskForm ===
 
 export default TaskForm;

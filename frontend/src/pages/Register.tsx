@@ -1,15 +1,31 @@
+// === Ce fichier crée la page d'inscription qui permet aux nouveaux utilisateurs de créer un compte === /workspaces/TaskManagerLatestVersion/frontend/src/pages/Register.tsx
+// Explication simple : C'est comme un formulaire d'inscription où tu remplis ton nom, ton email et ton mot de passe pour pouvoir utiliser l'application.
+// Explication technique : Composant React fonctionnel qui gère le processus d'enregistrement des utilisateurs, avec validation des entrées, communication API et transitions animées avec Framer Motion.
+// Utilisé dans : Le routeur principal de l'application, accessible directement via l'URL /register et par des liens depuis la page de connexion.
+// Connecté à : API d'inscription backend via fetch, react-router-dom pour la navigation, et Framer Motion pour les animations.
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
+// === Début : Composant principal Register ===
+// Explication simple : Ce composant crée toute la page d'inscription avec son formulaire et ses animations.
+// Explication technique : Composant fonctionnel React qui encapsule la logique d'inscription et la présentation du formulaire, avec gestion d'état local via useState.
 const Register: React.FC = () => {
+  // === Début : Configuration de la navigation et états du formulaire ===
+  // Explication simple : On prépare les outils pour changer de page et pour stocker ce que l'utilisateur va taper.
+  // Explication technique : Initialisation du hook useNavigate pour la redirection programmatique et déclaration des états React avec useState pour gérer les données du formulaire et ses états.
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  // === Fin : Configuration de la navigation et états du formulaire ===
 
+  // === Début : Fonction de soumission du formulaire ===
+  // Explication simple : Cette fonction s'occupe d'envoyer tes informations au serveur quand tu cliques sur le bouton "S'inscrire".
+  // Explication technique : Fonction asynchrone qui gère l'événement de soumission du formulaire, effectue la validation côté client, communique avec l'API via fetch, et gère les réponses et erreurs.
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -46,7 +62,11 @@ const Register: React.FC = () => {
       setLoading(false);
     }
   };
+  // === Fin : Fonction de soumission du formulaire ===
 
+  // === Début : Rendu de l'interface utilisateur ===
+  // Explication simple : Cette partie dessine le formulaire sur l'écran avec les champs à remplir et le bouton d'inscription.
+  // Explication technique : Rendu JSX du composant avec animations via Framer Motion, structure responsive avec Tailwind CSS, et gestion conditionnelle des états (erreur, chargement).
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-secondary-50 dark:from-gray-900 dark:to-gray-800 p-4">
       <motion.div 
@@ -129,6 +149,8 @@ const Register: React.FC = () => {
       </motion.div>
     </div>
   );
+  // === Fin : Rendu de l'interface utilisateur ===
 };
+// === Fin : Composant principal Register ===
 
 export default Register;

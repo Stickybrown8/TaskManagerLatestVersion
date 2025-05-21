@@ -1,3 +1,15 @@
+/* === Ce fichier importe le framework CSS qui donne le style à toute l'application === /workspaces/TaskManagerLatestVersion/frontend/src/index.css
+ * Explication simple : Ce fichier est comme un grand livre de règles pour les vêtements et couleurs que ton application va porter - il dit à l'application comment s'habiller en important toutes les règles du système Tailwind CSS.
+ * Explication technique : Fichier CSS principal qui importe les différentes couches du framework Tailwind CSS (base, composants et utilitaires), servant de point d'entrée pour les styles de l'application.
+ * Utilisé dans : Importé dans index.tsx ou main.tsx comme feuille de style globale qui s'applique à l'ensemble de l'application.
+ * Connecté à : Le fichier de configuration Tailwind (tailwind.config.js) qui personnalise le framework, et indirectement à tous les composants qui utilisent les classes Tailwind.
+ */
+
+/* === Début : Importation des couches Tailwind CSS ===
+ * Explication simple : Ces trois lignes magiques font venir toutes les jolies couleurs et formes que Tailwind offre - comme si tu ouvrais trois grandes boîtes de crayons de couleurs pour dessiner ton application.
+ * Explication technique : Directives spéciales de Tailwind CSS qui importent séquentiellement les trois couches du framework : la couche de base (normalisation et styles de base), la couche de composants (classes préfabriquées), et la couche d'utilitaires (classes atomiques pour personnalisation fine).
+ */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+/* === Fin : Importation des couches Tailwind CSS === */
