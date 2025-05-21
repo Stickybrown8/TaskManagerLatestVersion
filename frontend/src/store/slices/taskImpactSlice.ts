@@ -5,7 +5,7 @@
 // Connecté à : Store Redux principal, service d'impact des tâches (taskImpactService) via les API, et composants React qui utilisent ces données via useSelector/useDispatch.
 
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { taskImpactService } from '../../services/api';
+import { taskImpactService } from '../../services/taskImpactService';
 
 // === Début : Définition des types pour les tâches à impact ===
 // Explication simple : Ces lignes décrivent ce qu'est une tâche importante, comme une liste des informations que tu dois savoir pour reconnaître tes jouets préférés.
@@ -82,7 +82,7 @@ export const updateTaskImpact = createAsyncThunk<
   'taskImpact/updateImpact',
   async ({ taskId, isHighImpact, impactScore }: TaskUpdate, { rejectWithValue }) => {
     try {
-      const task = await taskImpactService.updateTaskImpact(taskId, isHighImpact, impactScore);
+      const task = await taskImpactService.updateTaskImpact(taskId, { isHighImpact, impactScore });
       return task;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.msg || 'Erreur lors de la mise à jour de l\'impact de la tâche');
@@ -114,7 +114,7 @@ export const applyImpactAnalysis = createAsyncThunk<
   'taskImpact/applyAnalysis',
   async (taskUpdates: TaskUpdate[], { rejectWithValue }) => {
     try {
-      const result = await taskImpactService.applyImpactAnalysis(taskUpdates);
+      const result = await taskImpactService.applyImpactAnalysis({ taskUpdates });
       return result;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.msg || 'Erreur lors de l\'application de l\'analyse d\'impact');

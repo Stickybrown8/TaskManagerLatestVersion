@@ -5,7 +5,7 @@
 // Connecté à : Store Redux principal, service de rentabilité (profitabilityService) via les API, et composants React qui utilisent les données de rentabilité via useSelector/useDispatch.
 
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { profitabilityService } from '../../services/api';
+import { profitabilityService } from '../../services/profitabilityService';
 
 // === Début : Définition des types de paramètres ===
 // Explication simple : Ces lignes décrivent les informations dont on a besoin quand on veut modifier le prix de l'heure, le temps passé, ou le temps prévu pour un client.
