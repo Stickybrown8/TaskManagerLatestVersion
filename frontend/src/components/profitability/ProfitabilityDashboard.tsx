@@ -33,7 +33,7 @@ import {
   fetchGlobalProfitabilitySummary,
   updateClientHourlyRate
 } from '../../store/slices/profitabilitySlice';
-import { RootState, AppDispatch } from '../../store';
+import { RootState, AppDispatch } from '../../store/index';
 import { motion } from 'framer-motion';
 // === Fin : Importation des dépendances ===
 

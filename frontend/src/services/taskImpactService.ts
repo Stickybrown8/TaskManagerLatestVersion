@@ -8,6 +8,27 @@ import axios from 'axios';
 import { getAuthHeader } from './authHeader';
 
 // === Début : Configuration de l'URL de l'API ===
+// Types TypeScript pour taskImpactService
+interface Task {
+  _id: string;
+  title: string;
+  description?: string;
+  priority: 'low' | 'medium' | 'high';
+  status: 'pending' | 'in_progress' | 'completed';
+  impactScore?: number;
+  clientId?: string;
+}
+
+interface HighImpactTask extends Task {
+  impactScore: number;
+}
+
+interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  message?: string;
+}
+
 // Explication simple : C'est l'adresse où l'application va chercher et envoyer les informations, comme l'adresse de ton école où tu déposes et récupères tes devoirs.
 // Explication technique : Constante qui définit l'URL de base pour les requêtes API, récupérée depuis les variables d'environnement ou utilisant une valeur par défaut pour le développement local.
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
@@ -22,7 +43,7 @@ export const taskImpactService = {
   // Explication simple : Cette fonction va chercher la liste des tâches super importantes qui vont t'apporter les meilleurs résultats.
   // Explication technique : Méthode asynchrone qui effectue une requête GET à l'API pour récupérer les tâches identifiées comme ayant un fort impact selon l'analyse de Pareto.
   // Récupérer toutes les tâches à fort impact
-  getHighImpactTasks: async () => {
+  getHighImpactTasks: async (): Promise<ApiResponse<HighImpactTask[]>> => {
     const response = await axios.get(`${API_URL}/tasks/high-impact`, { headers: getAuthHeader() });
     return response.data;
   },
@@ -32,7 +53,7 @@ export const taskImpactService = {
   // Explication simple : Cette fonction change l'importance d'une tâche, comme quand tu décides qu'un devoir mérite plus d'attention qu'un autre.
   // Explication technique : Méthode asynchrone qui effectue une requête PUT pour modifier le statut d'impact et le score d'une tâche spécifique identifiée par son ID.
   // Mettre à jour le statut d'impact d'une tâche
-  updateTaskImpact: async (taskId, isHighImpact, impactScore) => {
+  updateTaskImpact: async (taskId: string, isHighImpact: boolean, impactScore: number): Promise<ApiResponse<Task>> => {
     const response = await axios.put(
       `${API_URL}/tasks/${taskId}/impact`, 
       { isHighImpact, impactScore }, 
@@ -46,7 +67,7 @@ export const taskImpactService = {
   // Explication simple : Cette fonction analyse toutes tes tâches pour te dire lesquelles sont les plus importantes, comme un professeur qui t'aiderait à choisir quoi étudier pour l'examen.
   // Explication technique : Méthode asynchrone qui déclenche une analyse algorithmique côté serveur pour identifier automatiquement les tâches à fort impact selon divers critères et le principe 80/20.
   // Analyser les tâches pour identifier celles à fort impact
-  analyzeTasksImpact: async () => {
+  analyzeTasksImpact: async (): Promise<ApiResponse<HighImpactTask[]>> => {
     const response = await axios.get(`${API_URL}/tasks/impact-analysis`, { headers: getAuthHeader() });
     return response.data;
   },
@@ -56,7 +77,7 @@ export const taskImpactService = {
   // Explication simple : Après avoir analysé tes tâches, cette fonction applique les changements recommandés pour toutes les marquer correctement, comme quand tu colories tes fiches de révision par ordre d'importance.
   // Explication technique : Méthode asynchrone qui envoie une requête POST avec les modifications à appliquer en masse suite à l'analyse d'impact, permettant de mettre à jour plusieurs tâches en une seule opération.
   // Appliquer les recommandations d'analyse d'impact
-  applyImpactAnalysis: async (taskUpdates) => {
+  applyImpactAnalysis: async (taskUpdates: Array<{taskId: string, isHighImpact: boolean, impactScore: number}>): Promise<ApiResponse<any>> => {
     const response = await axios.post(
       `${API_URL}/tasks/apply-impact-analysis`, 
       { taskUpdates }, 

@@ -5,7 +5,7 @@
 // Connecté à : Store Redux (pour l'authentification), backend API via Axios, localStorage pour stocker le token, et tous les composants qui font des appels API.
 
 import axios from 'axios';
-import { store } from '../store';
+import { store } from '../store/index';
 import { logout } from '../store/slices/authSlice';
 
 // === Début : Configuration de la connexion API ===

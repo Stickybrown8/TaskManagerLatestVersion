@@ -5,7 +5,7 @@
 // Connecté à : Store Redux principal (store.ts) via les types importés et les hooks React-Redux de base (useSelector, useDispatch).
 
 import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux';
-import type { RootState, AppDispatch } from './store';
+import type { RootState, AppDispatch } from './store/index';
 
 // === Début : Définition des hooks personnalisés pour Redux ===
 // Explication simple : Ces deux lignes créent des super-pouvoirs pour les composants : un pour envoyer des messages au centre de contrôle et l'autre pour lire des informations stockées là-bas.

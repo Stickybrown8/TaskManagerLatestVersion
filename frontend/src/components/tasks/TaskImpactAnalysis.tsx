@@ -30,7 +30,7 @@
 // Explication technique : Importation des hooks React, des fonctions Redux, des actions du slice d'impact des tâches, et de la bibliothèque d'animation Framer Motion.
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
-import { RootState } from '../../store';
+import { RootState } from '../../store/index';
 import { useAppDispatch } from '../../hooks';
 import { analyzeTasksImpact, applyImpactAnalysis, resetAnalysisApplied } from '../../store/slices/taskImpactSlice';
 import { motion } from 'framer-motion';

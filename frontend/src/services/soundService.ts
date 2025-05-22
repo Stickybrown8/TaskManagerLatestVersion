@@ -4,7 +4,7 @@
 // Utilisé dans : Les services de gamification, les composants qui gèrent les réactions aux actions utilisateur (TaskComplete, BadgeEarned, etc.), et potentiellement le système de notifications.
 // Connecté à : Store Redux pour récupérer les préférences sonores de l'utilisateur, fichiers audio MP3 stockés dans le dossier public/sounds, et indirectement aux composants qui déclenchent des sons.
 
-import { store } from '../store';
+import { store } from '../store/index';
 
 // === Début : Définition des types de sons disponibles ===
 // Explication simple : C'est comme une liste de tous les sons différents que l'application peut jouer, chacun avec un nom facile à retenir.

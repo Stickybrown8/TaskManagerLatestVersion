@@ -28,7 +28,7 @@
 // Explication technique : Importation des bibliothèques React core, du hook useSelector de Redux pour accéder au store, du type RootState pour assurer le typage du store, et de Framer Motion pour les animations.
 import React from 'react';
 import { useSelector } from 'react-redux';
-import { RootState } from '../../store';
+import { RootState } from '../../store/index';
 import { motion } from 'framer-motion';
 // === Fin : Importation des dépendances ===
 

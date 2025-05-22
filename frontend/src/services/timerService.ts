@@ -8,6 +8,31 @@ import axios from 'axios';
 import { getAuthHeader } from './authHeader';
 
 // === Début : Configuration de l'URL de l'API ===
+// Types TypeScript pour timerService
+interface Timer {
+  _id: string;
+  userId: string;
+  taskId?: string;
+  clientId?: string;
+  startTime: Date;
+  endTime?: Date;
+  duration?: number;
+  description?: string;
+  isRunning: boolean;
+}
+
+interface CreateTimerData {
+  taskId?: string;
+  clientId?: string;
+  description?: string;
+}
+
+interface UpdateTimerData {
+  endTime?: Date;
+  duration?: number;
+  description?: string;
+}
+
 // Explication simple : C'est l'adresse où l'application va chercher et envoyer les informations sur les chronomètres, comme l'adresse de l'horloge centrale qui garde tous les temps.
 // Explication technique : Constante qui définit l'URL de base pour les requêtes API, récupérée depuis les variables d'environnement ou utilisant une valeur par défaut pour le développement local.
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
@@ -22,7 +47,7 @@ export const timerService = {
   // Explication simple : Cette fonction va chercher la liste de tous les chronomètres que tu as utilisés, comme si tu demandais à voir toutes tes montres.
   // Explication technique : Méthode asynchrone qui effectue une requête GET à l'API pour récupérer l'ensemble des enregistrements de temps (timers) de l'utilisateur.
   // Récupérer tous les chronomètres
-  getAllTimers: async () => {
+  getAllTimers: async (): Promise<ApiResponse<Timer[]>> => {
     const response = await axios.get(`${API_URL}/timers`, { headers: getAuthHeader() });
     return response.data;
   },
@@ -32,7 +57,7 @@ export const timerService = {
   // Explication simple : Cette fonction cherche s'il y a un chronomètre qui est en train de tourner en ce moment, comme quand tu cherches quelle minuterie est active.
   // Explication technique : Méthode asynchrone qui interroge l'API pour obtenir le timer actuellement en cours d'exécution (non terminé), s'il en existe un.
   // Récupérer le chronomètre en cours d'exécution
-  getRunningTimer: async () => {
+  getRunningTimer: async (): Promise<ApiResponse<Timer>> => {
     const response = await axios.get(`${API_URL}/timers/running`, { headers: getAuthHeader() });
     return response.data;
   },
@@ -42,7 +67,7 @@ export const timerService = {
   // Explication simple : Cette fonction va chercher les détails d'un seul chronomètre précis, comme si tu voulais voir les informations d'une minuterie particulière.
   // Explication technique : Méthode asynchrone qui effectue une requête GET pour récupérer les données d'un timer spécifique identifié par son ID unique.
   // Récupérer un chronomètre par son ID
-  getTimerById: async (id) => {
+  getTimerById: async (id: string): Promise<ApiResponse<Timer>> => {
     const response = await axios.get(`${API_URL}/timers/${id}`, { headers: getAuthHeader() });
     return response.data;
   },
@@ -52,7 +77,7 @@ export const timerService = {
   // Explication simple : Cette fonction démarre un nouveau chronomètre, comme quand tu appuies sur "start" pour commencer à mesurer le temps.
   // Explication technique : Méthode asynchrone qui effectue une requête POST pour créer un nouveau timer dans la base de données avec les informations fournies et une heure de début.
   // Démarrer un nouveau chronomètre
-  startTimer: async (timerData) => {
+  startTimer: async (timerData: CreateTimerData): Promise<ApiResponse<Timer>> => {
     const response = await axios.post(`${API_URL}/timers`, timerData, { headers: getAuthHeader() });
     return response.data;
   },
@@ -62,7 +87,7 @@ export const timerService = {
   // Explication simple : Cette fonction met un chronomètre en pause, comme quand tu appuies sur "pause" pour arrêter temporairement de compter le temps.
   // Explication technique : Méthode asynchrone qui envoie une requête PUT pour suspendre temporairement un timer en cours sans le terminer définitivement.
   // Mettre en pause un chronomètre
-  pauseTimer: async (id) => {
+  pauseTimer: async (id: string): Promise<ApiResponse<Timer>> => {
     const response = await axios.put(`${API_URL}/timers/${id}/pause`, {}, { headers: getAuthHeader() });
     return response.data;
   },
@@ -72,7 +97,7 @@ export const timerService = {
   // Explication simple : Cette fonction redémarre un chronomètre qui était en pause, comme quand tu appuies sur "play" après avoir mis en pause.
   // Explication technique : Méthode asynchrone qui effectue une requête PUT pour reprendre le comptage d'un timer précédemment mis en pause.
   // Reprendre un chronomètre en pause
-  resumeTimer: async (id) => {
+  resumeTimer: async (id: string): Promise<ApiResponse<Timer>> => {
     const response = await axios.put(`${API_URL}/timers/${id}/resume`, {}, { headers: getAuthHeader() });
     return response.data;
   },
@@ -82,7 +107,7 @@ export const timerService = {
   // Explication simple : Cette fonction arrête complètement un chronomètre, comme quand tu appuies sur "stop" pour terminer de mesurer le temps.
   // Explication technique : Méthode asynchrone qui envoie une requête PUT pour finaliser un timer en cours, en enregistrant l'heure de fin et en calculant la durée totale.
   // Arrêter un chronomètre
-  stopTimer: async (id) => {
+  stopTimer: async (id: string): Promise<ApiResponse<Timer>> => {
     const response = await axios.put(`${API_URL}/timers/${id}/stop`, {}, { headers: getAuthHeader() });
     return response.data;
   },
@@ -92,7 +117,7 @@ export const timerService = {
   // Explication simple : Cette fonction efface un chronomètre de la liste, comme si tu jetais une minuterie dont tu n'as plus besoin.
   // Explication technique : Méthode asynchrone qui effectue une requête DELETE à l'API pour supprimer définitivement un enregistrement de temps de la base de données.
   // Supprimer un chronomètre
-  deleteTimer: async (id) => {
+  deleteTimer: async (id: string): Promise<ApiResponse<any>> => {
     const response = await axios.delete(`${API_URL}/timers/${id}`, { headers: getAuthHeader() });
     return response.data;
   },
@@ -102,7 +127,7 @@ export const timerService = {
   // Explication simple : Cette fonction trouve tous les chronomètres utilisés pour un client particulier, comme si tu cherchais le temps passé à travailler pour une personne précise.
   // Explication technique : Méthode asynchrone qui interroge l'API pour obtenir tous les timers associés à un client spécifique identifié par son ID.
   // Récupérer les chronomètres d'un client spécifique
-  getClientTimers: async (clientId) => {
+  getClientTimers: async (clientId: string): Promise<ApiResponse<Timer[]>> => {
     const response = await axios.get(`${API_URL}/timers/client/${clientId}`, { headers: getAuthHeader() });
     return response.data;
   },
@@ -112,7 +137,7 @@ export const timerService = {
   // Explication simple : Cette fonction trouve tous les chronomètres utilisés pour une tâche particulière, comme si tu cherchais combien de temps tu as passé sur un devoir spécifique.
   // Explication technique : Méthode asynchrone qui effectue une requête GET pour récupérer tous les enregistrements de temps associés à une tâche spécifique identifiée par son ID.
   // Récupérer les chronomètres d'une tâche spécifique
-  getTaskTimers: async (taskId) => {
+  getTaskTimers: async (taskId: string): Promise<ApiResponse<Timer[]>> => {
     const response = await axios.get(`${API_URL}/timers/task/${taskId}`, { headers: getAuthHeader() });
     return response.data;
   }

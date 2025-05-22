@@ -8,7 +8,7 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import PrivateRoute from './components/PrivateRoute';
-import TimerPopupFix from './components/timer/TimerPopupFix';
+import TimerPopup from './components/timer/TimerPopup';
 import TimerDebug from './components/debug/TimerDebug';
 import TestTimer from './components/debug/TestTimer';
 import Login from './pages/Login';
@@ -61,7 +61,7 @@ const App: React.FC = () => {
   // Explication technique : Fonction de rendu JSX qui retourne l'arborescence complète des routes de l'application utilisant React Router v6, avec imbrication de routes pour les sections protégées et publiques.
   return (
     <>
-      <TimerPopupFix />
+      <TimerPopup />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
