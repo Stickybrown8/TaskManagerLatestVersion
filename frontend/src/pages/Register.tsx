@@ -40,7 +40,7 @@ const Register: React.FC = () => {
       // Log pour debug en prod/déploiement
       console.log("REACT_APP_API_URL =", process.env.REACT_APP_API_URL);
       const apiUrl = (process.env.REACT_APP_API_URL || 'http://localhost:5000').replace(/\/$/, ''); // supprime le slash de fin
-      const url = `${apiUrl}/api/register`; // <-- ajoute /api
+      const url = `${apiUrl}/api/users/register`; // <-- ajoute /api
       console.log("URL d'inscription appelée :", url);
 
       const response = await fetch(url, {

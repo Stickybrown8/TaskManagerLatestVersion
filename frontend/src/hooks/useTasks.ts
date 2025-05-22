@@ -31,10 +31,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useAppDispatch, useAppSelector } from '../hooks';
-import { 
-  fetchTasksStart, 
-  fetchTasksSuccess, 
-  fetchTasksFailure 
+import {
+  fetchTasksStart,
+  fetchTasksSuccess,
+  fetchTasksFailure
 } from '../store/slices/tasksSlice';
 // === Fin : Importation des dépendances ===
 
@@ -51,8 +51,8 @@ const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
 // Explication technique : Fonction utilitaire générique qui implémente un mécanisme de retry avec backoff exponentiel et jitter pour les requêtes HTTP, en analysant le type d'erreur pour déterminer si une nouvelle tentative est pertinente.
 // Améliorer la fonction fetchWithRetry existante
 const fetchWithRetry = async <T>(
-  fetcher: () => Promise<T>, 
-  retryCount = 0, 
+  fetcher: () => Promise<T>,
+  retryCount = 0,
   maxRetries = 3,
   retryDelay = 1000
 ): Promise<T> => {
@@ -60,10 +60,10 @@ const fetchWithRetry = async <T>(
     return await fetcher();
   } catch (error: any) {
     // Déterminer si l'erreur est récupérable
-    const isRecoverable = 
-      (axios.isAxiosError(error) && 
-       error.response?.status !== undefined && 
-       error.response.status >= 500) || // Erreurs serveur
+    const isRecoverable =
+      (axios.isAxiosError(error) &&
+        error.response?.status !== undefined &&
+        error.response.status >= 500) || // Erreurs serveur
       error.message.includes('network') || // Erreurs réseau 
       error.message.includes('timeout') || // Timeouts
       error.message.includes('ECONNREFUSED'); // Refus de connexion
@@ -76,7 +76,7 @@ const fetchWithRetry = async <T>(
     // Délai exponentiel avec jitter pour éviter les tempêtes de requêtes
     const delay = retryDelay * Math.pow(2, retryCount) * (0.9 + Math.random() * 0.2);
     console.log(`Tentative ${retryCount + 1}/${maxRetries} dans ${Math.round(delay)}ms...`);
-    
+
     await new Promise(resolve => setTimeout(resolve, delay));
     return fetchWithRetry(fetcher, retryCount + 1, maxRetries, retryDelay);
   }
@@ -97,14 +97,14 @@ export const useTasks = (clientId?: string, forceRefresh = false) => {
   // Explication technique : Configuration du dispatcher Redux pour les actions, récupération de l'état des tâches depuis le store, et initialisation d'un état local pour les tâches filtrées par client.
   // Accéder au dispatch Redux pour déclencher des actions
   const dispatch = useAppDispatch();
-  
+
   // Récupérer l'état des tâches depuis le store Redux
   const { tasks, loading, error, lastFetched } = useAppSelector(state => state.tasks);
-  
+
   // État local pour gérer les tâches filtrées par client si nécessaire
   const [clientTasks, setClientTasks] = useState<any[]>([]);
   // === Fin : Initialisation des hooks et états ===
-  
+
   // === Début : Fonction de chargement de toutes les tâches ===
   // Explication simple : Cette fonction va chercher toutes les tâches sur le serveur, comme quand tu vas chercher tous les livres à la bibliothèque sans filtrer par thème.
   // Explication technique : Fonction mémorisée qui dispatch les actions Redux appropriées, récupère le token d'authentification, effectue l'appel API avec retry et traite la réponse pour mettre à jour le store.
@@ -114,16 +114,18 @@ export const useTasks = (clientId?: string, forceRefresh = false) => {
   const loadAllTasks = useCallback(async () => {
     try {
       dispatch(fetchTasksStart());
-      
+
+      // ✅ APRÈS (solution)
       const token = localStorage.getItem('token');
       if (!token) {
-        throw new Error("Token d'authentification manquant");
+        console.log('Pas de token, skip chargement des tâches');
+        return; // Sort silencieusement au lieu de lever une erreur
       }
-      
+
       const response = await fetchWithRetry(() => axios.get(`${API_URL}/api/tasks`, {
         headers: { 'Authorization': `Bearer ${token}` }
       }));
-      
+
       dispatch(fetchTasksSuccess(response.data));
       return response.data;
     } catch (error: any) {
@@ -133,7 +135,7 @@ export const useTasks = (clientId?: string, forceRefresh = false) => {
     }
   }, [dispatch]);
   // === Fin : Fonction de chargement de toutes les tâches ===
-  
+
   // === Début : Fonction de chargement des tâches par client ===
   // Explication simple : Cette fonction va chercher seulement les tâches qui appartiennent à un client spécifique, comme quand tu cherches uniquement les livres d'un auteur particulier à la bibliothèque.
   // Explication technique : Fonction mémorisée qui dispatch les actions Redux, effectue un appel API filtré par ID client, vérifie la validité des données reçues et met à jour l'état local des tâches client avec une gestion d'erreurs détaillée.
@@ -143,25 +145,25 @@ export const useTasks = (clientId?: string, forceRefresh = false) => {
   const loadClientTasks = useCallback(async (id: string) => {
     try {
       dispatch(fetchTasksStart());
-      
+
       const token = localStorage.getItem('token');
       if (!token) {
         const error = new Error("Token d'authentification manquant");
         dispatch(fetchTasksFailure(error.message));
         throw error;
       }
-      
+
       const response = await fetchWithRetry(() => axios.get(`${API_URL}/api/tasks/client/${id}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       }));
-      
+
       // Vérification des données reçues
       if (!Array.isArray(response.data)) {
         const error = new Error("Format de données invalide reçu du serveur");
         dispatch(fetchTasksFailure(error.message));
         throw error;
       }
-      
+
       setClientTasks(response.data);
       return response.data;
     } catch (error: any) {
@@ -190,7 +192,7 @@ export const useTasks = (clientId?: string, forceRefresh = false) => {
     }
   }, [dispatch]);
   // === Fin : Fonction de chargement des tâches par client ===
-  
+
   // === Début : Fonction de rafraîchissement des tâches ===
   // Explication simple : Cette fonction permet de mettre à jour les tâches quand tu le souhaites, comme quand tu appuies sur le bouton "Actualiser" pour voir les nouvelles informations.
   // Explication technique : Fonction publique exposée qui détermine quelle fonction de chargement appeler (globale ou filtrée par client) en fonction des paramètres du hook.
@@ -206,7 +208,7 @@ export const useTasks = (clientId?: string, forceRefresh = false) => {
     }
   };
   // === Fin : Fonction de rafraîchissement des tâches ===
-  
+
   // === Début : Effet de chargement initial ===
   // Explication simple : Cette partie s'exécute automatiquement au démarrage pour charger les tâches dès que la page s'ouvre, comme quand ton téléphone se connecte automatiquement au Wi-Fi quand tu rentres chez toi.
   // Explication technique : Hook useEffect qui s'exécute au montage du composant et lors des changements des dépendances clés pour déclencher le chargement initial des tâches.
@@ -234,11 +236,11 @@ export const useTasks = (clientId?: string, forceRefresh = false) => {
         loadAllTasks();
       }
     }, REFRESH_INTERVAL);
-    
+
     return () => clearInterval(intervalId);
   }, [clientId, loadAllTasks, loadClientTasks]);
   // === Fin : Effet de rafraîchissement périodique ===
-  
+
   // === Début : Retour des données et fonctions ===
   // Explication simple : À la fin, notre assistant fournit tout ce dont les autres parties de l'application ont besoin : les tâches, l'information si elles sont en train de charger, les erreurs éventuelles, et la possibilité de rafraîchir les données.
   // Explication technique : Objet de retour du hook exposant les données et fonctionnalités aux composants consommateurs, avec sélection intelligente des tâches à retourner selon le contexte (globales ou filtrées par client).

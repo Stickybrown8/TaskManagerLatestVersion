@@ -1,3 +1,4 @@
+import { ApiResponse } from "../types/api";
 // === Ce fichier gère les chronomètres qui suivent le temps passé sur les tâches === /workspaces/TaskManagerLatestVersion/frontend/src/services/timerService.js
 // Explication simple : Ce fichier contient des fonctions qui t'aident à mesurer le temps que tu passes sur chaque tâche, comme un chronomètre que tu peux démarrer, arrêter, et consulter plus tard.
 // Explication technique : Module de service JavaScript qui encapsule les appels API liés à la gestion des chronomètres (timers), permettant le suivi du temps passé sur les tâches et clients.

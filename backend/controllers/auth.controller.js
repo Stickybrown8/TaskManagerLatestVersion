@@ -35,13 +35,13 @@ const mongoLogger = require('../utils/mongoLogger');
  */
 const generateToken = (user) => {
   return jwt.sign(
-    { 
-      id: user._id, 
+    {
+      id: user._id,
       email: user.email,
-      username: user.username 
+      username: user.name
     },
     authConfig.secret,
-    { expiresIn: authConfig.expiresIn }
+    { expiresIn: authConfig.jwtExpiration }
   );
 };
 
@@ -54,7 +54,7 @@ const generateToken = (user) => {
 const logAuthActivity = async (userId, type, req) => {
   try {
     await Activity.create({
-      user: userId,
+      userId: userId,
       type: 'auth',
       description: type === 'login' ? 'Connexion utilisateur' : 'Inscription utilisateur',
       metadata: {
@@ -77,10 +77,10 @@ const logAuthActivity = async (userId, type, req) => {
  */
 const register = async (req, res) => {
   try {
-    const { username, email, password, preferences = {} } = req.body;
+    const { name, email, password, preferences = {} } = req.body;
 
     // Validation des données d'entrée
-    if (!username || !email || !password) {
+    if (!name || !email || !password) {
       return res.status(400).json({
         success: false,
         message: 'Nom d\'utilisateur, email et mot de passe requis',
@@ -109,7 +109,7 @@ const register = async (req, res) => {
 
     // Vérification de l'unicité de l'email et du nom d'utilisateur
     const existingUser = await User.findOne({
-      $or: [{ email }, { username }]
+      $or: [{ email }, { name }]
     });
 
     if (existingUser) {
@@ -127,14 +127,14 @@ const register = async (req, res) => {
 
     // Création de l'utilisateur avec données initiales de gamification
     const newUser = new User({
-      username,
+      name,
       email,
       password: hashedPassword,
-      preferences: { 
+      preferences: {
         darkMode: false,
         soundEnabled: true,
         notifications: true,
-        ...preferences 
+        ...preferences
       },
       gamification: {
         level: 1,
@@ -166,7 +166,7 @@ const register = async (req, res) => {
     // Génération du token
     const token = generateToken(savedUser);
 
-    mongoLogger.info(`Nouvel utilisateur inscrit: ${username} (${email})`);
+    mongoLogger.info(`Nouvel utilisateur inscrit: ${name} (${email})`);
 
     // Réponse succès (sans mot de passe)
     const userResponse = savedUser.toObject();
@@ -178,7 +178,7 @@ const register = async (req, res) => {
       data: {
         user: userResponse,
         token,
-        expiresIn: authConfig.expiresIn
+        expiresIn: authConfig.jwtExpiration
       }
     });
 
@@ -211,7 +211,7 @@ const login = async (req, res) => {
 
     // Recherche de l'utilisateur par email ou nom d'utilisateur
     const user = await User.findOne({
-      $or: [{ email }, { username: email }]
+      $or: [{ email }, { name: email }]
     }).select('+password'); // Inclure le mot de passe pour la vérification
 
     if (!user) {
@@ -236,33 +236,40 @@ const login = async (req, res) => {
     user.lastLogin = new Date();
     await user.save();
 
-    // Gestion de la streak de connexion quotidienne
+    // ✅ VERSION CORRIGÉE - Compatible avec le modèle actuel
     const today = new Date();
-    const lastActivity = user.gamification.streak.lastActivity;
-    
+
+    // Initialiser lastActivity si n'existe pas
+    if (!user.gamification.lastActivity) {
+      user.gamification.lastActivity = null;
+    }
+
+    const lastActivity = user.gamification.lastActivity;
+
     if (lastActivity) {
       const diffTime = Math.abs(today - lastActivity);
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
+
       if (diffDays === 1) {
         // Connexion consécutive - augmenter la streak
-        user.gamification.streak.current += 1;
-        user.gamification.streak.longest = Math.max(
-          user.gamification.streak.longest, 
-          user.gamification.streak.current
+        user.gamification.currentStreak += 1;
+        user.gamification.longestStreak = Math.max(
+          user.gamification.longestStreak,
+          user.gamification.currentStreak
         );
         // Bonus points pour la streak
-        user.gamification.points += 5;
+        if (!user.gamification.actionPoints) user.gamification.actionPoints = 0;
+        user.gamification.actionPoints += 5;
       } else if (diffDays > 1) {
         // Streak cassée - remettre à zéro
-        user.gamification.streak.current = 1;
+        user.gamification.currentStreak = 1;
       }
     } else {
       // Première connexion
-      user.gamification.streak.current = 1;
+      user.gamification.currentStreak = 1;
     }
 
-    user.gamification.streak.lastActivity = today;
+    user.gamification.lastActivity = today;
     await user.save();
 
     // Enregistrement de l'activité
@@ -271,7 +278,7 @@ const login = async (req, res) => {
     // Génération du token
     const token = generateToken(user);
 
-    mongoLogger.info(`Connexion utilisateur: ${user.username} (${user.email})`);
+    mongoLogger.info(`Connexion utilisateur: ${user.name} (${user.email})`);
 
     // Réponse succès (sans mot de passe)
     const userResponse = user.toObject();
@@ -283,8 +290,8 @@ const login = async (req, res) => {
       data: {
         user: userResponse,
         token,
-        expiresIn: authConfig.expiresIn,
-        streak: user.gamification.streak.current
+        expiresIn: authConfig.jwtExpiration,
+        streak: user.gamification.currentStreak
       }
     });
 
@@ -306,7 +313,7 @@ const getProfile = async (req, res) => {
   try {
     // req.user est défini par le middleware d'authentification
     const user = await User.findById(req.user.id).select('-password');
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -342,14 +349,14 @@ const updateProfile = async (req, res) => {
 
     // Construction de l'objet de mise à jour
     const updateData = {};
-    
+
     if (username) {
       // Vérifier l'unicité du nouveau nom d'utilisateur
-      const existingUser = await User.findOne({ 
-        username, 
-        _id: { $ne: userId } 
+      const existingUser = await User.findOne({
+        username,
+        _id: { $ne: userId }
       });
-      
+
       if (existingUser) {
         return res.status(409).json({
           success: false,
@@ -383,7 +390,7 @@ const updateProfile = async (req, res) => {
       });
     }
 
-    mongoLogger.info(`Profil mis à jour: ${updatedUser.username}`);
+    mongoLogger.info(`Profil mis à jour: ${updatedUser.name}`);
 
     res.status(200).json({
       success: true,
@@ -409,7 +416,7 @@ const verifyToken = async (req, res) => {
   try {
     // Si on arrive ici, c'est que le middleware d'auth a validé le token
     const user = await User.findById(req.user.id).select('-password');
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -421,9 +428,9 @@ const verifyToken = async (req, res) => {
     res.status(200).json({
       success: true,
       message: 'Token valide',
-      data: { 
+      data: {
         user,
-        tokenValid: true 
+        tokenValid: true
       }
     });
 

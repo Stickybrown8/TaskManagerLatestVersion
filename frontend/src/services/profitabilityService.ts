@@ -1,3 +1,4 @@
+import { ApiResponse } from "../types/api";
 // === Ce fichier contient des fonctions pour gérer et calculer combien d'argent tu gagnes avec chaque client === /workspaces/TaskManagerLatestVersion/frontend/src/services/profitabilityService.js
 // Explication simple : C'est comme un calculateur qui t'aide à savoir si tu gagnes assez d'argent pour le temps que tu passes à travailler pour chaque client.
 // Explication technique : Module de service JavaScript qui encapsule les appels API liés à la gestion de la rentabilité client, incluant tarifs horaires, heures facturables et analyses.

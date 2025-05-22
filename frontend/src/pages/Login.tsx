@@ -53,10 +53,11 @@ const Login: React.FC = () => {
       const response = await authService.login(email, password);
       console.log('Réponse de connexion :', response);
 
-      if (response.token && response.user) {
-        localStorage.setItem('token', response.token);
-        localStorage.setItem('user', JSON.stringify(response.user));
-        dispatch(loginSuccess({ user: response.user, token: response.token }));
+      // ✅ CORRECTION - Structure de réponse alignée
+      if (response.data && response.data.token && response.data.user) {
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+        dispatch(loginSuccess({ user: response.data.user, token: response.data.token }));
         dispatch(addNotification({
           message: 'Connexion réussie !',
           type: 'success'

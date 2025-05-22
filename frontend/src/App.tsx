@@ -9,8 +9,6 @@ import { Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import PrivateRoute from './components/PrivateRoute';
 import TimerPopup from './components/timer/TimerPopup';
-import TimerDebug from './components/debug/TimerDebug';
-import TestTimer from './components/debug/TestTimer';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -91,8 +89,6 @@ const App: React.FC = () => {
        * Explication simple : Ces lignes montrent des outils spéciaux pour aider les développeurs, mais seulement quand l'application est en mode développement - comme des lunettes magiques qui ne fonctionnent que pour les réparateurs.
        * Explication technique : Rendu conditionnel basé sur la variable d'environnement NODE_ENV qui n'affiche les composants de débogage du timer que lorsque l'application n'est pas en mode production.
        */}
-      {process.env.NODE_ENV !== 'production' && <TimerDebug />}
-      {process.env.NODE_ENV !== 'production' && <TestTimer />}
       {/* === Fin : Affichage conditionnel des outils de débogage === */}
       
       {/* === Début : Composant d'effet de confetti ===

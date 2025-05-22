@@ -1,3 +1,4 @@
+import { ApiResponse } from "../types/api";
 // === Ce fichier contient toutes les fonctions qui permettent de communiquer avec le serveur pour gérer les objectifs des clients === /workspaces/TaskManagerLatestVersion/frontend/src/services/objectivesService.js
 // Explication simple : C'est comme un carnet de numéros de téléphone spécial qui indique à l'application comment demander au serveur de créer, voir, modifier ou supprimer des objectifs pour tes clients.
 // Explication technique : Module de service JavaScript qui encapsule toutes les requêtes API liées aux objectifs clients, organisant les opérations CRUD en méthodes spécifiques.

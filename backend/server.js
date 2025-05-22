@@ -61,7 +61,22 @@ const PORT = process.env.PORT || 5000;
 // Explication technique : Application de middlewares Express pour renforcer la sécurité - helmet pour les en-têtes HTTP, cors pour gérer les requêtes cross-origin, parsers JSON et URL avec limites de taille, et mongoSanitize pour prévenir les injections NoSQL.
 // Sécurité et middleware
 app.use(helmet()); // Sécurité des headers HTTP
-app.use(cors());
+// === CORS ULTRA-AGRESSIF ===
+app.use('*', (req, res, next) => {
+  console.log('🚀 ULTRA-CORS pour:', req.method, req.originalUrl);
+
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', '*');
+  res.header('Access-Control-Allow-Headers', '*');
+  res.header('Access-Control-Max-Age', '86400');
+
+  if (req.method === 'OPTIONS') {
+    console.log('🚀 OPTIONS intercepté - réponse 200');
+    return res.status(200).json({ success: true });
+  }
+
+  next();
+});
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(mongoSanitize()); // Prévention des injections NoSQL
@@ -102,7 +117,7 @@ app.get('/api/health', (req, res) => {
     2: 'connexion en cours',
     3: 'déconnexion en cours'
   };
-  
+
   res.json({
     status: 'ok',
     mongodb: {
@@ -119,12 +134,12 @@ app.get('/api/health', (req, res) => {
 // Explication technique : Middleware Express de gestion globale des erreurs qui capture les exceptions non traitées, les journalise via mongoLogger et retourne une réponse d'erreur standardisée, avec masquage des détails techniques en production.
 // Middleware d'erreurs
 app.use((err, req, res, next) => {
-  mongoLogger.error('Erreur non gérée', { 
+  mongoLogger.error('Erreur non gérée', {
     error: err.message,
     stack: err.stack,
     path: req.originalUrl
   });
-  
+
   res.status(500).json({
     success: false,
     message: 'Erreur serveur',
@@ -145,7 +160,7 @@ app.use((err, req, res, next) => {
     message: err.message,
     stack: err.stack
   });
-  
+
   // Format de réponse standardisé pour les erreurs
   res.status(err.statusCode || 500).json({
     success: false,
