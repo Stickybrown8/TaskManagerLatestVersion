@@ -41,7 +41,40 @@ import { useTasks } from '../hooks/useTasks'; // Ajouter cet import
 import LogoUploader from '../components/Clients/LogoUploader';
 import ClientLogo from '../components/Clients/ClientLogo';
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com';
+const getApiUrl = () => {
+  if (process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL.endsWith('/api') 
+      ? process.env.REACT_APP_API_URL.replace('/api', '')
+      : process.env.REACT_APP_API_URL;
+  }
+  
+  if (process.env.NODE_ENV === 'development' && window.location.hostname.includes('app.github.dev')) {
+    const codespaceMatch = window.location.hostname.match(/^(.*?)-3000\.app\.github\.dev$/);
+    if (codespaceMatch) {
+      return `https://${codespaceMatch[1]}-5000.app.github.dev`;
+    }
+  }
+  
+  if (process.env.NODE_ENV === 'development') {
+    return 'http://localhost:5000';
+  }
+  
+  // Corriger cette ligne pour retourner l'URL correcte
+  return 'https://task-manager-api-yx13.onrender.com';
+};
+
+const getUploadUrl = (): string => {
+  // Vérifier si on est en développement avec Codespaces
+  if (window.location.hostname.includes('github.dev') || 
+      window.location.hostname.includes('codespaces')) {
+    return 'https://upgraded-eureka-wr5gqw54x4xqc9jvg-5000.app.github.dev';
+  }
+  
+  // Production - URL corrigée
+  return 'https://task-manager-api-yx13.onrender.com';
+};
+
+const API_URL = getApiUrl();
 // === Fin : Importation des dépendances ===
 
 // === Début : Définition des interfaces TypeScript ===
@@ -89,6 +122,15 @@ const ClientDetail: React.FC = () => {
     logo: '' // Ajouté ici
   });
 
+  // AJOUTER CES ÉTATS MANQUANTS :
+  const [client, setClient] = useState<any>(null);
+  const [profitabilityData, setProfitabilityData] = useState({
+    hourlyRate: 0,
+    monthlyBudget: 0,
+    targetHours: 0,
+    hourlyRevenue: 0
+  });
+
   const { tasks, loading: tasksLoading, error: tasksError, refreshTasks } = useTasks(id);
 
   // États pour gérer le logo
@@ -100,71 +142,65 @@ const ClientDetail: React.FC = () => {
   // Explication simple : Quand tu ouvres la page, on va chercher automatiquement toutes les informations sur le client, comme quand ton téléphone se connecte tout seul au Wi-Fi quand tu rentres chez toi.
   // Explication technique : Hook useEffect qui s'exécute au montage du composant et lors des changements d'identifiant pour récupérer les données du client depuis l'API avec gestion des erreurs et mise à jour du state local.
   useEffect(() => {
-    const loadClient = async () => {
-      if (id) {
+    const loadClientData = async () => {
+      if (!id) return;
+      
+      try {
+        dispatch(fetchClientStart());
+        
+        // Récupérer les données du client
+        const clientData = await clientsService.getClientById(id);
+        setClient(clientData);
+        setFormData({
+          name: clientData.name,
+          description: clientData.description || '',
+          status: clientData.status,
+          notes: clientData.notes || '',
+          contacts: clientData.contacts || [],
+          tags: clientData.tags || [],
+          profitability: {
+            hourlyRate: 100,
+            targetHours: 0,
+            monthlyBudget: 0
+          },
+          logo: clientData.logo || ''
+        });
+        
+        // Récupération des données de rentabilité
         try {
-          dispatch(fetchClientStart());
-          
-          // Récupérer le token d'authentification
           const token = localStorage.getItem('token');
-          
-          if (!token) {
-            throw new Error("Token d'authentification manquant");
-          }
-          
-          // Charger les détails du client
-          const response = await axios.get(`${API_URL}/api/clients/${id}`, {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
+          const profitabilityResponse = await fetch(`${API_URL}/api/profitability`, {
+            headers: { 'Authorization': `Bearer ${token}` }
           });
           
-          const clientData = response.data;
-          dispatch(fetchClientSuccess(clientData));
-          
-          // Charger les données de rentabilité si disponibles
-          try {
-            const profitabilityResponse = await axios.get(`${API_URL}/api/profitability/client/${id}`, {
-              headers: {
-                'Authorization': `Bearer ${token}`
-              }
-            });
+          if (profitabilityResponse.ok) {
+            const profitabilityData = await profitabilityResponse.json();
+            const clientProfitability = profitabilityData.find((p: any) => p.clientId._id === id);
             
-            // Fusionner les données de rentabilité avec les données du client
-            clientData.profitability = profitabilityResponse.data;
-          } catch (err) {
-            console.log('Pas de données de rentabilité pour ce client');
-          }
-          
-          // Mettre à jour le formulaire avec les données du client
-          setFormData({
-            name: clientData.name || '',
-            description: clientData.description || '',
-            status: clientData.status || 'actif',
-            contacts: clientData.contacts || [],
-            notes: clientData.notes || '',
-            tags: clientData.tags || [],
-            logo: clientData.logo || '', // Ajouté ici
-            profitability: {
-              hourlyRate: clientData.profitability?.hourlyRate || 100,
-              targetHours: clientData.profitability?.targetHours || 0,
-              monthlyBudget: clientData.profitability?.monthlyBudget || 0
+            if (clientProfitability) {
+              setProfitabilityData({
+                hourlyRate: clientProfitability.hourlyRate || 0,
+                monthlyBudget: clientProfitability.revenue || 0,
+                targetHours: clientProfitability.targetHours || 0,
+                hourlyRevenue: clientProfitability.hourlyRate || 0
+              });
             }
-          });
-          
-        } catch (error: any) {
-          console.error("Erreur lors du chargement du client:", error);
-          dispatch(fetchClientFailure(error.message));
-          dispatch(addNotification({
-            message: 'Erreur lors du chargement des informations du client',
-            type: 'error'
-          }));
+          }
+        } catch (profitError) {
+          console.error('Erreur profitabilité:', profitError);
         }
+        
+        dispatch(fetchClientSuccess(clientData));
+        
+      } catch (error) {
+        console.error('Erreur:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+        dispatch(fetchClientFailure(errorMessage));
       }
     };
 
-    loadClient();
-  }, [dispatch, id]);
+    loadClientData();
+  }, [id, dispatch]);
   // === Fin : Chargement des données du client ===
 
   // === Début : Initialisation du logo ===
@@ -470,11 +506,11 @@ const ClientDetail: React.FC = () => {
             </div>
           </div>
         )}
-  // === Fin : Rendu principal du composant ===
+{/* === Fin : Rendu principal du composant === */}
         
-  // === Début : Rendu du formulaire d'édition ===
-  // Explication simple : C'est la partie qui montre tous les champs à remplir quand tu veux modifier les informations du client, comme un questionnaire que tu dois compléter.
-  // Explication technique : Rendu conditionnel du formulaire en mode édition, avec structure complète des champs, validation et soumission, organisé en sections logiques (informations générales, rentabilité, contacts).
+{/* === Début : Rendu du formulaire d'édition === */}
+{/* Explication simple : C'est la partie qui montre tous les champs à remplir quand tu veux modifier les informations du client, comme un questionnaire que tu dois compléter. */}
+{/* Explication technique : Rendu conditionnel du formulaire en mode édition, avec structure complète des champs, validation et soumission, organisé en sections logiques (informations générales, rentabilité, contacts). */}
         {isEditing ? (
           <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 space-y-6">
             <div className="space-y-4">
@@ -789,8 +825,8 @@ const ClientDetail: React.FC = () => {
                   </div>
                   
                   <div>
-                    <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Budget mensuel</h3>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{formData.profitability.monthlyBudget} €</p>
+                    <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Forfait mensuel</h3>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{profitabilityData?.monthlyBudget || 0} €</p>
                   </div>
                   
                   <div>

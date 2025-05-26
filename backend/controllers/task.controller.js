@@ -83,7 +83,7 @@ const createTask = async (req, res) => {
       dueDate,
       category: category || 'autre',
       estimatedTime,
-      status: 'pending',
+      status: 'à faire',
       createdAt: Date.now()
     });
     
@@ -143,7 +143,7 @@ const updateTask = async (req, res) => {
   session.startTransaction();
   
   try {
-    const { title, description, clientId, dueDate, priority, category, status, estimatedTime, actualTime, impactScore } = req.body;
+    const { title, description, clientId, dueDate, priority, category, status, estimatedTime, timeSpent, impactScore } = req.body;
     
     // 1. Vérifier si la tâche existe et obtenir ses données actuelles
     const existingTask = await Task.findOne({ 
@@ -173,7 +173,7 @@ const updateTask = async (req, res) => {
         category, 
         status, 
         estimatedTime, 
-        actualTime, 
+        timeSpent, 
         impactScore,
         updatedAt: Date.now() 
       },
@@ -189,8 +189,8 @@ const updateTask = async (req, res) => {
           oldClientId,
           { 
             $inc: { 
-              [`metrics.tasks${oldStatus === 'pending' ? 'Pending' : 
-                         oldStatus === 'in-progress' ? 'InProgress' : 
+              [`metrics.tasks${oldStatus === 'à faire' ? 'Pending' : 
+                         oldStatus === 'en cours' ? 'InProgress' : 
                          'Completed'}`]: -1 
             },
             lastActivity: Date.now()
@@ -203,8 +203,8 @@ const updateTask = async (req, res) => {
           clientId,
           { 
             $inc: { 
-              [`metrics.tasks${status === 'pending' ? 'Pending' : 
-                             status === 'in-progress' ? 'InProgress' : 
+              [`metrics.tasks${status === 'à faire' ? 'Pending' : 
+                             status === 'en cours' ? 'InProgress' : 
                              'Completed'}`]: 1 
             },
             lastActivity: Date.now()
@@ -220,13 +220,13 @@ const updateTask = async (req, res) => {
         };
         
         // Décrémenter l'ancien statut
-        update.$inc[`metrics.tasks${oldStatus === 'pending' ? 'Pending' : 
-                                   oldStatus === 'in-progress' ? 'InProgress' : 
+        update.$inc[`metrics.tasks${oldStatus === 'à faire' ? 'Pending' : 
+                                   oldStatus === 'en cours' ? 'InProgress' : 
                                    'Completed'}`] = -1;
         
         // Incrémenter le nouveau statut
-        update.$inc[`metrics.tasks${status === 'pending' ? 'Pending' : 
-                                   status === 'in-progress' ? 'InProgress' : 
+        update.$inc[`metrics.tasks${status === 'à faire' ? 'Pending' : 
+                                   status === 'en cours' ? 'InProgress' : 
                                    'Completed'}`] = 1;
         
         await Client.findByIdAndUpdate(clientId, update, { session });
@@ -276,9 +276,9 @@ const completeTask = async (req, res) => {
     const task = await Task.findOneAndUpdate(
       { _id: req.params.id, userId: req.userId },
       { 
-        status: 'completed', 
+        status: 'terminée', 
         completedAt: Date.now(),
-        actualTime: actualTime || 0
+        timeSpent: actualTime || 0
       },
       { new: true, session }
     );
@@ -307,8 +307,8 @@ const completeTask = async (req, res) => {
       req.userId,
       { 
         $inc: { 
-          points: pointsEarned,
-          experience: expEarned
+          'gamification.actionPoints': pointsEarned,
+          'gamification.experience': expEarned
         }
       },
       { new: true, session }
@@ -316,10 +316,10 @@ const completeTask = async (req, res) => {
     
     // 4. Vérifier la montée de niveau
     let levelUp = false;
-    if (user.experience >= user.level * 100) {
-      user.level += 1;
+    if (user.gamification.experience >= user.gamification.level * 100) {
+      user.gamification.level += 1;
       levelUp = true;
-      await user.save({ session });
+      // await user.save({ session }); // Pas nécessaire avec findByIdAndUpdate
     }
     
     // 5. Valider la transaction
@@ -328,7 +328,7 @@ const completeTask = async (req, res) => {
     
     // 6. Vérification post-transaction
     const verifyTask = await Task.findById(task._id);
-    if (!verifyTask || verifyTask.status !== 'completed') {
+    if (!verifyTask || verifyTask.status !== 'terminée') {
       mongoLogger.warn('Vérification post-complétion échouée', { taskId: task._id });
     }
     
@@ -382,8 +382,8 @@ const deleteTask = async (req, res) => {
       taskToDelete.clientId,
       { 
         $inc: { 
-          [`metrics.tasks${taskToDelete.status === 'pending' ? 'Pending' : 
-                          taskToDelete.status === 'in-progress' ? 'InProgress' : 
+          [`metrics.tasks${taskToDelete.status === 'à faire' ? 'Pending' : 
+                          taskToDelete.status === 'en cours' ? 'InProgress' : 
                           'Completed'}`]: -1 
         },
         lastActivity: Date.now()
@@ -424,6 +424,27 @@ const deleteTask = async (req, res) => {
   }
 };
 
+// Nouvelle fonction à ajouter
+const getTasksByClient = async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    
+    // Récupérer les tâches du client pour l'utilisateur connecté
+    const tasks = await Task.find({ 
+      clientId: clientId, 
+      userId: req.userId 
+    }).populate('clientId', 'name');
+    
+    res.status(200).json(tasks);
+  } catch (error) {
+    console.error('Erreur lors de la récupération des tâches du client:', error);
+    res.status(500).json({ 
+      message: 'Erreur lors de la récupération des tâches du client',
+      error: error.message 
+    });
+  }
+};
+
 // === Exports (6 fonctions - test route ignorée) ===
 module.exports = {
   getAllTasks,
@@ -431,5 +452,6 @@ module.exports = {
   createTask,
   updateTask,
   completeTask,
-  deleteTask
+  deleteTask,
+  getTasksByClient  // Ajouter cette ligne
 };

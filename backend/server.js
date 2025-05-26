@@ -33,6 +33,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const mongoSanitize = require('express-mongo-sanitize');
+const path = require('path'); // AJOUTER CETTE LIGNE
 const { connectDB } = require('./config/db');
 const mongoLogger = require('./utils/mongoLogger');
 const mongoose = require('mongoose');
@@ -47,6 +48,7 @@ const userRoutes = require('./routes/users');
 const clientRoutes = require('./routes/clients');
 const authRoutes = require('./routes/auth');
 const timerRoutes = require('./routes/timers');
+const uploadRoutes = require('./routes/upload'); // AJOUTER CETTE LIGNE
 // === Fin : Importation des routes ===
 
 // === Début : Initialisation de l'application Express ===
@@ -82,6 +84,10 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(mongoSanitize()); // Prévention des injections NoSQL
 // === Fin : Configuration des middlewares de sécurité ===
 
+// === Début : Configuration des fichiers statiques ===
+app.use('/logos', express.static(path.join(__dirname, '../frontend/public/logos')));
+// === Fin : Configuration des fichiers statiques ===
+
 // === Début : Connexion à MongoDB ===
 // Explication simple : On établit le lien avec notre base de données et on vérifie que tout va bien, comme quand tu branches ton ordinateur à l'électricité avant de l'utiliser.
 // Explication technique : Établissement asynchrone de la connexion à MongoDB via la fonction connectDB, avec gestion des erreurs adaptative selon l'environnement (développement/production) et journalisation des problèmes.
@@ -103,6 +109,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/timers', timerRoutes);
+app.use('/api/upload', uploadRoutes); // AJOUTER CETTE LIGNE
 // === Fin : Montage des routes API ===
 
 // === Début : Route de vérification d'état ===
@@ -178,20 +185,23 @@ app.use((err, req, res, next) => {
 // === Début : Gestion des routes non trouvées ===
 // Explication simple : Ce code s'occupe des visiteurs qui cherchent quelque chose qui n'existe pas, comme un guide qui dit poliment "Désolé, cette attraction n'existe pas dans notre parc" quand quelqu'un demande quelque chose qui n'est pas sur la carte.
 // Explication technique : Middleware catch-all placé en dernier qui intercepte toutes les requêtes ne correspondant à aucune route définie et retourne une réponse 404 standardisée avec des informations sur la route demandée.
-// Gestionnaire pour les routes non trouvées
-app.use('*', (req, res) => {
+app.use((req, res) => {
   res.status(404).json({
     success: false,
-    message: `Route non trouvée: ${req.originalUrl}`,
-    errorCode: 'NOT_FOUND'
+    message: 'Route non trouvée',
+    path: req.originalUrl
   });
 });
 // === Fin : Gestion des routes non trouvées ===
 
 // === Début : Démarrage du serveur ===
-// Explication simple : Cette ligne démarre vraiment le serveur et nous dit qu'il est prêt à recevoir des visiteurs, comme quand on allume l'enseigne "Ouvert" d'un magasin.
-// Explication technique : Démarrage du serveur HTTP sur le port configuré, avec journalisation de l'événement de démarrage via mongoLogger pour confirmation de la disponibilité de l'application.
+// Explication simple : On met en marche notre serveur pour qu'il commence à accueillir des visiteurs, comme quand on ouvre les portes d'un magasin le matin.
+// Explication technique : Démarrage du serveur HTTP sur le port défini, avec journalisation de l'URL de base de l'API et du port, ainsi que des instructions pour les environnements de développement et de production.
+// Démarrage du serveur
 app.listen(PORT, () => {
-  mongoLogger.info(`Serveur démarré sur le port ${PORT}`);
+  const baseUrl = `http://localhost:${PORT}/api`;
+  console.log('====================================');
+  console.log('🚀 Serveur en écoute sur : ' + baseUrl);
+  console.log('====================================');
 });
 // === Fin : Démarrage du serveur ===

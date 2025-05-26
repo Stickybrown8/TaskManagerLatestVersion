@@ -56,7 +56,18 @@ const verifyToken = async (req, res, next) => {
     mongoLogger.warn('Mode sans authentification activé (NE PAS UTILISER EN PRODUCTION)', {
       path: req.originalUrl
     });
-    req.userId = new mongoose.Types.ObjectId("507f1f77bcf86cd799439011");
+    // Mode dev - essayer d'extraire l'ID du token même sans vérification complète
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (token) {
+      try {
+        const decoded = jwt.decode(token); // decode sans vérifier
+        req.userId = decoded?.id || "507f1f77bcf86cd799439011";
+      } catch {
+        req.userId = "507f1f77bcf86cd799439011";
+      }
+    } else {
+      req.userId = "507f1f77bcf86cd799439011";
+    }
     return next();
   }
   // === Fin : Mode de transition sans authentification ===

@@ -25,6 +25,7 @@
 // Explication simple : On fait venir les outils dont on a besoin pour ce composant : React et le hook d'état.
 // Explication technique : Importation de la bibliothèque React et du hook useState pour gérer l'état local du composant.
 import React, { useState } from 'react';
+import { getLogoUrl } from '../../utils/imageUtils';
 // === Fin : Import des dépendances ===
 
 // === Début : Définition de l'interface des propriétés ===
@@ -129,14 +130,18 @@ const ClientLogo: React.FC<ClientLogoProps> = ({
   // === Début : Rendu du logo client ===
   // Explication simple : Si le client a un logo, on l'affiche dans un joli cadre aux dimensions et à la forme demandées.
   // Explication technique : Rendu principal du composant qui affiche l'image du logo dans un conteneur stylistiquement cohérent, avec gestion d'erreur via onError et chargement paresseux pour l'optimisation.
+  const logoUrl = getLogoUrl(client.logo);
+
   return (
-    <div className={`${sizeClasses[size]} ${shapeClasses[shape]} overflow-hidden border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex items-center justify-center ${className}`}>
+    <div className={`${sizeClasses[size]} ${shapeClasses[shape]} overflow-hidden ${className}`}>
       <img 
-        src={client.logo} 
+        src={logoUrl} 
         alt={`Logo de ${client.name}`}
-        className="max-w-full max-h-full object-contain p-0.5"
-        onError={() => setImageError(true)}
-        loading="lazy"
+        className="w-full h-full object-cover"
+        onError={(e) => {
+          console.log('❌ Erreur chargement logo:', logoUrl);
+          setImageError(true);
+        }}
       />
     </div>
   );

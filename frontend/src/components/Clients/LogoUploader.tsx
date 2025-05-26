@@ -28,6 +28,8 @@
 // Explication technique : Importation de React avec le hook useState pour la gestion d'état local, et du service de compression d'image qui convertit et optimise les images.
 import React, { useState } from 'react';
 import { compressImage } from '../../services/imageService';
+import { uploadLogo } from '../../services/api';
+
 // === Fin : Importation des dépendances ===
 
 // === Début : Définition de l'interface des propriétés ===
@@ -60,46 +62,52 @@ const LogoUploader: React.FC<LogoUploaderProps> = ({
   // === Début : Fonction de gestion du changement de fichier ===
   // Explication simple : Cette fonction s'occupe de ce qui se passe quand quelqu'un choisit une nouvelle image : elle vérifie que l'image n'est pas trop grande, la compresse pour qu'elle prenne moins de place, et la montre à l'écran.
   // Explication technique : Gestionnaire d'événement asynchrone qui traite le changement de fichier, avec validation de taille et de format, lecture du fichier en base64, compression de l'image et mise à jour de l'état et du parent via callback.
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      
-      // Vérifier la taille du fichier (max 2MB)
-      if (file.size > 2 * 1024 * 1024) {
-        alert('Le fichier est trop volumineux. Taille maximale: 2MB');
-        return;
-      }
-      
-      // Vérifier le type du fichier
-      if (!file.type.match('image/(jpeg|png|gif|webp|svg+xml)')) {
-        alert('Format de fichier non supporté. Utilisez JPG, PNG, GIF, WEBP ou SVG');
-        return;
-      }
-      
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    
+    if (file && file.size > 5 * 1024 * 1024) {
+      alert('Le fichier est trop grand. Taille maximale : 5MB');
+      return;
+    }
+    
+    if (file) {
       setIsLoading(true);
       
-      const reader = new FileReader();
-      reader.onloadend = async () => {
+      // === Début : Fonction de gestion de l'upload du fichier ===
+      // Explication simple : Cette fonction s'occupe de l'envoi réel du fichier au serveur, comme mettre une lettre dans une enveloppe et l'envoyer.
+      // Explication technique : Fonction asynchrone qui gère l'upload du fichier en appelant le service d'API uploadLogo, enregistre le chemin du logo dans l'état local et notifie le composant parent.
+      const handleFileUpload = async (file: File) => {
         try {
-          const result = reader.result as string;
+          console.log('Upload du fichier:', file.name);
           
-          // Compresser l'image pour réduire sa taille
-          const compressed = await compressImage(result);
+          // Destructurer directement la réponse
+          const { logoPath, message } = await uploadLogo(file);
+          console.log('✅', message);
           
-          setPreviewUrl(compressed);
-          onLogoChange(compressed, file);
+          // Construire l'URL complète pour l'affichage
+          const API_BASE = process.env.REACT_APP_API_URL?.replace('/api', '') || 'https://upgraded-eureka-wr5gqw54x4xqc9jvg-5000.app.github.dev';
+          const fullLogoUrl = `${API_BASE}${logoPath}`;
+          
+          console.log('🖼️ URL complète du logo:', fullLogoUrl);
+          
+          // Mettre à jour la prévisualisation avec l'URL complète
+          setPreviewUrl(fullLogoUrl);
+          
+          // Notifier le parent avec le chemin du logo (pas l'URL complète)
+          onLogoChange(logoPath, file);
         } catch (error) {
-          console.error('Erreur lors de la compression:', error);
-          alert('Erreur lors du traitement de l\'image');
-        } finally {
-          setIsLoading(false);
+          console.error('Erreur upload logo:', error);
+          alert('Erreur lors de l\'upload du logo');
         }
       };
-      reader.onerror = () => {
-        alert('Erreur lors de la lecture du fichier');
+      // === Fin : Fonction de gestion de l'upload du fichier ===
+      
+      try {
+        // Upload le fichier sur le serveur
+        await handleFileUpload(file);
+      } finally {
         setIsLoading(false);
-      };
-      reader.readAsDataURL(file);
+      }
     }
   };
   // === Fin : Fonction de gestion du changement de fichier ===

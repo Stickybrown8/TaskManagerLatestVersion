@@ -81,6 +81,10 @@ const ClientSchema = new Schema({
   tags: [{
     type: String
   }],
+  logo: {
+    type: String,
+    default: ''
+  },
   metrics: {
     tasksCompleted: {
       type: Number,

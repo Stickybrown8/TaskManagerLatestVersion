@@ -1,376 +1,514 @@
-/*
- * PAGE DÉTAIL DE TÂCHE - src/pages/TaskDetail.tsx
- * 
- * Explication simple:
- * Ce fichier crée la page qui affiche tous les détails d'une tâche spécifique.
- * Il permet de voir, modifier ou supprimer une tâche, et aussi de la marquer comme terminée.
- * C'est comme une fiche d'identité complète pour chaque tâche avec toutes ses informations.
- * 
- * Explication technique:
- * Composant React fonctionnel qui affiche et gère les opérations CRUD pour une tâche individuelle.
- * Utilise React Router pour la navigation et les paramètres d'URL, Redux pour la gestion d'état,
- * et s'intègre avec les services API pour les opérations sur la tâche.
- * 
- * Où ce fichier est utilisé:
- * Dans les routes de l'application, accessible lorsqu'un utilisateur clique sur une tâche
- * spécifique depuis la liste des tâches, généralement via l'URL "/tasks/:id".
- * 
- * Connexions avec d'autres fichiers:
- * - Utilise les hooks Redux (useAppDispatch, useAppSelector)
- * - Importe et dispatche des actions depuis tasksSlice et taskActions
- * - Appelle le service API tasksService pour les opérations CRUD
- * - Utilise la bibliothèque Framer Motion pour les animations
- * - Interagit avec le store pour les notifications via uiSlice
- */
-
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useAppDispatch, useAppSelector } from '../hooks';
-import { fetchTasksStart, fetchTasksSuccess, fetchTasksFailure } from '../store/slices/tasksSlice';
-import { updateTask, deleteTask } from '../store/actions/taskActions';
-import { tasksService } from '../services/api';
-import { motion } from 'framer-motion';
+import { useAppDispatch } from '../hooks';
 import { addNotification } from '../store/slices/uiSlice';
+import { motion } from 'framer-motion';
+import { tasksService } from '../services/api';
 
-// === Début : Interface Client ===
-// Explication simple : Cette "boîte" définit à quoi ressemble un client dans notre application.
-// Explication technique : Interface TypeScript définissant la structure d'un objet Client avec des propriétés typées.
+interface Task {
+  _id: string;
+  title: string;
+  description: string;
+  clientId: { _id: string; name: string } | string;
+  status: 'à faire' | 'en cours' | 'terminée';
+  priority: 'basse' | 'moyenne' | 'haute' | 'urgente';
+  dueDate: string;
+  category: string;
+  actionPoints?: number;
+  actualTime?: number;
+  estimatedTime?: number;
+  isHighImpact?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  completedAt?: string;
+}
+
 interface Client {
   _id: string;
   name: string;
-  // ...autres propriétés si besoin
+  logo?: string;
+  description?: string;
 }
-// === Fin : Interface Client ===
 
-// === Début : Fonction de calcul du temps restant ===
-// Explication simple : Cette fonction calcule combien de temps il reste avant l'échéance d'une tâche et le présente de façon compréhensible.
-// Explication technique : Fonction utilitaire qui convertit une date d'échéance en chaîne lisible indiquant le temps restant, avec gestion des cas particuliers (retard, aujourd'hui, etc.).
-function formatRemainingDays(dueDate: string) {
-  if (!dueDate) return "Pas d'échéance";
-  const now = new Date();
-  const end = new Date(dueDate);
-  const diff = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-  if (diff < 0) return "En retard";
-  if (diff === 0) return "Aujourd'hui";
-  if (diff === 1) return "Demain";
-  if (diff < 30) return `${diff} jour${diff > 1 ? 's' : ''} restant${diff > 1 ? 's' : ''}`;
-  const months = Math.floor(diff / 30);
-  const days = diff % 30;
-  return `${months} mois${months > 1 ? 's' : ''}${days > 0 ? ` et ${days} jour${days > 1 ? 's' : ''}` : ''} restants`;
-}
-// === Fin : Fonction de calcul du temps restant ===
-
-// === Début : Composant principal TaskDetail ===
-// Explication simple : Ce composant est le "cerveau" de la page qui affiche et gère une tâche unique.
-// Explication technique : Composant fonctionnel React qui encapsule toute la logique et l'interface utilisateur pour la visualisation et l'édition d'une tâche.
 const TaskDetail: React.FC = () => {
-  // === Début : Hooks et états ===
-  // Explication simple : On récupère l'identifiant de la tâche depuis l'URL et on prépare des "boîtes" pour stocker les informations.
-  // Explication technique : Initialisation des hooks React et Redux pour la navigation, l'extraction des paramètres, et la gestion d'état locale et globale.
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { tasks, loading, error } = useAppSelector(state => state.tasks);
-  const [task, setTask] = useState<any>(null);
+  
+  const [task, setTask] = useState<Task | null>(null);
+  const [client, setClient] = useState<Client | null>(null);
+  const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    status: '',
-    priority: '',
-    dueDate: '',
-    clientId: ''
-  });
+  const [editedTask, setEditedTask] = useState<Partial<Task>>({});
 
-  const clients: Client[] = useAppSelector(state => state.clients.clients);
-  // === Fin : Hooks et états ===
-
-  // === Début : Chargement initial des données ===
-  // Explication simple : Quand la page s'ouvre, on va chercher les informations de la tâche sur le serveur.
-  // Explication technique : Effect hook qui s'exécute au montage du composant et lorsque l'ID change, récupérant les données de la tâche et initialisant le formulaire.
   useEffect(() => {
-    const loadTask = async () => {
-      if (id) {
-        try {
-          dispatch(fetchTasksStart());
-          const taskData = await tasksService.getTaskById(id);
-          setTask(taskData);
-          setFormData({
-            title: taskData.title,
-            description: taskData.description,
-            status: taskData.status,
-            priority: taskData.priority,
-            dueDate: taskData.dueDate ? new Date(taskData.dueDate).toISOString().split('T')[0] : '',
-            clientId: typeof taskData.clientId === 'object' && taskData.clientId !== null
-              ? taskData.clientId._id
-              : taskData.clientId
-          });
-          dispatch(fetchTasksSuccess(tasks));
-        } catch (error: any) {
-          dispatch(fetchTasksFailure(error.message));
+    if (id) {
+      fetchTaskDetails();
+    }
+  }, [id]);
+
+  const fetchTaskDetails = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token || !id) return;
+
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/tasks/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const taskData = await response.json();
+        setTask(taskData);
+        setEditedTask(taskData);
+        
+        // Charger les détails du client
+        if (taskData.clientId) {
+          const clientId = typeof taskData.clientId === 'object' ? taskData.clientId._id : taskData.clientId;
+          fetchClientDetails(clientId);
         }
       }
-    };
-
-    loadTask();
-  }, [id, dispatch, tasks]);
-  // === Fin : Chargement initial des données ===
-
-  // === Début : Gestionnaires d'événements du formulaire ===
-  // Explication simple : Ces fonctions s'occupent de ce qui se passe quand l'utilisateur remplit ou soumet le formulaire.
-  // Explication technique : Gestionnaires d'événements pour les modifications de champs de formulaire et la soumission du formulaire de mise à jour.
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    } catch (error) {
+      console.error('Erreur chargement tâche:', error);
+      dispatch(addNotification({
+        message: '❌ Erreur lors du chargement de la tâche',
+        type: 'error'
+      }));
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (id) {
-      try {
-        await dispatch(updateTask({ id, taskData: formData }));
-        setIsEditing(false);
-      } catch (error: any) {
-        console.error('Error updating task:', error);
+  const fetchClientDetails = async (clientId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/clients/${clientId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const clientData = await response.json();
+        setClient(clientData);
       }
+    } catch (error) {
+      console.error('Erreur chargement client:', error);
+    }
+  };
+
+  const handleUpdate = async () => {
+    if (!id) return;
+
+    try {
+      await tasksService.updateTask(id, editedTask);
+      dispatch(addNotification({
+        message: '✅ Tâche mise à jour',
+        type: 'success'
+      }));
+      setIsEditing(false);
+      fetchTaskDetails();
+    } catch (error) {
+      dispatch(addNotification({
+        message: '❌ Erreur lors de la mise à jour',
+        type: 'error'
+      }));
+    }
+  };
+
+  const handleStatusChange = async (newStatus: string) => {
+    if (!id) return;
+
+    try {
+      if (newStatus === 'terminée') {
+        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/tasks/${id}/complete`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.rewards) {
+            dispatch(addNotification({
+              message: `🎉 Tâche terminée! +${data.rewards.points} points, +${data.rewards.experience} XP`,
+              type: 'success'
+            }));
+          }
+        }
+      } else {
+        await tasksService.updateTask(id, { status: newStatus });
+      }
+      
+      fetchTaskDetails();
+    } catch (error) {
+      dispatch(addNotification({
+        message: '❌ Erreur lors de la mise à jour du statut',
+        type: 'error'
+      }));
     }
   };
 
   const handleDelete = async () => {
-    if (id && window.confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) {
-      try {
-        await dispatch(deleteTask(id));
-        navigate('/tasks');
-      } catch (error: any) {
-        console.error('Error deleting task:', error);
-      }
+    if (!id || !window.confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) return;
+
+    try {
+      await tasksService.deleteTask(id);
+      dispatch(addNotification({
+        message: '🗑️ Tâche supprimée',
+        type: 'success'
+      }));
+      navigate('/tasks');
+    } catch (error) {
+      dispatch(addNotification({
+        message: '❌ Erreur lors de la suppression',
+        type: 'error'
+      }));
     }
   };
-  // === Fin : Gestionnaires d'événements du formulaire ===
 
-  // === Début : Rendus conditionnels ===
-  // Explication simple : Ces blocs affichent différents messages selon l'état de chargement ou les erreurs.
-  // Explication technique : Rendus conditionnels pour gérer les états de chargement, d'erreur et d'absence de données avant d'afficher le contenu principal.
-  if (loading) return <div className="p-4">Chargement...</div>;
-  if (error) return <div className="p-4 text-red-500">Erreur: {error}</div>;
-  if (!task) return <div className="p-4">Tâche non trouvée</div>;
-  // === Fin : Rendus conditionnels ===
+  // Formatage
+  const formatTime = (minutes?: number) => {
+    if (!minutes) return '0h';
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return mins > 0 ? `${hours}h${mins}min` : `${hours}h`;
+  };
 
-  // === Début : Rendu principal du composant ===
-  // Explication simple : C'est l'apparence finale de la page avec tous ses éléments, boutons et informations.
-  // Explication technique : Structure JSX complète du composant avec animation d'entrée, en-tête avec actions, et interface conditionnelle basée sur l'état d'édition.
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+  };
+
+  const formatDateTime = (dateString?: string) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleString('fr-FR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'urgente': return 'bg-red-100 text-red-700 border-red-200';
+      case 'haute': return 'bg-orange-100 text-orange-700 border-orange-200';
+      case 'moyenne': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+      case 'basse': return 'bg-green-100 text-green-700 border-green-200';
+      default: return 'bg-gray-100 text-gray-700 border-gray-200';
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'terminée': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+      case 'en cours': return 'bg-blue-100 text-blue-700 border-blue-200';
+      case 'à faire': return 'bg-gray-100 text-gray-700 border-gray-200';
+      default: return 'bg-gray-100 text-gray-700 border-gray-200';
+    }
+  };
+
+  const ClientLogo = ({ client }: { client: Client }) => {
+    if (client.logo) {
+      return (
+        <img 
+          src={client.logo} 
+          alt={client.name}
+          className="w-16 h-16 rounded-xl object-cover"
+        />
+      );
+    }
+    
+    return (
+      <div className="w-16 h-16 bg-[#04699f] rounded-xl flex items-center justify-center text-white font-bold text-2xl">
+        {client.name.charAt(0).toUpperCase()}
+      </div>
+    );
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#04699f]"></div>
+      </div>
+    );
+  }
+
+  if (!task) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-500 dark:text-gray-400 mb-4">Tâche introuvable</p>
+          <button
+            onClick={() => navigate('/tasks')}
+            className="text-[#04699f] hover:underline"
+          >
+            Retour aux tâches
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="p-4"
-    >
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">{isEditing ? 'Modifier la tâche' : task.title}</h1>
-        <div className="space-x-2">
-          {!isEditing ? (
-            <>
-              <button
-                onClick={() => setIsEditing(true)}
-                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-              >
-                Modifier
-              </button>
-              <button
-                onClick={handleDelete}
-                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-              >
-                Supprimer
-              </button>
-              {!isEditing && task.status !== 'terminée' && (
-                <button
-                  onClick={async () => {
-                    try {
-                      await tasksService.updateTask(
-                        typeof task._id === 'object' ? (task._id as any)._id : task._id,
-                        { status: 'terminée' }
-                      );
-                      
-                      // Mettre à jour l'interface
-                      setTask({ ...task, status: 'terminée' });
-                      
-                      // Notification de succès
-                      dispatch(addNotification({ 
-                        message: 'Tâche marquée comme terminée', 
-                        type: 'success' 
-                      }));
-                      
-                      // Recharger les tâches dans Redux
-                      dispatch(fetchTasksStart());
-                      const tasksData = await tasksService.getTasks();
-                      dispatch(fetchTasksSuccess(tasksData));
-                    } catch (error) {
-                      alert("Erreur lors de la complétion de la tâche");
-                    }
-                  }}
-                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                >
-                  Marquer comme terminée
-                </button>
-              )}
-            </>
-          ) : (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Header */}
+      <div className="bg-white dark:bg-gray-800 shadow-sm">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
             <button
-              onClick={() => setIsEditing(false)}
-              className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+              onClick={() => navigate('/tasks')}
+              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"
             >
-              Annuler
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Retour aux tâches
             </button>
-          )}
+            
+            <div className="flex items-center gap-2">
+              {!isEditing ? (
+                <>
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="px-4 py-2 text-[#04699f] hover:bg-[#04699f]/10 rounded-lg transition-colors font-medium"
+                  >
+                    Modifier
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium"
+                  >
+                    Supprimer
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => {
+                      setIsEditing(false);
+                      setEditedTask(task);
+                    }}
+                    className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors font-medium"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    onClick={handleUpdate}
+                    className="px-4 py-2 bg-[#04699f] hover:bg-[#045882] text-white rounded-lg transition-colors font-medium"
+                  >
+                    Enregistrer
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
-      {isEditing ? (
-        // === Début : Formulaire d'édition ===
-        // Explication simple : C'est le formulaire qui permet de modifier les informations de la tâche.
-        // Explication technique : Formulaire contrôlé avec des champs pour chaque propriété de la tâche, utilisant les gestionnaires d'événements pour les modifications et la soumission.
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block mb-1">Titre</label>
-            <input
-              type="text"
-              name="title"
-              value={formData.title}
-              onChange={handleChange}
-              className="w-full p-2 border rounded"
-              required
-            />
-          </div>
-          <div>
-            <label className="block mb-1">Description</label>
-            <textarea
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              className="w-full p-2 border rounded"
-              rows={4}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block mb-1">Statut</label>
-              <select
-                name="status"
-                value={formData.status}
-                onChange={handleChange}
-                className="w-full p-2 border rounded"
-              >
-                <option value="à faire">À faire</option>
-                <option value="en cours">En cours</option>
-                <option value="terminée">Terminée</option>
-              </select>
+      {/* Contenu principal */}
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden"
+        >
+          {/* En-tête avec client */}
+          {client && (
+            <div className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 p-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-4">
+                <ClientLogo client={client} />
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Client</p>
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">{client.name}</h2>
+                  {client.description && (
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{client.description}</p>
+                  )}
+                </div>
+              </div>
             </div>
-            <div>
-              <label className="block mb-1">Priorité</label>
-              <select
-                name="priority"
-                value={formData.priority}
-                onChange={handleChange}
-                className="w-full p-2 border rounded"
-              >
-                <option value="basse">Basse</option>
-                <option value="moyenne">Moyenne</option>
-                <option value="haute">Haute</option>
-                <option value="urgente">Urgente</option>
-              </select>
+          )}
+
+          {/* Contenu de la tâche */}
+          <div className="p-6">
+            {/* Titre et badges */}
+            <div className="mb-6">
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={editedTask.title || ''}
+                  onChange={(e) => setEditedTask({ ...editedTask, title: e.target.value })}
+                  className="text-2xl font-bold text-gray-900 dark:text-white bg-transparent border-b-2 border-[#04699f] focus:outline-none w-full mb-3"
+                />
+              ) : (
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">{task.title}</h1>
+              )}
+              
+              <div className="flex flex-wrap items-center gap-3">
+                <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(task.status)}`}>
+                  {task.status === 'terminée' && '✅'} 
+                  {task.status === 'en cours' && '🏃'} 
+                  {task.status === 'à faire' && '📋'} 
+                  {task.status}
+                </span>
+                <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getPriorityColor(task.priority)}`}>
+                  {task.priority === 'urgente' && '🔴'}
+                  {task.priority === 'haute' && '🟠'}
+                  {task.priority === 'moyenne' && '🟡'}
+                  {task.priority === 'basse' && '🟢'}
+                  {task.priority}
+                </span>
+                {task.isHighImpact && (
+                  <span className="px-3 py-1 bg-gradient-to-r from-amber-100 to-orange-100 text-orange-700 rounded-full text-sm font-medium">
+                    🚀 Tâche 80/20
+                  </span>
+                )}
+                {task.actionPoints && (
+                  <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium">
+                    🏆 {task.actionPoints} points
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block mb-1">Date d'échéance</label>
-              <input
-                type="date"
-                name="dueDate"
-                value={formData.dueDate}
-                onChange={handleChange}
-                className="w-full p-2 border rounded"
-              />
+
+            {/* Description */}
+            <div className="mb-6">
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description</h3>
+              {isEditing ? (
+                <textarea
+                  value={editedTask.description || ''}
+                  onChange={(e) => setEditedTask({ ...editedTask, description: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#04699f] focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white resize-none"
+                  rows={4}
+                />
+              ) : (
+                <p className="text-gray-600 dark:text-gray-400 whitespace-pre-wrap">
+                  {task.description || 'Aucune description'}
+                </p>
+              )}
             </div>
-            <div>
-              <label className="block mb-1">Client</label>
-              <select
-                name="clientId"
-                value={formData.clientId || ''}
-                onChange={handleChange}
-              >
-                <option value="">Sélectionner un client</option>
-                {clients.map((client: Client) => (
-                  <option key={client._id} value={client._id}>{client.name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <button
-            type="submit"
-            className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-          >
-            Enregistrer
-          </button>
-        </form>
-        // === Fin : Formulaire d'édition ===
-      ) : (
-        // === Début : Affichage des détails ===
-        // Explication simple : C'est la vue qui montre toutes les informations de la tâche de façon organisée et lisible.
-        // Explication technique : Présentation en lecture seule des informations de la tâche dans une mise en page structurée avec des sections distinctes pour différentes catégories d'informations.
-        <div className="space-y-4">
-          <div className="bg-white p-4 rounded shadow">
-            <h2 className="text-lg font-semibold mb-2">Description</h2>
-            <p>{task.description || 'Aucune description'}</p>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white p-4 rounded shadow">
-              <h2 className="text-lg font-semibold mb-2">Détails</h2>
-              <div className="space-y-2">
-                <p><span className="font-medium">Statut:</span> {task.status}</p>
-                <p>
-                  <span className="font-medium">Date d'échéance:</span>
-                  <span className="ml-2">
-                    {task.dueDate 
-                      ? new Date(task.dueDate).toLocaleDateString() 
-                      : 'Non définie'}
-                    {task.dueDate && (
-                      <span className="ml-2 text-sm text-gray-500">
-                        ({formatRemainingDays(task.dueDate)})
-                      </span>
+
+            {/* Informations détaillées */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Dates */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Dates</h3>
+                
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Date d'échéance</span>
+                    {isEditing ? (
+                      <input
+                        type="date"
+                        value={editedTask.dueDate?.split('T')[0] || ''}
+                        onChange={(e) => setEditedTask({ ...editedTask, dueDate: e.target.value })}
+                        className="px-3 py-1 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#04699f] dark:bg-gray-700 dark:border-gray-600"
+                      />
+                    ) : (
+                      <span className="font-medium">{formatDate(task.dueDate)}</span>
                     )}
-                  </span>
-                </p>
-                <p>
-                  <span className="font-medium">Client:</span>
-                  <span className="ml-2 text-lg font-bold text-primary-700">
-                    {typeof task.clientId === 'object' ? task.clientId.name : task.clientId || 'Non assigné'}
-                  </span>
-                </p>
+                  </div>
+                  
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Créée le</span>
+                    <span className="font-medium">{formatDateTime(task.createdAt)}</span>
+                  </div>
+                  
+                  {task.completedAt && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Terminée le</span>
+                      <span className="font-medium text-green-600">{formatDateTime(task.completedAt)}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Temps */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Temps</h3>
+                
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Temps estimé</span>
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editedTask.estimatedTime || 0}
+                        onChange={(e) => setEditedTask({ ...editedTask, estimatedTime: parseInt(e.target.value) || 0 })}
+                        className="px-3 py-1 border border-gray-200 rounded-lg text-sm w-20 focus:ring-2 focus:ring-[#04699f] dark:bg-gray-700 dark:border-gray-600"
+                        min="0"
+                        step="15"
+                      />
+                    ) : (
+                      <span className="font-medium">{formatTime(task.estimatedTime)}</span>
+                    )}
+                  </div>
+                  
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Temps passé</span>
+                    <span className="font-medium text-[#04699f]">{formatTime(task.actualTime)}</span>
+                  </div>
+                  
+                  {task.estimatedTime && task.actualTime && (
+                    <div className="mt-2">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs text-gray-500">Progression</span>
+                        <span className="text-xs font-medium">
+                          {Math.round((task.actualTime / task.estimatedTime) * 100)}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-[#04699f] h-2 rounded-full transition-all duration-500"
+                          style={{ width: `${Math.min((task.actualTime / task.estimatedTime) * 100, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-            <div className="bg-white p-4 rounded shadow">
-              <h2 className="text-lg font-semibold mb-2">Activité</h2>
-              <div className="space-y-2">
-                <p><span className="font-medium">Créée le:</span> {new Date(task.createdAt).toLocaleDateString()}</p>
-                <p>
-                  <span className="font-medium">Dernière mise à jour:</span>
-                  <span className="ml-2">
-                    {task.updatedAt && !isNaN(new Date(task.updatedAt).getTime())
-                      ? new Date(task.updatedAt).toLocaleDateString()
-                      : 'Non disponible'}
-                  </span>
-                </p>
+
+            {/* Actions sur le statut */}
+            {task.status !== 'terminée' && !isEditing && (
+              <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Changer le statut</h3>
+                <div className="flex flex-wrap gap-3">
+                  {task.status !== 'à faire' && (
+                    <button
+                      onClick={() => handleStatusChange('à faire')}
+                      className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors font-medium"
+                    >
+                      📋 Remettre à faire
+                    </button>
+                  )}
+                  {task.status !== 'en cours' && (
+                    <button
+                      onClick={() => handleStatusChange('en cours')}
+                      className="px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-colors font-medium"
+                    >
+                      🏃 Commencer
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleStatusChange('terminée')}
+                    className="px-4 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 rounded-lg transition-colors font-medium"
+                  >
+                    ✅ Marquer comme terminée
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
-        </div>
-        // === Fin : Affichage des détails ===
-      )}
-    </motion.div>
+        </motion.div>
+      </div>
+    </div>
   );
-  // === Fin : Rendu principal du composant ===
 };
-// === Fin : Composant principal TaskDetail ===
 
 export default TaskDetail;

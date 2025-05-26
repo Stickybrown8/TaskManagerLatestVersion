@@ -73,3 +73,30 @@
   }
 }
 /* === Fin : Définition de l'animation de rotation === */
+
+/* === Début : Styles de l'affichage du taux horaire ===
+ * Explication simple : Cette règle définit l'apparence du taux horaire affiché, avec une taille de police plus grande, un texte en gras, un dégradé de couleur et une animation subtile.
+ * Explication technique : Sélecteur de classe qui configure l'affichage du taux horaire avec une taille de police de 1.5rem, un texte en gras, un arrière-plan en dégradé, et une animation de pulsation subtile.
+ */
+.hourly-rate-display {
+  font-size: 1.5rem;
+  font-weight: bold;
+  background: linear-gradient(90deg, #3182ce 0%, #2c5282 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0px 0px 1px rgba(0,0,0,0.1);
+  animation: pulse-subtle 2s infinite;
+}
+/* === Fin : Styles de l'affichage du taux horaire === */
+
+/* === Début : Définition de l'animation de pulsation subtile ===
+ * Explication simple : Ces lignes définissent une animation de pulsation subtile pour l'affichage du taux horaire, avec des variations d'opacité.
+ * Explication technique : Règle @keyframes qui définit une animation de pulsation subtile avec des variations d'opacité de 0.95 à 1, créant un effet de pulsation continue.
+ */
+@keyframes pulse-subtle {
+  0% { opacity: 0.95; }
+  50% { opacity: 1; }
+  100% { opacity: 0.95; }
+}
+/* === Fin : Définition de l'animation de pulsation subtile === */

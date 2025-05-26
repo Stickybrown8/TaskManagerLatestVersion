@@ -1,689 +1,476 @@
-/*
- * POPUP DE CHRONOMÈTRE AMÉLIORÉ - frontend/src/components/timer/TimerPopupFix.tsx
- *
- * Explication simple:
- * Ce fichier crée une petite fenêtre flottante améliorée qui te permet de mesurer le temps 
- * que tu passes sur différentes tâches ou pour différents clients. C'est comme un chronomètre 
- * que tu peux déplacer sur ton écran, agrandir ou réduire, et qui te montre en temps réel 
- * si ton travail est rentable. Tu peux démarrer, mettre en pause, reprendre et arrêter le 
- * chronomètre. Il te permet aussi de créer rapidement de nouvelles tâches et de marquer 
- * des tâches comme terminées directement depuis cette fenêtre.
- *
- * Explication technique:
- * Composant React fonctionnel qui implémente un widget de suivi de temps optimisé avec 
- * des fonctionnalités avancées incluant le drag-and-drop, le redimensionnement dynamique, 
- * la persistance des données, l'affichage en temps réel des métriques de rentabilité, 
- * et l'intégration des fonctionnalités de gamification. Il résout des problèmes de stabilité
- * présents dans la version originale du TimerPopup.
- *
- * Où ce fichier est utilisé:
- * Intégré dans le layout principal de l'application comme alternative plus robuste au TimerPopup 
- * standard, accessible globalement depuis n'importe quelle page via un bouton flottant. 
- * Il peut remplacer complètement l'ancien composant TimerPopup.
- *
- * Connexions avec d'autres fichiers:
- * - Interagit avec le store Redux via les hooks personnalisés et les actions du timerSlice
- * - Utilise les services API comme timerService pour la gestion des timers
- * - Importe des composants UI comme ClientLogo pour l'affichage des logos clients
- * - Utilise des hooks personnalisés comme useGamification et useTasks
- * - Communique avec l'API backend via axios et les services pour la gestion des timers et la rentabilité
- * - Dispatch des actions vers taskImpactSlice pour mettre à jour le statut d'impact des tâches
- */
-
-// === Début : Importation des dépendances ===
-// Explication simple : On prend tous les outils dont on a besoin pour faire fonctionner notre chronomètre amélioré, comme quand tu rassembles tous tes jouets avant de commencer à jouer.
-// Explication technique : Importation des bibliothèques React core, des hooks Redux personnalisés, des actions du store, des composants UI, des services API, et des utilitaires pour l'animation et les requêtes HTTP.
+import { formatDurationHuman } from '../../utils/dateUtils';
 import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { useAppDispatch, useAppSelector } from '../../hooks';
 import {
   toggleTimerPopup,
   hideTimerPopup,
-  setTimerPopupSize,
-  setTimerPopupPosition,
-  updateRunningTimerDuration,
+  setRunningTimer,
   startTimer,
   pauseTimer,
-  resumeTimer,
   stopTimer
 } from '../../store/slices/timerSlice';
 import { addNotification } from '../../store/slices/uiSlice';
-import { motion } from 'framer-motion';
-import axios from 'axios';
-import { store } from '../../store/index';
 import { addTask } from '../../store/slices/tasksSlice';
 import ClientLogo from '../Clients/ClientLogo';
-import { useSelector } from 'react-redux';
-import { RootState } from '../../store/index';
-import { updateTaskImpact } from '../../store/slices/taskImpactSlice';
+import { timerService } from '../../services/api';
 import { useGamification } from '../../hooks/useGamification';
 import { useTasks } from '../../hooks/useTasks';
-import { timerService } from '../../services/api';
-// === Fin : Importation des dépendances ===
 
-// === Début : Configuration de l'URL API ===
-// Explication simple : On définit l'adresse où notre application va chercher et envoyer les informations sur internet, comme l'adresse de ta maison pour recevoir le courrier.
-// Explication technique : Déclaration de la constante d'URL de l'API en utilisant une variable d'environnement avec une valeur de fallback pour assurer la connexion au backend même si la variable d'environnement n'est pas définie.
-const API_URL = process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com';
-// === Fin : Configuration de l'URL API ===
+// Détection automatique de l'URL pour GitHub Codespaces
+const getApiUrl = () => {
+  if (window.location.hostname === 'localhost') {
+    return 'http://localhost:5000';
+  }
+  if (window.location.hostname.includes('github.dev')) {
+    return window.location.origin.replace('-3000.', '-5000.');
+  }
+  return process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com';
+};
 
-// === Début : Déclaration du composant principal ===
-// Explication simple : On commence à créer notre chronomètre amélioré qui sera une petite fenêtre qu'on peut déplacer sur l'écran.
-// Explication technique : Définition du composant fonctionnel React avec typage TypeScript qui encapsulera toute la logique du widget de chronométrage optimisé.
-const TimerPopupFix: React.FC = () => {
-// === Fin : Déclaration du composant principal ===
+const API_URL = getApiUrl();
 
-  // === Début : Initialisation du dispatcher Redux ===
-  // Explication simple : On prépare un messager qui va envoyer des informations au "cerveau" de l'application quand on fait quelque chose.
-  // Explication technique : Configuration du dispatcher Redux pour permettre l'émission d'actions vers le store global de l'application.
+interface TimerPopupProps { }
+
+const TimerPopup: React.FC<TimerPopupProps> = () => {
   const dispatch = useAppDispatch();
-  // === Fin : Initialisation du dispatcher Redux ===
+  const { showTimerPopup } = useAppSelector(state => state.timer);
+  const { addExperience, checkAchievement, showReward } = useGamification();
+  const { refreshTasks } = useTasks();
+  const dragControls = useDragControls();
 
-  // === Début : Extraction des données du store Redux ===
-  // Explication simple : On va chercher des informations dans la mémoire de l'application, comme ouvrir des tiroirs pour prendre ce dont on a besoin.
-  // Explication technique : Utilisation des hooks useAppSelector et useSelector pour extraire les données pertinentes du store Redux avec une approche optimisée pour éviter les re-rendus inutiles.
-  // Accéder directement à chaque propriété pour une meilleure réactivité
-  const showTimerPopup = useAppSelector(state => {
-    return state.timer?.showTimerPopup || false;
-  });
-  const timerPopupSize = useAppSelector(state => state.timer?.timerPopupSize || 'medium');
-  const timerPopupPosition = useAppSelector(state => state.timer?.timerPopupPosition || 'bottom-right');
-  const runningTimer = useAppSelector(state => state.timer?.runningTimer || null);
-
-  const { highImpactTasks } = useSelector((state: RootState) => state.taskImpact);
-  // === Fin : Extraction des données du store Redux ===
-
-  // === Début : Initialisation des états locaux principaux ===
-  // Explication simple : On crée des petites boîtes pour stocker et changer toutes les informations dont notre chronomètre a besoin, comme des tiroirs où ranger différentes choses.
-  // Explication technique : Initialisation de multiples états locaux avec useState pour gérer les différentes données du timer, les sélections utilisateur et l'état d'affichage de l'interface.
-  // États locaux
+  // États principaux
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [selectedTaskId, setSelectedTaskId] = useState<string>('');
   const [timerDuration, setTimerDuration] = useState<number>(0);
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [timerId, setTimerId] = useState<string | null>(null);
+  const [description, setDescription] = useState<string>('');
+  const [billable, setBillable] = useState<boolean>(true);
+
+  // États pour les données
   const [clients, setClients] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
-  const [description, setDescription] = useState<string>('');
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [profitability, setProfitability] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(false);
-  const [billable, setBillable] = useState<boolean>(true);
-  // === Fin : Initialisation des états locaux principaux ===
 
-  // === Début : États pour les fonctionnalités d'interface avancées ===
-  // Explication simple : On ajoute des boîtes spéciales pour gérer comment notre fenêtre se comporte sur l'écran - si on peut la déplacer, la rendre plus grande ou plus petite.
-  // Explication technique : Déclaration d'états locaux supplémentaires pour gérer le positionnement, le glisser-déposer (drag-and-drop), le redimensionnement et la minimisation de l'interface.
-  // États pour le drag-and-drop
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [isDragging, setIsDragging] = useState(false);
+  // États pour la rentabilité
+  const [currentHourlyRate, setCurrentHourlyRate] = useState<number>(0);
+  const [targetHourlyRate, setTargetHourlyRate] = useState<number>(0);
+
+  // États UI
+  const [size, setSize] = useState<'small' | 'medium' | 'large'>('large');
+  const [isMinimized, setIsMinimized] = useState<boolean>(false);
+  const [showNewTaskForm, setShowNewTaskForm] = useState<boolean>(false);
+  const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
+  const [confirmAction, setConfirmAction] = useState<() => void>(() => { });
+  const [confirmMessage, setConfirmMessage] = useState<string>('');
   const popupRef = useRef<HTMLDivElement>(null);
 
-  // États pour la rentabilité en temps réel
-  const [currentHourlyRate, setCurrentHourlyRate] = useState<number>(0);
-  const [isOverBudget, setIsOverBudget] = useState<boolean>(false);
-  const [hoursRemaining, setHoursRemaining] = useState<number>(0);
-  const [percentageUsed, setPercentageUsed] = useState<number>(0);
-
-  // États pour la création de nouvelle tâche
-  const [showNewTaskForm, setShowNewTaskForm] = useState(false);
+  // Formulaire nouvelle tâche
   const [newTaskData, setNewTaskData] = useState({
     title: '',
     description: '',
-    clientId: '',
-    priority: 'normale',
+    priority: 'moyenne',
     dueDate: '',
-    isHighImpact: false,
-    impactScore: 50
+    isHighImpact: false
   });
 
-  // États pour la minimisation
-  const [isMinimized, setIsMinimized] = useState<boolean>(false);
-  const [previousSize, setPreviousSize] = useState<'small' | 'medium' | 'large'>('medium');
+  // Styles pour les tailles
+  const sizeStyles = {
+    small: 'w-96 md:w-[420px]',
+    medium: 'w-full md:w-[480px]',
+    large: 'w-full md:w-[550px]'
+  };
 
-  // Ajouter ces états
-  const [dragBounds, setDragBounds] = useState({ left: 0, top: 0, right: 0, bottom: 0 });
-  const dragConstraintsRef = useRef(null);
+  // Fonction pour formater les heures en heures et minutes - PLUS PRÉCISE
+  const formatHoursToHM = (hours: number): string => {
+    const h = Math.floor(hours);
+    const m = Math.round((hours - h) * 60);
+    
+    if (h === 0 && m === 0) return '0min';
+    if (h === 0) return `${m}min`;
+    if (m === 0) return `${h}h`;
+    
+    // Format avec padding pour les minutes
+    return `${h}h${m.toString().padStart(2, '0')}min`;
+  };
 
-  const [showImpactIndicator, setShowImpactIndicator] = useState(true);
-  // === Fin : États pour les fonctionnalités d'interface avancées ===
-
-  // === Début : Initialisation des hooks personnalisés ===
-  // Explication simple : On utilise des outils spéciaux qui nous aident à faire des choses cools comme ajouter des points quand on termine une tâche ou mettre à jour notre liste de tâches.
-  // Explication technique : Configuration des hooks personnalisés pour la gamification et la gestion des tâches, qui encapsulent des logiques métier réutilisables.
-  const { addExperience, checkAchievement, showReward } = useGamification();
-  const { refreshTasks } = useTasks();
-  // === Fin : Initialisation des hooks personnalisés ===
-
-  // === Début : Effet pour charger les clients et les tâches ===
-  // Explication simple : Quand notre fenêtre s'ouvre, on va automatiquement chercher la liste de tous les clients et toutes les tâches sur internet, comme si tu allais à la bibliothèque chercher des livres.
-  // Explication technique : Hook useEffect qui déclenche des requêtes API asynchrones pour récupérer les données clients et tâches lorsque le popup est affiché, avec gestion des erreurs et états de chargement.
-  // Charger les clients et les tâches
+  // Charger les données initiales
   useEffect(() => {
-    const fetchClientsAndTasks = async () => {
-      try {
-        // Récupérer le token d'authentification
-        const token = localStorage.getItem('token');
-
-        if (!token) {
-          console.error("Token d'authentification manquant");
-          return;
-        }
-
-        setLoading(true);
-
-        // Charger les clients
-        const clientsResponse = await axios.get(`${API_URL}/api/clients`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        setClients(clientsResponse.data);
-
-        // Charger les tâches
-        const tasksResponse = await axios.get(`${API_URL}/api/tasks`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        setTasks(tasksResponse.data);
-
-      } catch (error) {
-        console.error('Erreur lors du chargement des données:', error);
-        dispatch(addNotification({
-          message: 'Erreur lors du chargement des données du timer',
-          type: 'error'
-        }));
-      } finally {
-        setLoading(false);
-      }
-    };
-
     if (showTimerPopup) {
       fetchClientsAndTasks();
-    }
-  }, [dispatch, showTimerPopup]);
-  // === Fin : Effet pour charger les clients et les tâches ===
-
-  // === Début : Effet pour charger le timer en cours ===
-  // Explication simple : On vérifie s'il y a déjà un chronomètre qui tourne, comme quand tu reviens dans ta chambre et que tu vois si ton jeu est encore en marche.
-  // Explication technique : Hook useEffect qui utilise le service de timer pour récupérer un timer actif lors de l'affichage du popup, et initialise les états locaux avec les données de ce timer existant.
-  // Charger le timer en cours s'il existe
-  useEffect(() => {
-    const fetchRunningTimer = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          console.error("Token d'authentification manquant");
-          return;
-        }
-
-        setLoading(true);
-
-        try {
-          // Utiliser le service au lieu d'appeler directement axios
-          const timers = await timerService.getAllTimers();
-          // Trouver le timer actif (sans endTime)
-          const runningTimer = timers.find((t: {_id: string; endTime?: Date; duration?: number; clientId?: any; taskId?: any; description?: string}) => !t.endTime);
-
-          if (runningTimer) {
-            setTimerId(runningTimer._id);
-            setIsRunning(true); // Si pas d'endTime, considérer comme en cours
-            setTimerDuration(runningTimer.duration || 0);
-            setBillable(runningTimer.billable !== false);
-
-            if (runningTimer.clientId) {
-              const clientId = typeof runningTimer.clientId === 'object' 
-                ? runningTimer.clientId._id 
-                : runningTimer.clientId;
-              setSelectedClientId(clientId);
-              fetchClientDetails(clientId);
-            }
-
-            if (runningTimer.taskId) {
-              const taskId = typeof runningTimer.taskId === 'object'
-                ? runningTimer.taskId._id
-                : runningTimer.taskId;
-              setSelectedTaskId(taskId);
-              fetchTaskDetails(taskId);
-            }
-
-            setDescription(runningTimer.description || '');
-          }
-        } catch (err) {
-          console.error("Erreur lors de la récupération des timers:", err);
-        }
-
-      } catch (error) {
-        console.error('Erreur lors de la récupération du timer en cours:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (showTimerPopup) {
-      fetchRunningTimer();
+      checkRunningTimer();
     }
   }, [showTimerPopup]);
-  // === Fin : Effet pour charger le timer en cours ===
 
-  // === Début : Effet pour charger la position sauvegardée ===
-  // Explication simple : On se souvient où tu avais placé ta fenêtre de chronomètre la dernière fois, comme quand tu retrouves ton jouet là où tu l'avais laissé.
-  // Explication technique : Hook useEffect qui récupère les coordonnées de position sauvegardées dans le localStorage et les applique à l'état position, permettant la persistance de l'emplacement de l'interface entre les sessions.
-  // Charger la position sauvegardée du timer
-  useEffect(() => {
-    const savedPosition = localStorage.getItem('timerPosition');
-    if (savedPosition) {
-      try {
-        const parsedPosition = JSON.parse(savedPosition);
-        setPosition(parsedPosition);
-      } catch (e) {
-        console.error('Erreur lors du chargement de la position du timer:', e);
-      }
-    }
-  }, []);
-  // === Fin : Effet pour charger la position sauvegardée ===
-
-  // === Début : Fonction pour récupérer les détails d'un client ===
-  // Explication simple : Cette fonction va chercher toutes les informations sur un client spécifique - son nom, son logo, et si travailler pour lui nous rapporte de l'argent.
-  // Explication technique : Fonction asynchrone qui effectue des requêtes API parallèles pour récupérer les détails d'un client par son ID et les données de rentabilité associées, avec mise à jour des états locaux et calcul des métriques de rentabilité.
-  // Récupérer les détails d'un client
-  const fetchClientDetails = async (clientId: string) => {
-    try {
-      // Récupérer le token d'authentification
-      const token = localStorage.getItem('token');
-
-      if (!token || !clientId) return;
-
-      // Charger les détails du client
-      const response = await axios.get(`${API_URL}/api/clients/${clientId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      setSelectedClient(response.data);
-
-      // Charger les données de rentabilité
-      try {
-        const profitabilityResponse = await axios.get(`${API_URL}/api/profitability/client/${clientId}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        const profitData = profitabilityResponse.data;
-        setProfitability(profitData);
-        setCurrentHourlyRate(profitData.hourlyRate || 0);
-
-        // Calculer les heures restantes et le pourcentage utilisé
-        if (profitData.targetHours && profitData.spentHours) {
-          const remaining = profitData.targetHours - profitData.spentHours;
-          setHoursRemaining(remaining);
-          setPercentageUsed((profitData.spentHours / profitData.targetHours) * 100);
-          setIsOverBudget(remaining < 0);
-        }
-      } catch (err) {
-        console.log('Pas de données de rentabilité pour ce client');
-        setProfitability(null);
-      }
-
-    } catch (error) {
-      console.error('Erreur lors de la récupération des détails du client:', error);
-      setSelectedClient(null);
-    }
-  };
-  // === Fin : Fonction pour récupérer les détails d'un client ===
-
-  // === Début : Fonction pour récupérer les détails d'une tâche ===
-  // Explication simple : Cette fonction cherche toutes les informations sur une tâche particulière, et si cette tâche est liée à un client, elle cherche aussi les informations sur ce client.
-  // Explication technique : Fonction asynchrone qui effectue une requête API pour obtenir les détails d'une tâche spécifique, puis déclenche conditionnellement la récupération des détails du client associé si la tâche est liée à un client.
-  // Récupérer les détails d'une tâche
-  const fetchTaskDetails = async (taskId: string) => {
-    try {
-      // Récupérer le token d'authentification
-      const token = localStorage.getItem('token');
-
-      if (!token || !taskId) return;
-
-      // Charger les détails de la tâche
-      const response = await axios.get(`${API_URL}/api/tasks/${taskId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      setSelectedTask(response.data);
-
-      // Si la tâche a un client, charger les détails du client
-      if (response.data.clientId) {
-        fetchClientDetails(response.data.clientId);
-      }
-
-    } catch (error) {
-      console.error('Erreur lors de la récupération des détails de la tâche:', error);
-      setSelectedTask(null);
-    }
-  };
-  // === Fin : Fonction pour récupérer les détails d'une tâche ===
-
-  // === Début : Fonction de formatage du temps ===
-  // Explication simple : Cette fonction transforme un nombre de secondes en un format plus joli qui montre les heures, minutes et secondes, comme quand tu transformes "90 minutes" en "1 heure et 30 minutes".
-  // Explication technique : Utilitaire qui convertit une durée en secondes en une chaîne formatée au format HH:MM:SS avec padding des zéros pour assurer un affichage uniforme.
-  // Formater la durée en HH:MM:SS
-  const formatDuration = (seconds: number): string => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-  // === Fin : Fonction de formatage du temps ===
-
-  // === Début : Effet pour mettre à jour le timer en temps réel ===
-  // Explication simple : Cette partie fait que ton chronomètre compte les secondes en temps réel quand il est en marche, et vérifie si tu vas dépasser le temps que tu as prévu pour ton client.
-  // Explication technique : Hook useEffect qui initialise un intervalle pour incrémenter la durée du timer toutes les secondes lorsqu'il est en cours d'exécution, et met à jour dynamiquement les métriques de rentabilité avec des notifications conditionnelles lorsque les seuils critiques sont atteints.
-  // Mettre à jour la durée du timer toutes les secondes si en cours d'exécution
+  // Timer interval avec mise à jour du taux horaire
   useEffect(() => {
     if (isRunning) {
-      const intervalId = setInterval(() => {
+      const interval = setInterval(() => {
         setTimerDuration(prev => {
           const newDuration = prev + 1;
 
-          // Mettre à jour la rentabilité en temps réel
-          if (profitability && profitability.targetHours) {
-            // Calculer les heures passées, y compris le timer actuel
-            const currentHoursSpent = profitability.spentHours + (newDuration / 3600);
-            const remaining = profitability.targetHours - currentHoursSpent;
-            const percentUsed = (currentHoursSpent / profitability.targetHours) * 100;
+          // Mise à jour du taux horaire en temps réel - CALCUL RÉEL
+          if (profitability && profitability.revenue) {
+            const hoursWorked = (profitability.spentHours || 0) + (newDuration / 3600);
 
-            setHoursRemaining(remaining);
-            setPercentageUsed(percentUsed);
-            setIsOverBudget(remaining < 0);
-
-            // Calculer le taux horaire actuel
-            if (profitability.monthlyBudget && currentHoursSpent > 0) {
-              const rate = profitability.monthlyBudget / currentHoursSpent;
-              setCurrentHourlyRate(rate);
-            }
-
-            // Alerte si on approche ou dépasse la limite
-            if (remaining <= 0 && !isOverBudget) {
-              dispatch(addNotification({
-                message: `Attention: Budget horaire dépassé pour ${selectedClient?.name}`,
-                type: 'warning'
-              }));
-            } else if (remaining <= 1 && remaining > 0) {
-              dispatch(addNotification({
-                message: `Attention: Il reste moins d'une heure de budget pour ${selectedClient?.name}`,
-                type: 'info'
-              }));
+            if (hoursWorked > 0) {
+              // Taux horaire réel = Forfait mensuel / Heures travaillées
+              const realRate = profitability.revenue / hoursWorked;
+              setCurrentHourlyRate(Math.floor(realRate)); // Changé de Math.round à Math.floor
             }
           }
 
           return newDuration;
         });
       }, 1000);
-
-      return () => clearInterval(intervalId);
+      return () => clearInterval(interval);
     }
-  }, [isRunning, profitability, selectedClient, dispatch, isOverBudget]);
-  // === Fin : Effet pour mettre à jour le timer en temps réel ===
+  }, [isRunning, profitability]);
 
-  // === Début : Fonction pour démarrer le timer ===
-  // Explication simple : Cette fonction démarre le chronomètre quand tu cliques sur le bouton "Démarrer", après avoir vérifié que tu as bien choisi un client ou une tâche.
-  // Explication technique : Fonction asynchrone qui gère le démarrage d'un nouveau timer via l'API, avec validation préalable des entrées, mécanisme de retry, gestion d'état de chargement, mise à jour des états locaux et du store Redux, et notification utilisateur.
-  // Fonction pour démarrer un timer
-  const handleStartTimer = async () => {
+  const fetchClientsAndTasks = async () => {
     try {
-      // Vérifier si un client ou une tâche est sélectionné
-      if (!selectedClientId && !selectedTaskId) {
-        dispatch(addNotification({
-          message: 'Veuillez sélectionner un client ou une tâche',
-          type: 'warning'
-        }));
-        return;
-      }
-
-      setLoading(true);
-
-      // Récupérer le token d'authentification
       const token = localStorage.getItem('token');
+      if (!token) return;
 
-      if (!token) {
-        throw new Error("Token d'authentification manquant");
+      const [clientsRes, tasksRes] = await Promise.all([
+        fetch(`${API_URL}/api/clients`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }).then(res => res.json()),
+        fetch(`${API_URL}/api/tasks`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }).then(res => res.json())
+      ]);
+
+      setClients(clientsRes);
+      setTasks(tasksRes);
+    } catch (error) {
+      console.error('Erreur chargement données:', error);
+    }
+  };
+
+  const checkRunningTimer = async () => {
+    try {
+      const timers = await timerService.getAllTimers();
+      const activeTimer = timers.find((t: any) => !t.endTime);
+
+      if (activeTimer) {
+        console.log("Timer actif trouvé:", activeTimer);
+        setTimerId(activeTimer._id);
+        setTimerDuration(activeTimer.duration || 0);
+        setIsRunning(true);
+        if (activeTimer.clientId) {
+          setSelectedClientId(activeTimer.clientId._id || activeTimer.clientId);
+          fetchClientDetails(activeTimer.clientId._id || activeTimer.clientId);
+        }
+        if (activeTimer.taskId) {
+          setSelectedTaskId(activeTimer.taskId._id || activeTimer.taskId);
+          fetchTaskDetails(activeTimer.taskId._id || activeTimer.taskId);
+        }
       }
+    } catch (error) {
+      console.error('Erreur timer actif:', error);
+    }
+  };
 
-      // Préparer les données du timer avec validation
+  const fetchClientDetails = async (clientId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token || !clientId) return;
+
+      // Récupérer le client
+      const clientRes = await fetch(`${API_URL}/api/clients/${clientId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const clientData = await clientRes.json();
+      setSelectedClient(clientData);
+
+      // Récupérer la rentabilité SPÉCIFIQUE au client
+      try {
+        const profitRes = await fetch(`${API_URL}/api/profitability/client/${clientId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (profitRes.ok) {
+          const profitData = await profitRes.json();
+          setProfitability(profitData);
+          // Utilise le taux horaire OBJECTIF défini pour CE client
+          setTargetHourlyRate(profitData.hourlyRate || 100);
+
+          const hoursWorked = profitData.spentHours || 0;
+          if (profitData.revenue && hoursWorked > 0) {
+            // Calcul du taux réel basé sur le forfait mensuel DE CE CLIENT
+            const realRate = profitData.revenue / hoursWorked;
+            setCurrentHourlyRate(Math.round(realRate));
+          } else {
+            setCurrentHourlyRate(0);
+          }
+        }
+      } catch (profitError) {
+        console.error("Erreur rentabilité:", profitError);
+      }
+    } catch (error) {
+      console.error("Erreur fetchClientDetails:", error);
+    }
+  };
+
+  const fetchTaskDetails = async (taskId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token || !taskId) return;
+
+      const response = await fetch(`${API_URL}/api/tasks/${taskId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const taskData = await response.json();
+
+      setSelectedTask(taskData);
+      if (taskData.clientId && !selectedClientId) {
+        const clientId = taskData.clientId._id || taskData.clientId;
+        setSelectedClientId(clientId);
+        fetchClientDetails(clientId);
+      }
+    } catch (error) {
+      console.error('Erreur détails tâche:', error);
+    }
+  };
+
+  const formatDuration = (seconds: number): string => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const handleStartTimer = async () => {
+    if (!selectedClientId || !selectedTaskId) {
+      dispatch(addNotification({
+        message: '⚠️ Veuillez sélectionner un client ET une tâche',
+        type: 'error'
+      }));
+      return;
+    }
+
+    try {
+      setLoading(true);
       const timerData = {
-        clientId: selectedClientId || (selectedTask?.clientId?._id || selectedTask?.clientId),
+        clientId: selectedClientId,
         taskId: selectedTaskId,
-        description: description || (selectedTask?.title ? `Travail sur: ${selectedTask.title}` : ''),
-        billable: billable
+        description: description || `Travail sur: ${selectedTask?.title}`,
+        billable
       };
 
-      // Créer le timer avec retry si nécessaire
-      let retries = 0;
-      let response;
+      const response = await timerService.startTimer(timerData);
+      const newTimer = response.timer || response;
 
-      while (retries < 3) {
+      setTimerId(newTimer._id);
+      setIsRunning(true);
+      setTimerDuration(0);
+
+      dispatch(setRunningTimer({
+        _id: newTimer._id,
+        isRunning: true,
+        startTime: new Date().toISOString(),
+        duration: 0,
+        clientId: selectedClientId,
+        taskId: selectedTaskId
+      } as any));
+
+      dispatch(addNotification({
+        message: '▶️ Timer démarré!',
+        type: 'success'
+      }));
+    } catch (error) {
+      console.error('Erreur démarrage:', error);
+      dispatch(addNotification({
+        message: 'Erreur lors du démarrage',
+        type: 'error'
+      }));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFinishTask = async () => {
+    if (!selectedTaskId) return;
+
+    showConfirm(
+      "Terminer la tâche et arrêter le timer ?",
+      async () => {
         try {
-          // Corriger le message de log pour qu'il corresponde à l'URL réellement utilisée
-          console.log("Tentative de connexion à:", `${API_URL}/api/timers`);
+          setLoading(true);
+          const token = localStorage.getItem('token');
 
-          response = await axios.post(`${API_URL}/api/timers`, timerData, {
+          if (isRunning && timerId) {
+            await timerService.stopTimer(timerId);
+
+            if (timerDuration > 0) {
+              const taskRes = await fetch(`${API_URL}/api/tasks/${selectedTaskId}`, {
+                headers: { Authorization: `Bearer ${token}` }
+              });
+              const currentTask = await taskRes.json();
+
+              const newTotalTime = (currentTask.timeSpent || 0) + Math.round(timerDuration / 60);
+
+              await fetch(`${API_URL}/api/tasks/${selectedTaskId}`, {
+                method: 'PUT',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ timeSpent: newTotalTime })
+              });
+            }
+
+            if (selectedClientId) {
+              await fetch(`${API_URL}/api/profitability/update-hours/${selectedClientId}`, {
+                method: 'PUT',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({})
+              });
+            }
+          }
+
+          const response = await fetch(
+            `${API_URL}/api/tasks/${selectedTaskId}/complete`,
+            {
+              method: 'PUT',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                actualTime: Math.round(timerDuration / 60)
+              })
+            }
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+
+            if (timerDuration > 180) {
+              const points = Math.floor(timerDuration / 60);
+              const multiplier = selectedTask?.isHighImpact ? 2 : 1;
+              await addExperience(points * multiplier, `Timer: ${formatDuration(timerDuration)}`);
+            }
+
+            if (data.rewards) {
+              dispatch(addNotification({
+                message: `🎉 Tâche terminée! +${data.rewards.points} points, +${data.rewards.experience} XP`,
+                type: 'success'
+              }));
+            } else {
+              dispatch(addNotification({
+                message: '🎉 Tâche terminée!',
+                type: 'success'
+              }));
+            }
+
+            setIsRunning(false);
+            setSelectedTaskId('');
+            setSelectedTask(null);
+            setTimerDuration(0);
+            setTimerId(null);
+            dispatch(setRunningTimer(null));
+
+            refreshTasks();
+            fetchClientsAndTasks();
+          }
+        } catch (error) {
+          console.error('Erreur fin tâche:', error);
+          dispatch(addNotification({
+            message: 'Erreur lors de la fin de la tâche',
+            type: 'error'
+          }));
+        } finally {
+          setLoading(false);
+        }
+      }
+    );
+  };
+
+  const handleStopTimer = async () => {
+    if (!timerId) return;
+
+    showConfirm('Mettre en pause le timer ?', async () => {
+      try {
+        setLoading(true);
+        const token = localStorage.getItem('token');
+
+        // Arrêter le timer avec la durée actuelle
+        await timerService.stopTimer(timerId, timerDuration);
+
+        if (selectedTaskId && timerDuration > 0) {
+          const taskRes = await fetch(`${API_URL}/api/tasks/${selectedTaskId}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          const currentTask = await taskRes.json();
+
+          const newTotalTime = (currentTask.timeSpent || 0) + Math.round(timerDuration / 60);
+
+          await fetch(`${API_URL}/api/tasks/${selectedTaskId}`, {
+            method: 'PUT',
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json'
             },
-            timeout: 10000 // Timeout de 10 secondes
+            body: JSON.stringify({ timeSpent: newTotalTime })
           });
 
-          break; // Sortir de la boucle si succès
-        } catch (err) {
-          retries++;
-          if (retries >= 3) throw err;
-          await new Promise(r => setTimeout(r, 1000)); // Attendre 1 sec avant de réessayer
+          refreshTasks();
         }
-      }
 
-      // Mettre à jour l'état local
-      const createdTimer = response?.data?.timer || response?.data;
-      if (createdTimer?._id) {
-        setTimerId(createdTimer._id);
-        setIsRunning(true);
-        setTimerDuration(0);
+        if (selectedClientId) {
+          await fetch(`${API_URL}/api/profitability/update-hours/${selectedClientId}`, {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({})
+          });
 
-        // Mettre à jour le state Redux
-        dispatch(startTimer(createdTimer._id, selectedClientId ? 'client' : 'task'));
+          await fetchClientDetails(selectedClientId);
+        }
+
+        if (timerDuration > 180) {
+          const points = Math.floor(timerDuration / 60);
+          await addExperience(points, `Timer: ${formatDuration(timerDuration)}`);
+        }
+
+        // IMPORTANT : Réinitialiser tous les états du timer
+        setIsRunning(false);
+        setTimerId(null);
+        setTimerDuration(0); // Remettre le timer à 00:00:00
+
+        dispatch(setRunningTimer(null));
 
         dispatch(addNotification({
-          message: 'Chronomètre démarré',
+          message: '⏸️ Timer mis en pause et réinitialisé',
           type: 'success'
         }));
-      } else {
-        throw new Error("ID du timer manquant dans la réponse");
+      } catch (error) {
+        console.error('Erreur arrêt timer:', error);
+        dispatch(addNotification({
+          message: 'Erreur lors de l\'arrêt',
+          type: 'error'
+        }));
+      } finally {
+        setLoading(false);
       }
-    } catch (error: any) {
-      console.error('Erreur lors du démarrage du timer:', error);
-      dispatch(addNotification({
-        message: error.response?.data?.message || 'Erreur lors du démarrage du chronomètre',
-        type: 'error'
-      }));
-    } finally {
-      setLoading(false);
-    }
+    });
   };
-  // === Fin : Fonction pour démarrer le timer ===
 
-  // === Début : Fonction pour mettre en pause le timer ===
-  // Explication simple : Cette fonction met le chronomètre en pause quand tu cliques sur "Pause", comme quand tu appuies sur pause pendant un film.
-  // Explication technique : Fonction asynchrone qui utilise le service de timer pour arrêter temporairement un timer en cours en conservant sa durée actuelle, met à jour les états correspondants et notifie l'utilisateur.
-  // Fonction pour mettre en pause le timer
-  const handlePauseTimer = async () => {
-    if (!timerId) return;
-
-    try {
-      setLoading(true);
-      
-      // Au lieu de mettre en pause via une API, on va arrêter le timer avec duration = timerDuration
-      // puis en recréer un nouveau si l'utilisateur reprend
-      await timerService.stopTimer(timerId, timerDuration);
-      
-      // Mettre à jour l'état local
-      setIsRunning(false);
-      
-      dispatch(pauseTimer(timerId, selectedClientId ? 'client' : 'task'));
+  const handleCreateTask = async () => {
+    if (!newTaskData.title || !selectedClientId) {
       dispatch(addNotification({
-        message: 'Chronomètre mis en pause',
-        type: 'info'
-      }));
-      
-    } catch (error: any) {
-      console.error('Erreur lors de la mise en pause du timer:', error);
-      dispatch(addNotification({
-        message: error.response?.data?.message || 'Erreur lors de la mise en pause',
-        type: 'error'
-      }));
-    } finally {
-      setLoading(false);
-    }
-  };
-  // === Fin : Fonction pour mettre en pause le timer ===
-
-  // === Début : Fonction pour reprendre le timer ===
-  // Explication simple : Cette fonction fait redémarrer le chronomètre après une pause, comme quand tu appuies sur "play" pour continuer ton film après une pause.
-  // Explication technique : Fonction asynchrone qui crée un nouveau timer via le service avec les mêmes paramètres que le timer en pause, met à jour les états locaux et dispatche l'action Redux correspondante.
-  // Fonction pour reprendre le timer
-  const handleResumeTimer = async () => {
-    try {
-      setLoading(true);
-      
-      // Créer un nouveau timer en réutilisant les infos du timer en pause
-      const timerData = {
-        clientId: selectedClientId || (selectedTask?.clientId?._id || selectedTask?.clientId),
-        taskId: selectedTaskId,
-        description: description || (selectedTask?.title ? `Travail sur: ${selectedTask.title}` : ''),
-        billable: billable
-      };
-      
-      const response = await timerService.startTimer(timerData);
-      
-      // Mettre à jour l'état local avec le nouveau timer
-      const createdTimer = response.timer || response;
-      setTimerId(createdTimer._id);
-      setIsRunning(true);
-      
-      dispatch(resumeTimer(createdTimer._id, selectedClientId ? 'client' : 'task'));
-      dispatch(addNotification({
-        message: 'Chronomètre repris',
-        type: 'success'
-      }));
-      
-    } catch (error: any) {
-      console.error('Erreur lors de la reprise du timer:', error);
-      dispatch(addNotification({
-        message: error.response?.data?.message || 'Erreur lors de la reprise',
-        type: 'error'
-      }));
-    } finally {
-      setLoading(false);
-    }
-  };
-  // === Fin : Fonction pour reprendre le timer ===
-
-  // === Début : Fonction pour arrêter le timer ===
-  // Explication simple : Cette fonction arrête complètement le chronomètre, enregistre le temps passé, et si c'était pour un client, elle met à jour les informations sur combien de temps on a travaillé pour ce client. Elle te donne aussi des points si tu as travaillé longtemps.
-  // Explication technique : Fonction asynchrone qui finalise un timer via le service, met à jour les données de rentabilité du client, réinitialise les états locaux, dispatche les actions Redux, et intègre le système de gamification en attribuant des points d'expérience en fonction de la durée et du type de tâche.
-  // Fonction pour arrêter le timer
-  const handleStopTimer = async () => {
-    if (!timerId) return;
-
-    try {
-      setLoading(true);
-      
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error("Token d'authentification manquant");
-      }
-
-      await timerService.stopTimer(timerId);
-      
-      // Mettre à jour l'état local
-      setIsRunning(false);
-      setTimerDuration(0);
-      setTimerId(null);
-
-      // Mettre à jour le state Redux
-      dispatch(stopTimer(timerId, selectedClientId ? 'client' : 'task'));
-
-      dispatch(addNotification({
-        message: 'Chronomètre arrêté',
-        type: 'success'
-      }));
-
-      // Si le client a des données de rentabilité, les mettre à jour
-      if (selectedClientId && profitability) {
-        try {
-          // Convertir la durée en heures (secondes / 3600)
-          const hoursSpent = timerDuration / 3600;
-
-          await axios.put(`${API_URL}/api/profitability/client/${selectedClientId}/spent-hours`, {
-            spentHours: hoursSpent,
-            incrementOnly: true
-          }, {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
-
-        } catch (error) {
-          console.error("Erreur lors de la mise à jour des données de rentabilité:", error);
-        }
-      }
-
-      // Système de gamification: récompenser l'utilisateur en fonction de l'impact
-      if (timerDuration > 600) { // Plus de 10 minutes de travail
-        let points = Math.floor(timerDuration / 60); // 1 point par minute
-        const isHighImpact = selectedTask && selectedTask.isHighImpact;
-        const impactMultiplier = isHighImpact ? 2 : 1;
-        const totalPoints = points * impactMultiplier;
-        const reason = isHighImpact
-          ? `Timer sur tâche à fort impact (${formatDuration(timerDuration)})`
-          : `Timer: ${formatDuration(timerDuration)} sur ${selectedTask?.title || selectedClient?.name || 'une tâche'}`;
-        await addExperience(totalPoints, reason);
-        if (isHighImpact) {
-          const achievements = await checkAchievement('high_impact_tasks');
-          if (achievements.length > 0) {
-            showReward(achievements[0]);
-          }
-        }
-      }
-
-    } catch (error: any) {
-      console.error('Erreur lors de l\'arrêt du timer:', error);
-      dispatch(addNotification({
-        message: error.response?.data?.message || 'Erreur lors de l\'arrêt du chronomètre',
-        type: 'error'
-      }));
-    } finally {
-      setLoading(false);
-    }
-  };
-  // === Fin : Fonction pour arrêter le timer ===
-
-  // === Début : Fonction pour marquer une tâche comme terminée ===
-  // Explication simple : Cette fonction te permet de dire "j'ai fini cette tâche" ou "je suis en train de travailler dessus" directement depuis le chronomètre.
-  // Explication technique : Fonction asynchrone qui met à jour le statut d'une tâche via l'API avec validation préalable, arrête conditionnellement le timer si la tâche est marquée comme terminée, et rafraîchit les données de la tâche après la mise à jour.
-  // Fonction pour marquer une tâche comme terminée ou en cours
-  const handleTaskCompletion = async (isComplete: boolean) => {
-    if (!selectedTaskId) {
-      dispatch(addNotification({
-        message: 'Aucune tâche sélectionnée',
+        message: 'Titre et client requis',
         type: 'warning'
       }));
       return;
@@ -693,731 +480,756 @@ const TimerPopupFix: React.FC = () => {
       setLoading(true);
       const token = localStorage.getItem('token');
 
-      if (!token) {
-        throw new Error("Token d'authentification manquant");
-      }
-
-      // Mettre à jour le statut de la tâche
-      await axios.put(
-        `${API_URL}/api/tasks/${selectedTaskId}`,
-        { status: isComplete ? 'terminée' : 'en cours' },
-        { headers: { 'Authorization': `Bearer ${token}` } }
-      );
-
-      // Arrêter le timer si la tâche est terminée
-      if (isComplete && timerId) {
-        await handleStopTimer();
-      }
-
-      dispatch(addNotification({
-        message: isComplete ? 'Tâche marquée comme terminée' : 'Tâche marquée comme en cours',
-        type: 'success'
-      }));
-
-      // Recharger la tâche pour mettre à jour l'UI
-      if (selectedTaskId) {
-        fetchTaskDetails(selectedTaskId);
-      }
-
-    } catch (error: any) {
-      console.error('Erreur lors de la mise à jour du statut de la tâche:', error);
-      dispatch(addNotification({
-        message: error.response?.data?.message || 'Erreur lors de la mise à jour du statut',
-        type: 'error'
-      }));
-    } finally {
-      setLoading(false);
-    }
-  };
-  // === Fin : Fonction pour marquer une tâche comme terminée ===
-
-  // === Début : Fonction pour créer une nouvelle tâche ===
-  // Explication simple : Cette fonction te permet de créer une nouvelle tâche directement depuis la fenêtre du chronomètre, sans avoir à aller ailleurs dans l'application.
-  // Explication technique : Fonction asynchrone qui valide puis soumet les données de nouvelle tâche à l'API, met à jour le store Redux et les états locaux avec la tâche créée, puis sélectionne automatiquement cette nouvelle tâche et rafraîchit la liste des tâches dans l'application.
-  // Fonction pour créer une nouvelle tâche
-  const handleCreateNewTask = async () => {
-    try {
-      if (!newTaskData.title || !newTaskData.clientId) {
-        dispatch(addNotification({
-          message: 'Veuillez remplir au moins le titre et sélectionner un client',
-          type: 'warning'
-        }));
-        return;
-      }
-
-      setLoading(true);
-      const token = localStorage.getItem('token');
-
-      if (!token) {
-        throw new Error("Token d'authentification manquant");
-      }
-
-      // Enrichir les données de la tâche
-      const enrichedTaskData = {
-        ...newTaskData,
-        status: 'en cours',
-        createdAt: new Date().toISOString()
-      };
-
-      const response = await axios.post(
-        `${API_URL}/api/tasks`,
-        enrichedTaskData,
-        { headers: { 'Authorization': `Bearer ${token}` } }
-      );
-
-      // Mettre à jour Redux avec la nouvelle tâche (assurez-vous d'avoir importé l'action)
-      // Cette partie fonctionne bien
-      dispatch(addTask(response.data)); // Ajouter la tâche au store Redux
-
-      dispatch(addNotification({
-        message: 'Nouvelle tâche créée et ajoutée à votre liste',
-        type: 'success'
-      }));
-
-      // Mettre à jour la liste des tâches localement
-      const tasksResponse = await axios.get(`${API_URL}/api/tasks`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+      const response = await fetch(`${API_URL}/api/tasks`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          ...newTaskData,
+          clientId: selectedClientId,
+          status: 'à faire',
+          timeSpent: 0,
+          estimatedTime: 60
+        })
       });
 
-      setTasks(tasksResponse.data);
+      if (!response.ok) {
+        throw new Error('Erreur création tâche');
+      }
 
-      // Sélectionner automatiquement la tâche créée
-      setSelectedTaskId(response.data._id);
-      fetchTaskDetails(response.data._id);
+      const responseData = await response.json();
 
-      // Réinitialiser le formulaire mais garder le client
+      await fetchClientsAndTasks();
+
+      setSelectedTaskId(responseData._id);
+      setSelectedTask(responseData);
+
       setNewTaskData({
         title: '',
         description: '',
-        clientId: newTaskData.clientId,
-        priority: 'normale',
+        priority: 'moyenne',
         dueDate: '',
-        isHighImpact: false,
-        impactScore: 30
+        isHighImpact: false
       });
-
       setShowNewTaskForm(false);
 
-      // Après la création réussie de la tâche
-      dispatch(addTask(response.data)); // Redux
-      refreshTasks(); // Rafraîchir partout
-
-    } catch (error: any) {
-      console.error('Erreur lors de la création de la tâche:', error);
       dispatch(addNotification({
-        message: error.response?.data?.message || 'Erreur lors de la création de la tâche',
-        type: 'error'
+        message: '✅ Tâche créée et sélectionnée!',
+        type: 'success'
       }));
+    } catch (error) {
+      console.error('Erreur création tâche:', error);
     } finally {
       setLoading(false);
     }
   };
-  // === Fin : Fonction pour créer une nouvelle tâche ===
 
-  // === Début : Fonctions de gestion des changements de sélection ===
-  // Explication simple : Ces fonctions s'occupent de ce qui se passe quand tu choisis un client ou une tâche dans les listes déroulantes.
-  // Explication technique : Gestionnaires d'événements pour les changements de sélection dans les dropdowns, qui mettent à jour les états correspondants et déclenchent le chargement des données détaillées.
-  // Gérer le changement de client
-  const handleClientChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const clientId = e.target.value;
-    setSelectedClientId(clientId);
-    setSelectedTaskId('');
-
-    if (clientId) {
-      fetchClientDetails(clientId);
-    } else {
-      setSelectedClient(null);
-      setProfitability(null);
-    }
+  const showConfirm = (message: string, action: () => void) => {
+    setConfirmMessage(message);
+    setConfirmAction(() => action);
+    setShowConfirmModal(true);
   };
 
-  // Améliorer la fonction handleTaskChange
-
-  const handleTaskChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const taskId = e.target.value;
-
-    // Stocker dans le localStorage pour persistance
-    if (taskId) {
-      localStorage.setItem('selectedTaskId', taskId);
-    }
-
-    setSelectedTaskId(taskId);
-
-    if (taskId) {
-      fetchTaskDetails(taskId);
-    } else {
-      setSelectedTask(null);
-    }
-  };
-  // === Fin : Fonctions de gestion des changements de sélection ===
-
-  // === Début : Effet pour restaurer la tâche sélectionnée ===
-  // Explication simple : On se souvient de la dernière tâche sur laquelle tu travaillais et on la sélectionne automatiquement quand tu ouvres à nouveau le chronomètre.
-  // Explication technique : Hook useEffect qui s'exécute au montage du composant pour récupérer l'ID de tâche précédemment sélectionné depuis le localStorage et initialiser les états correspondants, offrant une expérience utilisateur continue entre les sessions.
-  // Ajouter dans votre useEffect initial
-  useEffect(() => {
-    // Restaurer la sélection précédente au chargement
-    const savedTaskId = localStorage.getItem('selectedTaskId');
-    if (savedTaskId) {
-      setSelectedTaskId(savedTaskId);
-      fetchTaskDetails(savedTaskId);
-    }
-  }, []);
-  // === Fin : Effet pour restaurer la tâche sélectionnée ===
-
-  // === Début : Fonctions pour le glisser-déposer ===
-  // Explication simple : Ces fonctions permettent de déplacer ta fenêtre de chronomètre en la faisant glisser, comme quand tu déplaces une image sur ton écran.
-  // Explication technique : Gestionnaires d'événements pour le système de drag-and-drop, qui mettent à jour l'état isDragging lors des événements de début et fin de glissement.
-  // Fonctions pour le drag-and-drop
-  const onDragStart = () => {
-    setIsDragging(true);
+  const getRentabilityColor = () => {
+    if (!profitability || !targetHourlyRate) return 'text-gray-400';
+    if (selectedTask?.isHighImpact) return 'text-amber-600'; // Couleur spéciale pour 80/20
+    const ratio = currentHourlyRate / targetHourlyRate;
+    if (ratio >= 1.5) return 'text-emerald-600';
+    if (ratio >= 1) return 'text-emerald-500';
+    if (ratio >= 0.8) return 'text-amber-500';
+    return 'text-rose-500';
   };
 
-  const onDragEnd = () => {
-    setIsDragging(false);
-  };
-  // === Fin : Fonctions pour le glisser-déposer ===
-
-  // === Début : Effet pour assurer la visibilité du timer ===
-  // Explication simple : On s'assure que ta fenêtre de chronomètre reste toujours visible au-dessus des autres éléments de la page, comme si elle flottait au-dessus de tout.
-  // Explication technique : Hook useEffect qui ajoute dynamiquement des styles CSS globaux lorsque le popup est affiché, garantissant que le composant maintient un z-index maximal et reste au-dessus des autres éléments, avec nettoyage des styles lors du démontage.
-  // Ajoutez ce style dans le <head> du document HTML
-  useEffect(() => {
-    if (showTimerPopup) {
-      // Ajouter un style global pour garantir que le timer reste au-dessus de tout
-      const style = document.createElement('style');
-      style.innerHTML = `
-        .timer-popup-container {
-          z-index: 2147483647 !important; /* Valeur maximale de z-index */
-          position: fixed !important;
-          pointer-events: auto !important;
-        }
-      `;
-      document.head.appendChild(style);
-
-      // Modifier la classe du conteneur de timer
-      if (popupRef.current) {
-        popupRef.current.classList.add('timer-popup-container');
-      }
-
-      return () => {
-        document.head.removeChild(style);
-      };
-    }
-  }, [showTimerPopup]);
-  // === Fin : Effet pour assurer la visibilité du timer ===
-
-  // === Début : Effets pour gérer les limites de déplacement ===
-  // Explication simple : On fait en sorte que ta fenêtre ne puisse pas être déplacée en dehors de l'écran, comme quand on met des barrières autour d'un terrain de jeu.
-  // Explication technique : Hooks useEffect qui calculent et mettent à jour les contraintes de déplacement (drag bounds) en fonction des dimensions de la fenêtre, avec des event listeners pour les recalculer lors du redimensionnement du navigateur.
-  // Ajouter cet useEffect pour calculer les limites de déplacement
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setDragBounds({
-        top: 0,
-        left: 0,
-        right: window.innerWidth - 320, // Adapter en fonction de la taille
-        bottom: window.innerHeight - 200 // Adapter en fonction de la taille
-      });
-
-      const handleResize = () => {
-        setDragBounds({
-          top: 0,
-          left: 0,
-          right: window.innerWidth - 320,
-          bottom: window.innerHeight - 200
-        });
-      };
-
-      window.addEventListener('resize', handleResize);
-      return () => window.removeEventListener('resize', handleResize);
-    }
-  }, [timerPopupSize]);
-
-  useEffect(() => {
-    function updateBounds() {
-      setDragBounds({
-        left: 0,
-        top: 0,
-        right: window.innerWidth - 320,
-        bottom: window.innerHeight - 200,
-      });
-    }
-    updateBounds();
-    window.addEventListener('resize', updateBounds);
-    return () => window.removeEventListener('resize', updateBounds);
-  }, []);
-  // === Fin : Effets pour gérer les limites de déplacement ===
-
-  // === Début : Effet de diagnostic ===
-  // Explication simple : Cette partie vérifie que tout fonctionne bien et écrit des messages dans un journal caché pour aider les développeurs à comprendre les problèmes s'il y en a.
-  // Explication technique : Hook useEffect qui exécute des fonctions de diagnostic et de débogage lors de l'affichage du popup, loggant l'état du composant et testant la connectivité avec l'API via une requête de vérification d'état.
-  // Ajouter dans useEffect initial
-
-  useEffect(() => {
-    // Debug pour vérifier l'état actuel du timer
-    console.log("État du timer dans le component:", {
-      showTimerPopup,
-      timerPopupSize,
-      timerPopupPosition,
-      runningTimer,
-      selectedClientId,
-      selectedTaskId
-    });
-    
-    // Tester la communication avec le serveur
-    const testAPIConnection = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        console.log("Token disponible:", !!token);
-        
-        const healthCheck = await axios.get(
-          `${API_URL}/api/health`,
-          { headers: { 'Authorization': token ? `Bearer ${token}` : '' }}
-        );
-        console.log("Santé de l'API:", healthCheck.data);
-      } catch (error) {
-        console.error("Erreur lors du test de connexion:", error);
-      }
-    };
-    
-    testAPIConnection();
-  }, [showTimerPopup]);
-  // === Fin : Effet de diagnostic ===
-
-  // === Début : Fonctions utilitaires pour l'UI ===
-  // Explication simple : Ces fonctions aident à choisir les bonnes couleurs pour montrer si un client est rentable (vert), pas rentable (rouge) ou entre les deux (jaune).
-  // Explication technique : Utilitaires qui déterminent les classes CSS conditionnelles pour les indicateurs visuels de rentabilité et d'impact, contribuant à une interface réactive qui communique clairement l'état actuel des données.
-  // Ajouter ces fonctions après les autres fonctions utilitaires
-  const getRateColor = () => {
-    if (!profitability?.hourlyRate) return '';
-    const ratio = currentHourlyRate / profitability.hourlyRate;
-    if (ratio < 0.8) return 'text-red-600 dark:text-red-400';
-    if (ratio < 1) return 'text-yellow-600 dark:text-yellow-400';
-    return 'text-green-600 dark:text-green-400';
+  const getProgressPercentage = () => {
+    if (!profitability || !targetHourlyRate || targetHourlyRate === 0) return 0;
+    const hoursNeeded = profitability.revenue / targetHourlyRate;
+    const hoursWorked = (profitability.spentHours || 0) + (timerDuration / 3600);
+    return Math.min((hoursWorked / hoursNeeded) * 100, 100);
   };
 
-  const getRentabilityStatusColor = () => {
-    if (isOverBudget) return 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30';
-    if (percentageUsed > 80) return 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800/30';
-    return 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/30';
-  };
+  // Bouton flottant si fermé
+  if (!showTimerPopup) {
+    return (
+      <motion.button
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={() => dispatch(toggleTimerPopup(true))}
+        className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-br from-[#026aa1] to-[#0487d9] text-white rounded-full shadow-2xl flex items-center justify-center z-50 hover:from-[#024d7a] hover:to-[#026aa1] transition-all duration-300"
+      >
+        <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </motion.button>
+    );
+  }
 
-  const getTaskImpactInfo = () => {
-    if (!selectedTaskId || !highImpactTasks) return null;
-
-    const isHighImpact = highImpactTasks.some(task => task._id === selectedTaskId);
-    return isHighImpact;
-  };
-  // === Fin : Fonctions utilitaires pour l'UI ===
-
-  // === Début : Rendu conditionnel et interface graphique ===
-  // Explication simple : Ici on dessine soit un bouton rond (si le chronomètre est fermé) soit toute la fenêtre du chronomètre avec ses boutons, ses options et ses informations.
-  // Explication technique : Rendu conditionnel du composant qui affiche soit un bouton flottant circulaire lorsque le popup est masqué, soit l'interface complète du widget de chronométrage lorsqu'il est visible, avec de nombreuses sections fonctionnelles et indicateurs visuels.
-  // Remplacer la section return avec un design plus élégant
   return (
     <>
-      {!showTimerPopup ? (
-        <button
-          onClick={() => dispatch(toggleTimerPopup(true))}
-          className="fixed bottom-4 right-4 bg-primary-600 text-white p-3 rounded-full shadow-xl hover:bg-primary-700 transition-all hover:scale-110 z-[9999]"
-          title="Ouvrir le chronomètre"
+      <motion.div
+        ref={popupRef}
+        drag
+        dragControls={dragControls}
+        dragMomentum={false}
+        dragElastic={0.1}
+        dragConstraints={{
+          left: -window.innerWidth + 200,
+          right: window.innerWidth - 200,
+          top: -window.innerHeight + 200,
+          bottom: window.innerHeight - 200
+        }}
+        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+        className={`fixed z-50 ${sizeStyles[size]} ${isMinimized ? 'h-16' : 'h-auto max-h-[90vh]'} mx-4 md:mx-0`}
+        style={{
+          bottom: 20,
+          right: 20,
+          backdropFilter: 'blur(20px)',
+          background: 'rgba(255, 255, 255, 0.95)',
+          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)',
+          borderRadius: '20px',
+          border: '1px solid rgba(255, 255, 255, 0.5)'
+        }}
+      >
+        {/* Header avec drag - MODIFIÉ pour inclure forfait mensuel */}
+        <div
+          onPointerDown={(e) => dragControls.start(e)}
+          className={`p-4 text-white rounded-t-2xl cursor-move transition-all duration-300 ${
+            selectedTask?.isHighImpact && isRunning
+              ? 'bg-gradient-to-r from-amber-500 to-orange-600'
+              : 'bg-gradient-to-r from-[#026aa1] to-[#0487d9]'
+          }`}
         >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </button>
-      ) : (
-        <motion.div
-          ref={popupRef}
-          drag
-          dragConstraints={dragBounds}
-          dragElastic={0.2}
-          dragMomentum={false}
-          dragTransition={{ bounceStiffness: 600, bounceDamping: 20 }}
-          className="fixed shadow-2xl rounded-2xl bg-white dark:bg-gray-900 p-4 z-[9999] border border-gray-200 dark:border-gray-700"
-          style={{
-            width: '95vw',
-            maxWidth: 400,
-            minWidth: 260,
-            maxHeight: '90vh',
-            overflowY: 'auto',
-            resize: 'both', // <-- Ajoute cette ligne
-          }}
-        >
-          <div className="cursor-default">
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center truncate max-w-[180px]">
-                {selectedClient && (
-                  <div className="mr-2 flex-shrink-0">
-                    <ClientLogo client={selectedClient} size="small" />
-                  </div>
-                )}
-                <span className="truncate">
-                  {selectedClient ? selectedClient.name : (selectedTask ? selectedTask.title : 'Chronomètre')}
-                </span>
-              </h3>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => dispatch(setTimerPopupSize('small'))}
-                  className={`w-4 h-4 rounded-full ${timerPopupSize === 'small' ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'}`}
-                  title="Petit"
-                />
-                <button
-                  onClick={() => dispatch(setTimerPopupSize('medium'))}
-                  className={`w-4 h-4 rounded-full ${timerPopupSize === 'medium' ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'}`}
-                  title="Moyen"
-                />
-                <button
-                  onClick={() => dispatch(setTimerPopupSize('large'))}
-                  className={`w-4 h-4 rounded-full ${timerPopupSize === 'large' ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'}`}
-                  title="Grand"
-                />
-                <button
-                  onClick={() => {
-                    setIsMinimized(!isMinimized);
-                    // Sauvegarder l'état précédent si on maximise
-                    if (isMinimized) {
-                      dispatch(setTimerPopupSize(previousSize || 'medium'));
-                    } else {
-                      setPreviousSize(timerPopupSize);
-                      dispatch(setTimerPopupSize('small'));
-                    }
-                  }}
-                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                  title={isMinimized ? "Maximiser" : "Minimiser"}
-                >
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    {isMinimized ? (
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" />
-                    ) : (
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                    )}
-                  </svg>
-                </button>
-                <button
-                  onClick={() => dispatch(hideTimerPopup())}
-                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                  title="Fermer"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 011.414 1.414L11.414 10l4.293 4.293a1 1 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            {/* Afficher les infos de rentabilité si disponibles */}
-            {selectedClient && profitability && (
-              <div className={`mb-4 p-4 rounded-lg shadow-inner bg-gradient-to-r 
-                from-gray-50 to-gray-100 dark:from-gray-800/50 dark:to-gray-900/50 
-                border-l-4 transition-all duration-300
-                ${isOverBudget ? 'border-red-500' : percentageUsed > 80 ? 'border-yellow-500' : 'border-green-500'}`}>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-lg font-semibold">Rentabilité actuelle :</span>
-                  <div className={`text-xl font-bold ${isOverBudget ? 'text-red-600' : percentageUsed > 80 ? 'text-yellow-600' : 'text-green-600'}`}>
-                    {Math.round(currentHourlyRate)}€/h
-                  </div>
-                </div>
-                <div className="text-sm">
-                  {isOverBudget
-                    ? "⚠️ Budget dépassé !"
-                    : percentageUsed > 80
-                      ? "Attention : Vous approchez de la limite de budget"
-                      : "Budget sous contrôle"}
-                </div>
-                <div className="mt-2 text-xs">
-                  Il vous reste <span className="font-bold">{hoursRemaining > 0 ? `+${hoursRemaining.toFixed(1)}h` : `${hoursRemaining.toFixed(1)}h`}</span> pour rester rentable.
-                </div>
-              </div>
-            )}
-
-            {selectedTask && showImpactIndicator && (
-              <div className={`mb-4 p-3 rounded-lg ${getTaskImpactInfo() ? 'bg-green-50 border-l-4 border-green-500' : 'bg-gray-50 border-l-4 border-gray-300'}`}>
-                <div className="flex items-center justify-between">
-                  <span className="font-medium text-sm">Impact de la tâche:</span>
-                  {getTaskImpactInfo() ? (
-                    <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800 font-bold">
-                      Fort impact (80/20)
-                    </span>
-                  ) : (
-                    <span className="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-600">
-                      Impact normal
-                    </span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3 flex-1">
+              {selectedClient && (
+                <div className="relative flex-shrink-0">
+                  <ClientLogo client={selectedClient} size="large" />
+                  {isRunning && (
+                    <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-400 rounded-full animate-pulse"></div>
                   )}
                 </div>
-                {getTaskImpactInfo() && (
-                  <p className="text-xs text-green-700 mt-1">
-                    Cette tâche fait partie des 20% qui génèrent 80% des résultats. Priorité maximale!
-                  </p>
+              )}
+              <div className="min-w-0 flex-1">
+                <h3 className="font-bold text-lg truncate">
+                  {selectedClient?.name || 'Timer'}
+                </h3>
+                {selectedTask && !isMinimized && (
+                  <p className="text-sm opacity-90 truncate">{selectedTask.title}</p>
                 )}
               </div>
-            )}
 
-            <div className="flex flex-col items-center justify-center mb-6">
-              <div className="text-5xl font-extrabold mb-4 text-gray-900 dark:text-white py-6 px-10 rounded-2xl bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 shadow-inner border border-gray-100 dark:border-gray-700 tracking-widest">
-                {formatDuration(timerDuration)}
-              </div>
-            </div>
-            <div className="flex space-x-3 mt-2">
-              {isRunning ? (
-                <button
-                  onClick={handlePauseTimer}
-                  disabled={loading}
-                  className="px-5 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 focus:outline-none 
-                  focus:ring-2 focus:ring-yellow-500 focus:ring-opacity-50 disabled:opacity-50 
-                  transition-all duration-200 ease-in-out shadow-md hover:shadow-lg"
-                >
-                  {loading ? (
-                    <div className="flex items-center">
-                      <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Pause
-                    </div>
-                  ) : (
-                    <span className="flex items-center">
-                      <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                      </svg>
-                      Pause
-                    </span>
-                  )}
-                </button>
-              ) : (
-                <button
-                  onClick={handleStartTimer}
-                  disabled={loading || (!selectedClientId && !selectedTaskId)}
-                  className="w-full px-6 py-3 bg-green-500 text-white rounded-lg font-bold text-lg hover:bg-green-600 transition-colors disabled:opacity-50"
-                >
-                  Démarrer
-                </button>
+              {/* Forfait mensuel dans le header */}
+              {selectedClient && profitability && !isMinimized && (
+                <div className="text-right ml-4">
+                  <p className="text-xs uppercase tracking-wider opacity-80">Forfait mensuel</p>
+                  <p className="text-xl font-bold">{profitability.revenue || 0}€</p>
+                </div>
               )}
             </div>
 
-            {!isRunning && !timerId && (
-              <div className="mt-4">
-                <div className="mb-3">
-                  <label htmlFor="client" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Client
-                  </label>
-                  <select
-                    id="client"
-                    value={selectedClientId}
-                    onChange={handleClientChange}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
-                    disabled={loading}
+            <div className="flex items-center space-x-2 flex-shrink-0 ml-3">
+              {/* Boutons de taille */}
+              {!isMinimized && (
+                <div className="hidden md:flex items-center space-x-1 bg-white/20 rounded-lg p-1">
+                  <button
+                    onClick={() => setSize('small')}
+                    className={`p-1 rounded ${size === 'small' ? 'bg-white/30' : 'hover:bg-white/10'}`}
                   >
-                    <option value="">Sélectionner un client</option>
-                    {clients.map(client => (
-                      <option key={client._id} value={client._id}>{client.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="mb-3">
-                  <div className="flex justify-between items-center mb-2">
-                    <label htmlFor="task" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Tâche
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setShowNewTaskForm(!showNewTaskForm)}
-                      className="text-primary-600 hover:text-primary-700 text-xs"
-                    >
-                      {showNewTaskForm ? 'Annuler' : '+ Nouvelle tâche'}
-                    </button>
-                  </div>
-
-                  <select
-                    id="task"
-                    value={selectedTaskId}
-                    onChange={handleTaskChange}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
-                    disabled={loading}
+                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                      <rect x="8" y="8" width="8" height="8" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => setSize('medium')}
+                    className={`p-1 rounded ${size === 'medium' ? 'bg-white/30' : 'hover:bg-white/10'}`}
                   >
-                    <option value="">Sélectionner une tâche</option>
-                    {tasks
-                      .filter(task => {
-                        const taskClientId = typeof task.clientId === 'object' ? task.clientId._id : task.clientId;
-                        return (!selectedClientId || taskClientId === selectedClientId) && task.status !== 'terminée';
-                      })
-                      .map(task => (
-                        <option key={task._id} value={task._id}>{task.title}</option>
-                      ))
-                    }
-                  </select>
-
-                  {showNewTaskForm && (
-                    <div className="mt-3 bg-gray-50 dark:bg-gray-700 p-3 rounded-md border border-gray-200 dark:border-gray-600">
-                      <div className="mb-2">
-                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Titre de la tâche
-                        </label>
-                        <input
-                          type="text"
-                          value={newTaskData.title}
-                          onChange={(e) => setNewTaskData({ ...newTaskData, title: e.target.value })}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md"
-                          placeholder="Titre de la nouvelle tâche"
-                        />
-                      </div>
-
-                      <div className="mb-2">
-                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Client
-                        </label>
-                        <select
-                          value={newTaskData.clientId}
-                          onChange={(e) => setNewTaskData({ ...newTaskData, clientId: e.target.value })}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md"
-                        >
-                          <option value="">Sélectionner un client</option>
-                          {clients.map(client => (
-                            <option key={client._id} value={client._id}>{client.name}</option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="mb-2">
-                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Description (optionnelle)
-                        </label>
-                        <textarea
-                          value={newTaskData.description}
-                          onChange={(e) => setNewTaskData({ ...newTaskData, description: e.target.value })}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md"
-                          rows={2}
-                        ></textarea>
-                      </div>
-
-                      <label className="flex items-center space-x-2 mt-2">
-                        <input
-                          type="checkbox"
-                          checked={newTaskData.isHighImpact}
-                          onChange={(e) => setNewTaskData({
-                            ...newTaskData,
-                            isHighImpact: e.target.checked,
-                            impactScore: e.target.checked ? 80 : 30
-                          })}
-                          className="form-checkbox h-4 w-4 text-primary-500"
-                        />
-                        <span className="text-sm text-gray-700 dark:text-gray-300">
-                          Tâche à fort impact (principe 80/20)
-                        </span>
-                      </label>
-
-                      <button
-                        onClick={handleCreateNewTask}
-                        disabled={loading}
-                        className="w-full mt-2 px-3 py-1 bg-primary-600 text-white text-sm rounded-md hover:bg-primary-700"
-                      >
-                        {loading ? 'Création...' : 'Créer la tâche'}
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                <div className="mb-3">
-                  <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Description
-                  </label>
-                  <input
-                    type="text"
-                    id="description"
-                    name="description"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
-                    placeholder="Que faites-vous ?"
-                    disabled={loading}
-                  />
-                </div>
-
-                <label className="flex items-center space-x-2 mt-2">
-                  <input
-                    type="checkbox"
-                    checked={billable}
-                    onChange={() => setBillable(!billable)}
-                    className="form-checkbox h-5 w-5 text-green-500"
-                  />
-                  <span className="text-lg font-semibold flex items-center">
-                    {billable ? "💸 Facturable" : "⏳ Non facturable"}
-                  </span>
-                </label>
-              </div>
-            )}
-
-            {selectedTaskId && (
-              <div className="flex mt-2 space-x-2">
-                <button
-                  onClick={() => handleTaskCompletion(true)}
-                  disabled={loading}
-                  className="px-3 py-1 bg-success-500 text-white rounded-md hover:bg-success-600 focus:outline-none focus:ring-2 focus:ring-success-500 focus:ring-opacity-50 disabled:opacity-50"
-                >
-                  <span className="flex items-center">
-                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                      <rect x="6" y="6" width="12" height="12" />
                     </svg>
-                    Tâche terminée
-                  </span>
-                </button>
-                <button
-                  onClick={() => handleTaskCompletion(false)}
-                  disabled={loading}
-                  className="px-3 py-1 bg-gray-500 text-white rounded-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50 disabled:opacity-50"
-                >
-                  <span className="flex items-center">
-                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </button>
+                  <button
+                    onClick={() => setSize('large')}
+                    className={`p-1 rounded ${size === 'large' ? 'bg-white/30' : 'hover:bg-white/10'}`}
+                  >
+                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                      <rect x="4" y="4" width="16" height="16" />
                     </svg>
-                    En cours
-                  </span>
-                </button>
-              </div>
-            )}
+                  </button>
+                </div>
+              )}
 
-            <div className="absolute bottom-2 right-2">
-              <div className="flex space-x-1">
-                <button
-                  onClick={() => dispatch(setTimerPopupPosition('top-right'))}
-                  className={`w-4 h-4 rounded-sm ${timerPopupPosition === 'top-right' ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'}`}
-                  title="En haut à droite"
-                />
-                <button
-                  onClick={() => dispatch(setTimerPopupPosition('bottom-right'))}
-                  className={`w-4 h-4 rounded-sm ${timerPopupPosition === 'bottom-right' ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'}`}
-                  title="En bas à droite"
-                />
-                <button
-                  onClick={() => dispatch(setTimerPopupPosition('center'))}
-                  className={`w-4 h-4 rounded-sm ${timerPopupPosition === 'center' ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'}`}
-                  title="Au centre"
-                />
-              </div>
+              <button
+                onClick={() => setIsMinimized(!isMinimized)}
+                className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isMinimized ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"} />
+                </svg>
+              </button>
+              <button
+                onClick={() => dispatch(hideTimerPopup())}
+                className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
           </div>
-          <button
-            onClick={() => setIsMinimized(!isMinimized)}
-            className="absolute top-2 right-2 p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
-            title={isMinimized ? "Agrandir" : "Réduire"}
-          >
-            {isMinimized ? (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
-              </svg>
-            ) : (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-              </svg>
+        </div>
+
+        {/* Contenu - RÉORGANISÉ */}
+        {!isMinimized && (
+          <div className="p-4 md:p-6 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 80px)' }}>
+            {/* Temps investi ce mois - AU DESSUS DU CHRONOMÈTRE */}
+            {selectedClient && profitability && (
+              <div className="text-center mb-3">
+                <p className="text-sm text-gray-600 font-medium">Temps investi ce mois</p>
+                <p className="text-2xl font-bold text-gray-800">
+                  {formatHoursToHM((profitability.spentHours || 0) + (timerDuration / 3600))}
+                </p>
+              </div>
             )}
-          </button>
-        </motion.div>
-      )}
+
+            {/* Timer Display - AMÉLIORÉ AVEC FOND GRIS */}
+            <div className="bg-gray-100 rounded-2xl p-6 mb-4 shadow-inner">
+              <div className="text-center">
+                <div className="text-5xl md:text-6xl font-mono font-bold text-gray-800 mb-2 tracking-wider">
+                  {formatDuration(timerDuration)}
+                </div>
+                {isRunning && (
+                  <div className="flex justify-center items-center space-x-2">
+                    <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                    <span className="text-sm text-emerald-600 font-medium">En cours</span>
+                    <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse delay-75" />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Boutons de contrôle - DÉPLACÉS ICI AVANT LES SÉLECTEURS */}
+            <div className="flex gap-3 mb-4">
+              {!isRunning ? (
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleStartTimer}
+                  disabled={loading || !selectedClientId || !selectedTaskId}
+                  className="flex-1 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 disabled:from-gray-300 disabled:to-gray-400 text-white font-bold py-3 rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Démarrer
+                </motion.button>
+              ) : (
+                <div className="flex gap-3 w-full">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleStopTimer}
+                    disabled={loading}
+                    className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold py-3 rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Pause
+                  </motion.button>
+
+                  {selectedTaskId && (
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={handleFinishTask}
+                      disabled={loading}
+                      className="flex-1 bg-gradient-to-r from-[#026aa1] to-[#0487d9] hover:from-[#024d7a] hover:to-[#026aa1] text-white font-bold py-3 rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Terminer
+                    </motion.button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Taux horaire effectif - UTILISE LES DONNÉES SPÉCIFIQUES DU CLIENT */}
+            {selectedClient && profitability && (
+              <div className={`rounded-xl p-4 text-white mb-4 shadow-lg ${
+                selectedTask?.isHighImpact 
+                  ? 'bg-gradient-to-br from-amber-500 to-orange-600' 
+                  : 'bg-gradient-to-br from-indigo-500 to-purple-600'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-white/90 flex items-center gap-2">
+                      {(() => {
+                        const hoursWorked = (profitability.spentHours || 0) + (timerDuration / 3600);
+                        return hoursWorked < 1 ? 'Taux horaire' : 'Taux horaire réel';
+                      })()}
+                      {selectedTask?.isHighImpact && (
+                        <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs font-bold">
+                          80/20 🚀
+                        </span>
+                      )}
+                    </p>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-bold">
+                        {(() => {
+                          const hoursWorked = (profitability.spentHours || 0) + (timerDuration / 3600);
+                          
+                          // Pendant la première heure, afficher le forfait mensuel comme taux horaire
+                          if (hoursWorked === 0) {
+                            return '—';
+                          } else if (hoursWorked < 1) {
+                            // Première heure = forfait mensuel complet
+                            return profitability.revenue;
+                          } else {
+                            // Après 1h, afficher le taux horaire réel avec calcul précis
+                            const realRate = profitability.revenue / hoursWorked;
+                            
+                            // Utiliser toFixed pour plus de précision avant l'arrondi
+                            if (realRate >= 1000) {
+                              return `${(realRate / 1000).toFixed(1)}k`;
+                            } else {
+                              // Arrondir correctement sans perdre de précision
+                              return Math.floor(realRate);
+                            }
+                          }
+                        })()}€
+                      </span>
+                      <span className="text-sm text-white/80">/h</span>
+                    </div>
+                    
+                    {/* Message adapté selon le temps travaillé */}
+                    <div className="mt-2 space-y-1">
+                      <p className="text-xs text-white/70">
+                        {(() => {
+                          const revenue = profitability.revenue;
+                          const hoursWorked = (profitability.spentHours || 0) + (timerDuration / 3600);
+                          
+                          if (hoursWorked === 0) {
+                            return `Première heure = ${revenue}€ (forfait complet) | 2h = ${Math.round(revenue/2)}€/h | 5h = ${Math.round(revenue/5)}€/h`;
+                          } else if (hoursWorked < 1) {
+                            const minutesWorked = Math.round(hoursWorked * 60);
+                            return `1ère heure en cours (${minutesWorked}min) : Vous gagnez ${revenue}€ pour cette première heure`;
+                          } else if (hoursWorked <= 2) {
+                            // Afficher le calcul précis pour transparence
+                            const hoursDisplay = hoursWorked.toFixed(4);
+                            const currentRate = Math.floor(revenue / hoursWorked);
+                            return `${revenue}€ ÷ ${hoursDisplay}h = ${currentRate}€/h (était ${revenue}€ la 1ère heure)`;
+                          } else {
+                            const currentRate = Math.floor(revenue / hoursWorked);
+                            const nextHour = Math.ceil(hoursWorked) + 1;
+                            const nextRate = Math.floor(revenue / nextHour);
+                            return `Actuellement: ${currentRate}€/h → À ${nextHour}h: ${nextRate}€/h`;
+                          }
+                        })()}
+                      </p>
+                      
+                      {/* Objectif de rentabilité */}
+                      {targetHourlyRate > 0 && (
+                        <p className="text-xs text-white/60">
+                          Objectif: {targetHourlyRate}€/h
+                          {(() => {
+                            const hoursWorked = (profitability.spentHours || 0) + (timerDuration / 3600);
+                            
+                            if (hoursWorked === 0) {
+                              const maxHours = profitability.revenue / targetHourlyRate;
+                              return ` → Maximum ${Math.round(maxHours)}h/mois pour maintenir cet objectif`;
+                            } else if (hoursWorked < 1) {
+                              // Pendant la première heure, on dépasse forcément l'objectif
+                              return ` ✓ Largement dépassé (${profitability.revenue}€/h) !`;
+                            } else {
+                              const currentRate = profitability.revenue / hoursWorked;
+                              if (currentRate >= targetHourlyRate) {
+                                const remainingHours = (profitability.revenue / targetHourlyRate) - hoursWorked;
+                                return ` ✓ Atteint ! Encore ${Math.round(Math.max(0, remainingHours))}h possibles`;
+                              } else {
+                                return ' ⚠️ En dessous de l\'objectif';
+                              }
+                            }
+                          })()}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Emoji adapté */}
+                  <div className="text-center ml-4">
+                    <div className="text-4xl">
+                      {(() => {
+                        const hoursWorked = (profitability.spentHours || 0) + (timerDuration / 3600);
+                        const currentRate = hoursWorked > 0 ? profitability.revenue / hoursWorked : 0;
+                        
+                        if (selectedTask?.isHighImpact) return '🚀';
+                        if (hoursWorked === 0) return '⏳';
+                        if (hoursWorked < 1) return '💎'; // Première heure = diamant
+                        if (hoursWorked === 1) return '🔥'; // Juste 1h = feu
+                        
+                        if (currentRate >= targetHourlyRate * 2) return '⭐';
+                        if (currentRate >= targetHourlyRate * 1.5) return '✨';
+                        if (currentRate >= targetHourlyRate) return '✅';
+                        if (currentRate >= targetHourlyRate * 0.8) return '👍';
+                        return '⚠️';
+                      })()}
+                    </div>
+                    <p className="text-xs text-white/80 mt-1 font-medium">
+                      {(() => {
+                        const hoursWorked = (profitability.spentHours || 0) + (timerDuration / 3600);
+                        if (hoursWorked === 0) return 'Prêt';
+                        if (hoursWorked < 1) return '1ère heure';
+                        if (hoursWorked <= 2) return `${hoursWorked.toFixed(1)}h`;
+                        if (hoursWorked <= 5) return `${Math.floor(hoursWorked)}h`;
+                        return `${Math.floor(hoursWorked)}h ⚠️`;
+                      })()}
+                    </p>
+                  </div>
+                </div>
+
+                {/* SUPPRESSION DU GRAPHIQUE INUTILE */}
+              </div>
+            )}
+
+            {/* Sélecteurs */}
+            <div className="space-y-3 mb-4">
+              {/* Client */}
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">Client *</label>
+                <select
+                  value={selectedClientId}
+                  onChange={(e) => {
+                    setSelectedClientId(e.target.value);
+                    if (e.target.value) fetchClientDetails(e.target.value);
+                    setSelectedTaskId('');
+                    setSelectedTask(null);
+                  }}
+                  disabled={isRunning}
+                  className="w-full p-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#026aa1] focus:border-transparent disabled:bg-gray-100 transition-all"
+                >
+                  <option value="">Sélectionner un client</option>
+                  {clients.map(client => (
+                    <option key={client._id} value={client._id}>{client.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Tâche */}
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-sm font-medium text-gray-700">Tâche *</label>
+                  <button
+                    onClick={() => setShowNewTaskForm(true)}
+                    className="text-xs text-[#026aa1] hover:text-indigo-700 font-medium"
+                    disabled={!selectedClientId}
+                  >
+                    + Nouvelle tâche
+                  </button>
+                </div>
+                <select
+                  value={selectedTaskId}
+                  onChange={(e) => {
+                    setSelectedTaskId(e.target.value);
+                    if (e.target.value) fetchTaskDetails(e.target.value);
+                  }}
+                  disabled={isRunning || !selectedClientId}
+                  className="w-full p-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#026aa1] focus:border-transparent disabled:bg-gray-100 transition-all"
+                >
+                  <option value="">Sélectionner une tâche</option>
+                  {tasks
+                    .filter(task => {
+                      const taskClientId = task.clientId?._id || task.clientId;
+                      return taskClientId === selectedClientId && task.status !== 'terminée';
+                    })
+                    .map(task => (
+                      <option key={task._id} value={task._id}>
+                        {task.isHighImpact ? '🚀 ' : ''}{task.title}
+                        {task.isHighImpact && ' (80/20)'}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              {/* Impact de la tâche */}
+              {selectedTask && selectedTask.isHighImpact && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  className="p-3 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-orange-300 rounded-xl relative overflow-hidden"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-amber-400/10 to-orange-400/10 animate-pulse" />
+                  <div className="relative flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-bold text-orange-800 flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        Tâche 80/20 - Fort impact
+                      </p>
+                      <p className="text-xs text-orange-600 mt-0.5">
+                        Maximum de valeur, minimum d'effort • Bonus XP x2
+                      </p>
+                    </div>
+                    <span className="text-3xl animate-bounce">🚀</span>
+                  </div>
+                </motion.div>
+              )}
+            </div>
+
+            {/* Message de statut - EN BAS */}
+            {selectedClient && profitability && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`rounded-xl p-3 ${
+                  selectedTask?.isHighImpact 
+                    ? 'bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-200'
+                    : currentHourlyRate >= targetHourlyRate * 1.5 
+                      ? 'bg-gradient-to-r from-emerald-500/10 to-green-500/10 border border-emerald-200' 
+                      : currentHourlyRate >= targetHourlyRate 
+                        ? 'bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border border-blue-200' 
+                        : 'bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-200'
+                }`}
+              >
+                <div className="flex items-start gap-2">
+                  <div className={`mt-0.5 ${
+                    selectedTask?.isHighImpact ? 'text-amber-600' :
+                    currentHourlyRate >= targetHourlyRate ? 'text-emerald-600' : 'text-amber-600'
+                  }`}>
+                    {selectedTask?.isHighImpact ? (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                    ) : currentHourlyRate >= targetHourlyRate ? (
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <p className={`text-sm font-semibold ${
+                      selectedTask?.isHighImpact ? 'text-amber-700' :
+                      currentHourlyRate >= targetHourlyRate ? 'text-emerald-700' : 'text-amber-700'
+                    }`}>
+                      {selectedTask?.isHighImpact ?
+                        'Tâche 80/20 - Impact maximal !' :
+                        !isRunning && ((profitability.spentHours || 0) + (timerDuration / 3600)) === 0 ?
+                          'Prêt à optimiser votre temps' :
+                          currentHourlyRate >= targetHourlyRate ?
+                            'Objectif de rentabilité atteint' :
+                            'Optimisez votre temps'
+                      }
+                    </p>
+                    <p className={`text-xs mt-0.5 ${
+                      selectedTask?.isHighImpact ? 'text-amber-600' :
+                      currentHourlyRate >= targetHourlyRate ? 'text-emerald-600' : 'text-amber-600'
+                    }`}>
+                      {(() => {
+                        const hoursWorked = (profitability.spentHours || 0) + (timerDuration / 3600);
+                        const hoursForTarget = profitability.revenue / targetHourlyRate;
+                        
+                        if (selectedTask?.isHighImpact) {
+                          const efficiency = currentHourlyRate > 0 ? Math.round((currentHourlyRate / targetHourlyRate) * 100) : 0;
+                          if (efficiency >= 200) {
+                            return `Performance exceptionnelle sur cette tâche 80/20 ! Vous générez ${(currentHourlyRate / 1000).toFixed(1)}k€/h en vous concentrant sur l'essentiel.`;
+                          }
+                          return `Cette tâche apporte le maximum de valeur avec le minimum d'effort. Continuez à prioriser les actions à fort impact !`;
+                        } else if (hoursWorked === 0) {
+                          return `Votre objectif : maintenir un taux supérieur à ${targetHourlyRate}€/h. Maximum ${Math.round(hoursForTarget)}h pour rester rentable.`;
+                        } else if (currentHourlyRate >= targetHourlyRate) {
+                          const remainingHours = Math.max(0, hoursForTarget - hoursWorked);
+                          if (currentHourlyRate >= 1000) {
+                            return `Performance exceptionnelle ! Taux actuel : ${(currentHourlyRate / 1000).toFixed(1)}k€/h. Plus vous travaillez efficacement, plus votre valeur horaire reste élevée.`;
+                          } else {
+                            return `Excellent ! Vous pouvez encore travailler ${Math.round(remainingHours)}h en restant au-dessus de ${targetHourlyRate}€/h`;
+                          }
+                        } else {
+                          return `Pour maintenir ${targetHourlyRate}€/h, limitez-vous à ${Math.round(hoursForTarget)}h ce mois (${Math.round(hoursForTarget - hoursWorked)}h restantes)`;
+                        }
+                      })()}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Barre de progression simplifiée */}
+                <div className="mt-3">
+                  <div className="bg-gray-200 rounded-full h-2 overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{
+                        width: `${(() => {
+                          const hoursWorked = (profitability.spentHours || 0) + (timerDuration / 3600);
+                          if (hoursWorked === 0) return 0;
+                          
+                          // Progression basée sur l'efficacité (moins d'heures = mieux)
+                          const optimalHours = profitability.revenue / targetHourlyRate;
+                          const efficiency = Math.min((optimalHours / hoursWorked) * 100, 100);
+                          return efficiency;
+                        })()}%`
+                      }}
+                      transition={{ duration: 0.8, ease: "easeOut" }}
+                      className={`h-full ${
+                        currentHourlyRate >= targetHourlyRate 
+                          ? 'bg-gradient-to-r from-emerald-500 to-green-500' 
+                          : 'bg-gradient-to-r from-amber-500 to-orange-500'
+                      }`}
+                    />
+                  </div>
+                  <div className="flex justify-between mt-1 text-xs text-gray-600">
+                    <span>Efficacité max</span>
+                    <span>Plus d'heures = moins rentable</span>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </div>
+        )}
+      </motion.div>
+
+      {/* Modal de création de tâche */}
+      <AnimatePresence>
+        {showNewTaskForm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowNewTaskForm(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-xl p-6 max-w-md w-full shadow-2xl"
+            >
+              <h3 className="text-xl font-bold mb-4">Nouvelle tâche</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Titre *</label>
+                  <input
+                    type="text"
+                    value={newTaskData.title}
+                    onChange={(e) => setNewTaskData({ ...newTaskData, title: e.target.value })}
+                    className="mt-1 w-full p-2 border rounded-lg focus:ring-2 focus:ring-[#026aa1]"
+                    placeholder="Nom de la tâche..."
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Description</label>
+                  <textarea
+                    value={newTaskData.description}
+                    onChange={(e) => setNewTaskData({ ...newTaskData, description: e.target.value })}
+                    className="mt-1 w-full p-2 border rounded-lg focus:ring-2 focus:ring-[#026aa1]"
+                    rows={3}
+                    placeholder="Détails de la tâche..."
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Priorité</label>
+                  <select
+                    value={newTaskData.priority}
+                    onChange={(e) => setNewTaskData({ ...newTaskData, priority: e.target.value })}
+                    className="mt-1 w-full p-2 border rounded-lg focus:ring-2 focus:ring-[#026aa1]"
+                  >
+                    <option value="basse">Basse</option>
+                    <option value="moyenne">Moyenne</option>
+                    <option value="haute">Haute</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Date d'échéance</label>
+                  <input
+                    type="date"
+                    value={newTaskData.dueDate}
+                    onChange={(e) => setNewTaskData({ ...newTaskData, dueDate: e.target.value })}
+                    className="mt-1 w-full p-2 border rounded-lg focus:ring-2 focus:ring-[#026aa1]"
+                  />
+                </div>
+                <div>
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newTaskData.isHighImpact}
+                      onChange={(e) => setNewTaskData({ ...newTaskData, isHighImpact: e.target.checked })}
+                      className="w-4 h-4 text-[#026aa1] focus:ring-[#026aa1] border-gray-300 rounded"
+                    />
+                    <span className="text-sm font-medium text-gray-700">Tâche 80/20 (fort impact)</span>
+                  </label>
+                </div>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => setShowNewTaskForm(false)}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleCreateTask}
+                  disabled={loading || !newTaskData.title}
+                  className="flex-1 px-4 py-2 bg-[#026aa1] text-white rounded-lg hover:bg-[#024d7a] disabled:bg-gray-300 disabled:text-gray-500 transition-colors"
+                >
+                  Créer
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal de confirmation */}
+      <AnimatePresence>
+        {showConfirmModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowConfirmModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-xl p-6 max-w-sm w-full shadow-2xl"
+            >
+              <h3 className="text-lg font-bold mb-2">Confirmation</h3>
+              <p className="text-gray-600 mb-6">{confirmMessage}</p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowConfirmModal(false)}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={() => {
+                    confirmAction();
+                    setShowConfirmModal(false);
+                  }}
+                  className="flex-1 px-4 py-2 bg-[#026aa1] text-white rounded-lg hover:bg-[#024d7a] transition-colors"
+                >
+                  Confirmer
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 };
 
-export default TimerPopupFix;
+export default TimerPopup;

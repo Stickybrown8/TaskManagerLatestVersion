@@ -11,14 +11,38 @@ import { logout } from '../store/slices/authSlice';
 // === Début : Configuration de la connexion API ===
 // Explication simple : On indique à l'application où se trouve le serveur avec lequel elle doit parler.
 // Explication technique : Initialisation de l'URL de base de l'API à partir des variables d'environnement avec journalisation pour faciliter le débogage.
-console.log("API_URL utilisée :", process.env.REACT_APP_API_URL);
 
-// Créer une instance axios avec la configuration de base
+// Configuration automatique des URLs selon l'environnement
+const getApiUrl = () => {
+  // Si une variable d'environnement est définie, l'utiliser
+  if (process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL.endsWith('/api') 
+      ? process.env.REACT_APP_API_URL 
+      : `${process.env.REACT_APP_API_URL}/api`;
+  }
+  
+  // Détection automatique de l'environnement Codespaces
+  if (process.env.NODE_ENV === 'development' && window.location.hostname.includes('app.github.dev')) {
+    const codespaceMatch = window.location.hostname.match(/^(.*?)-3000\.app\.github\.dev$/);
+    if (codespaceMatch) {
+      return `https://${codespaceMatch[1]}-5000.app.github.dev/api`;
+    }
+  }
+  
+  // Développement local
+  if (process.env.NODE_ENV === 'development') {
+    return 'http://localhost:5000/api';
+  }
+  
+  // Production - URL corrigée
+  return 'https://task-manager-api-yx13.onrender.com/api';
+};
+
+console.log("API_URL utilisée :", getApiUrl());
+
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com',
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  baseURL: getApiUrl(),
+  timeout: 10000,
 });
 // === Fin : Configuration de la connexion API ===
 
@@ -92,7 +116,7 @@ export const authService = {
   login: async (email: string, password: string) => {
     try {
       console.log("Tentative de connexion avec:", { email, password: '***' });
-      const response = await api.post('/api/users/login', { email, password });
+      const response = await api.post('/users/login', { email, password });
       console.log("Réponse de connexion:", response.data);
       return response.data;
     } catch (error) {
@@ -103,7 +127,7 @@ export const authService = {
   register: async (name: string, email: string, password: string) => {
     try {
       console.log("Tentative d'inscription avec:", { name, email, password: '***' });
-      const response = await api.post('/api/users/register', { name, email, password });
+      const response = await api.post('/users/register', { name, email, password });
       console.log("Réponse d'inscription:", response.data);
       return response.data;
     } catch (error) {
@@ -112,7 +136,7 @@ export const authService = {
     }
   },
   getCurrentUser: async () => {
-    const response = await api.get('/api/users/profile');
+    const response = await api.get('/users/profile');
     return response.data;
   },
 };
@@ -123,23 +147,27 @@ export const authService = {
 // Explication technique : Service qui fournit les opérations CRUD (Create, Read, Update, Delete) pour l'entité Task, avec des méthodes encapsulant les appels API correspondants.
 export const tasksService = {
   getTasks: async () => {
-    const response = await api.get('/api/tasks');
+    const response = await api.get('/tasks'); // Ligne 150 - enlever /api
     return response.data;
   },
   getTaskById: async (id: string) => {
-    const response = await api.get(`/api/tasks/${id}`);
+    const response = await api.get(`/tasks/${id}`);
     return response.data;
   },
   createTask: async (taskData: any) => {
-    const response = await api.post('/api/tasks', taskData);
+    const response = await api.post('/tasks', taskData);
     return response.data;
   },
   updateTask: async (id: string, taskData: any) => {
-    const response = await api.put(`/api/tasks/${id}`, taskData);
+    const response = await api.put(`/tasks/${id}`, taskData);
     return response.data;
   },
   deleteTask: async (id: string) => {
-    const response = await api.delete(`/api/tasks/${id}`);
+    const response = await api.delete(`/tasks/${id}`);
+    return response.data;
+  },
+  completeTask: async (id: string) => {
+    const response = await api.put(`/tasks/${id}/complete`);
     return response.data;
   },
 };
@@ -150,23 +178,27 @@ export const tasksService = {
 // Explication technique : Service qui encapsule les opérations CRUD pour l'entité Client, structuré de manière similaire au service des tâches pour une cohérence d'architecture.
 export const clientsService = {
   getClients: async () => {
-    const response = await api.get('/api/clients');
+    const response = await api.get('/clients');
     return response.data;
   },
   getClientById: async (id: string) => {
-    const response = await api.get(`/api/clients/${id}`);
+    const response = await api.get(`/clients/${id}`);
     return response.data;
   },
   createClient: async (clientData: any) => {
-    const response = await api.post('/api/clients', clientData);
+    const response = await api.post('/clients', clientData);
     return response.data;
   },
   updateClient: async (id: string, clientData: any) => {
-    const response = await api.put(`/api/clients/${id}`, clientData);
+    const response = await api.put(`/clients/${id}`, clientData);
+    return response.data;
+  },
+  updateClientLogo: async (id: string, logoPath: string) => {
+    const response = await api.put(`/clients/${id}`, { logo: logoPath });
     return response.data;
   },
   deleteClient: async (id: string) => {
-    const response = await api.delete(`/api/clients/${id}`);
+    const response = await api.delete(`/clients/${id}`);
     return response.data;
   },
 };
@@ -178,38 +210,34 @@ export const clientsService = {
 // Ajout des services manquants
 export const gamificationService = {
   getProfile: async () => {
-    const response = await api.get('/api/gamification/profile');
+    const response = await api.get('/gamification/profile');
     return response.data;
   },
   getLevels: async () => {
-    const response = await api.get('/api/gamification/levels');
+    const response = await api.get('/gamification/levels');
     return response.data;
   },
   getActivities: async (page: number, limit: number) => {
-    const response = await api.get(`/api/gamification/activities?page=${page}&limit=${limit}`);
+    const response = await api.get(`/gamification/activities?page=${page}&limit=${limit}`);
     return response.data;
   },
   updateStreak: async () => {
-    const response = await api.post('/api/gamification/streak');
+    const response = await api.post('/gamification/streak');
     return response.data;
   },
   addActionPoints: async (points: number, type: string, description: string) => {
-    const response = await api.post('/api/gamification/action-points', { points, type, description });
+    const response = await api.post('/gamification/action-points', { points, type, description });
     return response.data;
   }
 };
-// === Fin : Service de gamification ===
 
-// === Début : Service de gestion des badges ===
-// Explication simple : Ces fonctions s'occupent de vérifier quels badges tu as déjà gagnés et lesquels tu peux encore obtenir.
-// Explication technique : Service qui gère la récupération des badges utilisateur et tous les badges disponibles dans le système de gamification.
 export const badgesService = {
   getUserBadges: async () => {
-    const response = await api.get('/api/badges/user');
+    const response = await api.get('/badges/user');
     return response.data;
   },
   getAllBadges: async () => {
-    const response = await api.get('/api/badges');
+    const response = await api.get('/badges');
     return response.data;
   },
 };
@@ -231,7 +259,7 @@ export const timerService = {
       // Faire la requête avec le token explicite
       const response = await axios({
         method: 'post',
-        url: `${process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com'}/api/timers`,
+        url: `${getApiUrl()}/timers`,
         data: timerData,
         headers: {
           'Content-Type': 'application/json',
@@ -251,7 +279,7 @@ export const timerService = {
     console.log(`⏱️ Arrêt du timer ${id} avec duration:`, duration);
     try {
       // Utiliser la route correcte définie dans le backend
-      const response = await api.put(`/api/timers/stop/${id}`, { duration });
+      const response = await api.put(`/timers/stop/${id}`, { duration });
       console.log("⏱️ Timer arrêté avec succès:", response.data);
       return response.data;
     } catch (error: any) {
@@ -263,7 +291,7 @@ export const timerService = {
   getRunningTimer: async () => {
     try {
       console.log("⏱️ Recherche du timer en cours");
-      const response = await api.get('/api/timers');
+      const response = await api.get('/timers'); // Enlever /api
       const runningTimer = response.data.find((timer: any) => !timer.endTime);
       console.log("⏱️ Timer en cours trouvé:", runningTimer || "Aucun");
       return runningTimer;
@@ -276,7 +304,7 @@ export const timerService = {
   getTimerHistory: async (taskId: string) => {
     try {
       console.log("⏱️ Récupération de l'historique pour la tâche:", taskId);
-      const response = await api.get('/api/timers');
+      const response = await api.get('/timers'); // Enlever /api
       const timers = response.data.filter((timer: any) => timer.taskId === taskId);
       console.log(`⏱️ ${timers.length} timers trouvés pour cette tâche`);
       return timers;
@@ -288,7 +316,7 @@ export const timerService = {
   getAllTimers: async () => {
     try {
       console.log("⏱️ Récupération de tous les timers");
-      const response = await api.get('/api/timers'); // Corriger pour utiliser le pluriel
+      const response = await api.get('/timers'); // Enlever /api
       console.log(`⏱️ ${response.data.length} timers récupérés`);
       return response.data;
     } catch (error: any) {
@@ -297,11 +325,11 @@ export const timerService = {
     }
   },
   getTimerById: async (id: string) => {
-    const response = await api.get(`/api/timers/${id}`);
+    const response = await api.get(`/timers/${id}`);
     return response.data;
   },
   deleteTimer: async (id: string) => {
-    const response = await api.delete(`/api/timers/${id}`);
+    const response = await api.delete(`/timers/${id}`);
     return response.data;
   }
 };
@@ -312,19 +340,19 @@ export const timerService = {
 // Explication technique : Service qui gère les fonctionnalités liées à l'analyse d'impact des tâches, basé sur le principe de Pareto/80-20, permettant d'identifier et de prioriser les tâches à fort impact.
 export const taskImpactService = {
   getHighImpactTasks: async () => {
-    const response = await api.get('/api/taskImpact/highImpact');
+    const response = await api.get('/taskImpact/highImpact'); // Enlever /api
     return response.data;
   },
   updateTaskImpact: async (taskId: string, isHighImpact: boolean, impactScore: number) => {
-    const response = await api.put(`/api/taskImpact/${taskId}`, { isHighImpact, impactScore });
+    const response = await api.put(`/taskImpact/${taskId}`, { isHighImpact, impactScore }); // Enlever /api
     return response.data;
   },
   analyzeTasksImpact: async () => {
-    const response = await api.post('/api/taskImpact/analyze');
+    const response = await api.post('/taskImpact/analyze'); // Enlever /api
     return response.data;
   },
   applyImpactAnalysis: async (updatedTasks: any[]) => {
-    const response = await api.post('/api/taskImpact/apply', { tasks: updatedTasks });
+    const response = await api.post('/taskImpact/apply', { tasks: updatedTasks }); // Enlever /api
     return response.data;
   },
 };
@@ -335,31 +363,31 @@ export const taskImpactService = {
 // Explication technique : Service qui encapsule la logique de calcul et de suivi de la rentabilité par client, incluant les tarifs horaires, les heures passées et les métriques de performance.
 export const profitabilityService = {
   getAllProfitability: async () => {
-    const response = await api.get('/api/profitability/all');
+    const response = await api.get('/profitability/all'); // Enlever /api
     return response.data;
   },
   getClientProfitability: async (clientId: string) => {
-    const response = await api.get(`/api/profitability/client/${clientId}`);
+    const response = await api.get(`/profitability/client/${clientId}`);
     return response.data;
   },
   updateHourlyRate: async (clientId: string, hourlyRate: number) => {
-    const response = await api.put(`/api/profitability/hourlyRate/${clientId}`, { hourlyRate });
+    const response = await api.put(`/profitability/hourlyRate/${clientId}`, { hourlyRate });
     return response.data;
   },
   updateSpentHours: async (clientId: string, spentHours: number, incrementOnly?: boolean) => {
-    const response = await api.put(`/api/profitability/spentHours/${clientId}`, { spentHours, incrementOnly });
+    const response = await api.put(`/profitability/spentHours/${clientId}`, { spentHours, incrementOnly });
     return response.data;
   },
   updateTargetHours: async (clientId: string, targetHours: number) => {
-    const response = await api.put(`/api/profitability/targetHours/${clientId}`, { targetHours });
+    const response = await api.put(`/profitability/targetHours/${clientId}`, { targetHours });
     return response.data;
   },
   getGlobalProfitabilitySummary: async () => {
-    const response = await api.get('/api/profitability/summary');
+    const response = await api.get('/profitability/summary'); // Enlever /api
     return response.data;
   },
   getClientTasks: async (clientId: string) => {
-    const response = await api.get(`/api/profitability/tasks/${clientId}`);
+    const response = await api.get(`/profitability/tasks/${clientId}`);
     return response.data;
   },
 };
@@ -370,43 +398,43 @@ export const profitabilityService = {
 // Explication technique : Service qui gère le cycle de vie complet des objectifs clients, incluant la création, le suivi de progression, et les associations avec les tâches correspondantes.
 export const objectivesService = {
   getAll: async () => {
-    const response = await api.get('/api/objectives');
+    const response = await api.get('/objectives'); // Enlever /api
     return response.data;
   },
   getById: async (id: string) => {
-    const response = await api.get(`/api/objectives/${id}`);
+    const response = await api.get(`/objectives/${id}`);
     return response.data;
   },
   getByClient: async (clientId: string) => {
-    const response = await api.get(`/api/objectives/client/${clientId}`);
+    const response = await api.get(`/objectives/client/${clientId}`);
     return response.data;
   },
   getHighImpact: async () => {
-    const response = await api.get('/api/objectives/highImpact');
+    const response = await api.get('/objectives/highImpact'); // Enlever /api
     return response.data;
   },
   create: async (objectiveData: any) => {
-    const response = await api.post('/api/objectives', objectiveData);
+    const response = await api.post('/objectives', objectiveData); // Enlever /api
     return response.data;
   },
   update: async (id: string, objectiveData: any) => {
-    const response = await api.put(`/api/objectives/${id}`, objectiveData);
+    const response = await api.put(`/objectives/${id}`, objectiveData);
     return response.data;
   },
   updateProgress: async (id: string, currentValue: number) => {
-    const response = await api.put(`/api/objectives/${id}/progress`, { currentValue });
+    const response = await api.put(`/objectives/${id}/progress`, { currentValue });
     return response.data;
   },
   delete: async (id: string) => {
-    const response = await api.delete(`/api/objectives/${id}`);
+    const response = await api.delete(`/objectives/${id}`);
     return response.data;
   },
   linkTask: async (objectiveId: string, taskId: string) => {
-    const response = await api.post(`/api/objectives/${objectiveId}/tasks/${taskId}`);
+    const response = await api.post(`/objectives/${objectiveId}/tasks/${taskId}`);
     return response.data;
   },
   unlinkTask: async (objectiveId: string, taskId: string) => {
-    const response = await api.delete(`/api/objectives/${objectiveId}/tasks/${taskId}`);
+    const response = await api.delete(`/objectives/${objectiveId}/tasks/${taskId}`);
     return response.data;
   },
 };
@@ -417,3 +445,57 @@ export const objectivesService = {
 // Explication technique : Exportation par défaut de l'instance Axios configurée, permettant son utilisation directe dans d'autres modules si nécessaire, en complément des services spécifiques.
 export default api;
 // === Fin : Exportation de l'instance API ===
+
+// Améliorer la fonction uploadLogo
+export const uploadLogo = async (file: File): Promise<{logoPath: string, message: string}> => {
+  const formData = new FormData();
+  formData.append('logo', file);
+
+  try {
+    const response = await api.post('/upload/logo', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+
+    console.log('✅ Upload réussi:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('❌ Erreur upload:', error.response?.data || error);
+    throw error;
+  }
+};
+
+// Ajouter une fonction pour uploader l'avatar utilisateur
+export const uploadUserAvatar = async (file: File): Promise<{logoPath: string, message: string}> => {
+  const formData = new FormData();
+  formData.append('logo', file);
+
+  try {
+    const response = await api.post('/upload/avatar', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+
+    console.log('✅ Upload avatar réussi:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('❌ Erreur upload avatar:', error.response?.data || error);
+    throw error;
+  }
+};
+
+// Ajouter cette fonction après uploadLogo
+export const updateUserAvatar = async (avatarPath: string) => {
+  try {
+    const response = await api.put('/users/profile', {
+      'profile.avatar': avatarPath
+    });
+    console.log('✅ Avatar utilisateur mis à jour:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('❌ Erreur mise à jour avatar:', error.response?.data || error);
+    throw error;
+  }
+};

@@ -27,9 +27,10 @@
 // === Début : Importation des dépendances ===
 // Explication simple : On prend tous les outils dont on a besoin pour construire notre barre d'en-tête, comme quand tu rassembles tes crayons et règles avant de dessiner.
 // Explication technique : Importation de React, du hook personnalisé pour accéder au store Redux, des types TypeScript nécessaires et du composant modulaire de bascule du thème.
-import React from 'react';
-import { useAppSelector } from '../hooks';
+import React, { useEffect, useState } from 'react';
+import { useAppSelector, useAppDispatch } from '../hooks';
 import { RootState, AuthState, GamificationState } from '../store/index';
+import { toggleTimerPopup } from '../store/slices/timerSlice';
 import DarkModeToggle from './DarkModeToggle';
 // === Fin : Importation des dépendances ===
 
@@ -50,6 +51,8 @@ const HeaderUpdated: React.FC<HeaderProps> = ({ onLogout }) => {
   // === Début : Extraction des données du store Redux ===
   // Explication simple : On va chercher les informations sur l'utilisateur et ses points de jeu dans la grande mémoire de l'application.
   // Explication technique : Utilisation du hook useAppSelector pour extraire les données d'authentification et de gamification du store Redux, avec typage explicite et valeurs par défaut.
+  const dispatch = useAppDispatch();
+  
   // Utiliser les types explicites pour les états
   const auth = useAppSelector((state: RootState) => state.auth) as AuthState || {};
   const user = auth.user || { name: 'Utilisateur', email: 'utilisateur@exemple.com' };
@@ -57,7 +60,47 @@ const HeaderUpdated: React.FC<HeaderProps> = ({ onLogout }) => {
   const gamification = useAppSelector((state: RootState) => state.gamification) as GamificationState || {};
   const actionPoints = gamification.actionPoints || 0;
   const badges = gamification.badges || [];
+  
+  // Ajouter l'état du timer
+  const runningTimer = useAppSelector((state: RootState) => state.timer?.runningTimer);
+  const [timerDuration, setTimerDuration] = useState(0);
   // === Fin : Extraction des données du store Redux ===
+
+  // === Début : Effet pour mettre à jour la durée du timer ===
+  // Explication simple : Cette partie fait que le compteur de temps se met à jour chaque seconde quand un timer est en cours.
+  // Explication technique : Hook useEffect qui crée un intervalle pour incrémenter la durée affichée lorsqu'un timer est actif.
+  useEffect(() => {
+    if (!runningTimer || !runningTimer.isRunning) {
+      setTimerDuration(0);
+      return;
+    }
+
+    // Calculer la durée initiale si le timer était déjà en cours
+    if (runningTimer.startTime) {
+      const start = new Date(runningTimer.startTime).getTime();
+      const now = Date.now();
+      const elapsed = Math.floor((now - start) / 1000);
+      setTimerDuration(elapsed);
+    }
+
+    const interval = setInterval(() => {
+      setTimerDuration(prev => prev + 1);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [runningTimer]);
+  // === Fin : Effet pour mettre à jour la durée du timer ===
+
+  // === Début : Fonction de formatage du temps ===
+  // Explication simple : Cette fonction transforme les secondes en format lisible (HH:MM:SS).
+  // Explication technique : Utilitaire qui convertit une durée en secondes en chaîne formatée.
+  const formatTime = (seconds: number): string => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+  // === Fin : Fonction de formatage du temps ===
 
   // === Début : Rendu du composant Header ===
   // Explication simple : Ici, on dessine vraiment notre barre d'en-tête avec tous ses boutons et informations, comme quand tu assembles les pièces d'un puzzle.
@@ -68,6 +111,38 @@ const HeaderUpdated: React.FC<HeaderProps> = ({ onLogout }) => {
         Task Manager
       </h1>
       <div className="flex items-center space-x-4">
+        {/* === Début : Indicateur de timer actif === */}
+        {/* Explication simple : Cette partie montre s'il y a un chronomètre en cours avec le temps qui défile. */}
+        {/* Explication technique : Affichage conditionnel d'un indicateur de timer avec animation et interaction pour ouvrir le popup complet. */}
+        {runningTimer && (
+          <div 
+            onClick={() => dispatch(toggleTimerPopup(true))}
+            className="flex items-center space-x-2 px-3 py-1.5 bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/20 dark:to-emerald-900/20 rounded-full cursor-pointer hover:from-green-200 hover:to-emerald-200 dark:hover:from-green-800/30 dark:hover:to-emerald-800/30 transition-all duration-200 group"
+          >
+            <div className="relative flex items-center justify-center">
+              <div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse" />
+              <div className="absolute inset-0 w-2.5 h-2.5 bg-green-500 rounded-full animate-ping opacity-75" />
+            </div>
+            <span className="text-sm font-mono font-semibold text-green-800 dark:text-green-300">
+              {formatTime(timerDuration)}
+            </span>
+            <svg 
+              className="w-4 h-4 text-green-700 dark:text-green-400 transition-transform group-hover:rotate-12" 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                strokeWidth={2} 
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" 
+              />
+            </svg>
+          </div>
+        )}
+        {/* === Fin : Indicateur de timer actif === */}
+
         {/* === Début : Affichage des points d'action === */}
         {/* Explication simple : Cette partie montre combien de points l'utilisateur a gagné en accomplissant des tâches, comme un score dans un jeu. */}
         {/* Explication technique : Conteneur responsive qui affiche le compteur d'action points de gamification avec une icône, visible uniquement sur les écrans de taille moyenne et supérieure. */}

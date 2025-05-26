@@ -13,6 +13,7 @@
 // === Imports ===
 const Profitability = require('../models/Profitability');
 const Task = require('../models/Task');
+const Timer = require('../models/Timer');
 const Client = require('../models/Client');
 const mongoose = require('mongoose');
 const mongoLogger = require('../utils/mongoLogger');
@@ -39,7 +40,37 @@ const getProfitabilityByClient = async (req, res) => {
       return res.status(404).json({ message: 'Données de rentabilité non trouvées pour ce client' });
     }
     
-    res.status(200).json(profitability);
+    // NOUVEAU : Recalculer spentHours basé sur le mois en cours
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+    
+    // Récupérer toutes les tâches terminées du mois
+    const monthlyTasks = await Task.find({
+      userId: req.userId,
+      clientId: req.params.clientId,
+      status: 'terminée',
+      completedAt: { $gte: startOfMonth }
+    });
+    
+    // Récupérer aussi les timers du mois (pour inclure le temps non finalisé)
+    const monthlyTimers = await Timer.find({
+      userId: req.userId,
+      clientId: req.params.clientId,
+      startTime: { $gte: startOfMonth }
+    });
+    
+    // Calculer le temps total du mois
+    const taskMinutes = monthlyTasks.reduce((sum, task) => sum + (task.timeSpent || 0), 0);
+    const timerSeconds = monthlyTimers.reduce((sum, timer) => sum + (timer.duration || 0), 0);
+    const totalHours = (taskMinutes / 60) + (timerSeconds / 3600);
+    
+    // Mettre à jour temporairement pour la réponse (sans sauvegarder)
+    const profitabilityResponse = profitability.toObject();
+    profitabilityResponse.spentHours = totalHours;
+    profitabilityResponse.currentMonth = startOfMonth.toISOString();
+    
+    res.status(200).json(profitabilityResponse);
   } catch (error) {
     res.status(500).json({ message: 'Erreur lors de la récupération des données de rentabilité', error: error.message });
   }
@@ -51,7 +82,7 @@ const updateOrCreateProfitability = async (req, res) => {
   session.startTransaction();
   
   try {
-    const { hourlyRate, targetHours, actualHours, revenue } = req.body;
+    const { hourlyRate, targetHours, revenue } = req.body;
     
     // 1. Vérifier si le client existe
     const client = await Client.findOne({ 
@@ -78,30 +109,45 @@ const updateOrCreateProfitability = async (req, res) => {
         clientId: req.params.clientId,
         hourlyRate,
         targetHours,
-        actualHours,
+        spentHours: 0, // Toujours commencer à 0
         revenue
       });
     } else {
-      profitability.hourlyRate = hourlyRate;
-      profitability.targetHours = targetHours;
-      profitability.actualHours = actualHours;
-      profitability.revenue = revenue;
-      profitability.updatedAt = Date.now();
+      profitability.hourlyRate = hourlyRate || profitability.hourlyRate;
+      profitability.targetHours = targetHours || profitability.targetHours;
+      profitability.revenue = revenue || profitability.revenue;
+      profitability.lastUpdated = Date.now();
     }
     
-    // 4. CALCULS FINANCIERS SOPHISTIQUÉS
-    const cost = profitability.hourlyRate * profitability.actualHours;
-    profitability.profit = profitability.revenue - cost;
-    profitability.profitability = profitability.revenue > 0 ? (profitability.profit / profitability.revenue) * 100 : 0;
-    profitability.remainingHours = profitability.targetHours - profitability.actualHours;
+    // 4. Recalculer spentHours pour le mois en cours
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+    
+    const monthlyTasks = await Task.find({
+      userId: req.userId,
+      clientId: req.params.clientId,
+      status: 'terminée',
+      completedAt: { $gte: startOfMonth }
+    }).session(session);
+    
+    const totalMinutes = monthlyTasks.reduce((sum, task) => sum + (task.timeSpent || 0), 0);
+    profitability.spentHours = totalMinutes / 60;
+    
+    // 5. CALCULS FINANCIERS SOPHISTIQUÉS
+    const cost = profitability.hourlyRate * profitability.spentHours;
+    profitability.profitabilityPercentage = profitability.revenue > 0 ? 
+      ((profitability.revenue - cost) / profitability.revenue) * 100 : 0;
+    profitability.remainingHours = profitability.targetHours - profitability.spentHours;
+    profitability.isProfitable = profitability.profitabilityPercentage > 0;
     
     await profitability.save({ session });
     
-    // 5. Mettre à jour le client avec les dernières informations de rentabilité
+    // 6. Mettre à jour le client avec les dernières informations de rentabilité
     client.lastProfitabilityUpdate = Date.now();
     await client.save({ session });
     
-    // 6. Valider la transaction
+    // 7. Valider la transaction
     await session.commitTransaction();
     session.endSession();
     
@@ -122,20 +168,36 @@ const updateOrCreateProfitability = async (req, res) => {
   }
 };
 
-// === Fonction 4: Mettre à jour les heures automatiquement (ULTRA-SOPHISTIQUÉ) ===
+// === Fonction 4: Mettre à jour les heures automatiquement (AVEC FILTRAGE MENSUEL) ===
 const updateHours = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
   
   try {
-    // 1. AGRÉGATION : Calculer le total des heures passées sur les tâches pour ce client
+    // Définir le début du mois en cours
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+    
+    // 1. AGRÉGATION : Calculer le total des heures passées sur les tâches TERMINÉES du mois
     const tasks = await Task.find({ 
       userId: req.userId,
       clientId: req.params.clientId,
-      status: 'completed'
+      status: 'terminée',
+      completedAt: { $gte: startOfMonth } // Seulement les tâches terminées ce mois-ci
     }).session(session);
     
-    const totalHours = tasks.reduce((sum, task) => sum + (task.actualTime || 0), 0);
+    // Calculer aussi le temps des timers en cours (non terminés)
+    const activeTimers = await Timer.find({
+      userId: req.userId,
+      clientId: req.params.clientId,
+      startTime: { $gte: startOfMonth }
+    }).session(session);
+    
+    // Calculer le temps total
+    const taskMinutes = tasks.reduce((sum, task) => sum + (task.timeSpent || 0), 0);
+    const timerSeconds = activeTimers.reduce((sum, timer) => sum + (timer.duration || 0), 0);
+    const totalHours = (taskMinutes / 60) + (timerSeconds / 3600);
     
     // 2. Mettre à jour les données de rentabilité
     let profitability = await Profitability.findOne({ 
@@ -150,13 +212,14 @@ const updateHours = async (req, res) => {
     }
     
     // 3. RECALCULS AUTOMATIQUES DE TOUS LES INDICATEURS FINANCIERS
-    profitability.actualHours = totalHours;
+    profitability.spentHours = totalHours;
     
-    const cost = profitability.hourlyRate * profitability.actualHours;
-    profitability.profit = profitability.revenue - cost;
-    profitability.profitability = profitability.revenue > 0 ? (profitability.profit / profitability.revenue) * 100 : 0;
-    profitability.remainingHours = profitability.targetHours - profitability.actualHours;
-    profitability.updatedAt = Date.now();
+    const cost = profitability.hourlyRate * profitability.spentHours;
+    profitability.profitabilityPercentage = profitability.revenue > 0 ? 
+      ((profitability.revenue - cost) / profitability.revenue) * 100 : 0;
+    profitability.remainingHours = profitability.targetHours - profitability.spentHours;
+    profitability.isProfitable = profitability.profitabilityPercentage > 0;
+    profitability.lastUpdated = Date.now();
     
     await profitability.save({ session });
     
@@ -171,9 +234,19 @@ const updateHours = async (req, res) => {
     await session.commitTransaction();
     session.endSession();
     
+    console.log(`Heures mises à jour pour le client ${req.params.clientId}: ${totalHours.toFixed(2)}h ce mois-ci`);
+    
     res.status(200).json({ 
       message: 'Heures et rentabilité mises à jour avec succès', 
-      profitability 
+      profitability: {
+        ...profitability.toObject(),
+        monthlyBreakdown: {
+          taskHours: (taskMinutes / 60).toFixed(2),
+          timerHours: (timerSeconds / 3600).toFixed(2),
+          totalHours: totalHours.toFixed(2),
+          currentMonth: startOfMonth.toISOString()
+        }
+      }
     });
   } catch (error) {
     await session.abortTransaction();

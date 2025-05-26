@@ -42,8 +42,7 @@ router.put('/:id/complete', verifyToken, taskController.completeTask);
 // DELETE /:id - Supprimer une tâche (avec mise à jour métriques intelligentes)
 router.delete('/:id', verifyToken, taskController.deleteTask);
 
-// Route de test ignorée - logique déplacée si nécessaire
-// GET /test - Test timer service (route simple non critique)
+// Nouvelle route à ajouter
+router.get('/client/:clientId', verifyToken, taskController.getTasksByClient);
 
-// === Export ===
 module.exports = router;

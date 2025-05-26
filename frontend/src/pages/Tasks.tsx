@@ -1,25 +1,19 @@
-// === Ce fichier crée la page qui affiche la liste des tâches avec des filtres et options de recherche === /workspaces/TaskManagerLatestVersion/frontend/src/pages/Tasks.tsx
-// Explication simple : C'est comme un grand tableau où tu peux voir toutes tes tâches, les trier, les filtrer et cliquer dessus pour voir plus de détails ou les marquer comme terminées.
-// Explication technique : Composant React fonctionnel qui affiche une liste paginée des tâches avec fonctionnalités de filtrage, recherche, tri et actions rapides sur les tâches.
-// Utilisé dans : Le routeur principal de l'application, affiché comme page principale des tâches à la route /tasks
-// Connecté à : Store Redux (tasksSlice, clientsSlice, uiSlice), custom hook useTasks, service API (tasksService), Framer Motion pour les animations
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../hooks';
 import { setTaskFilters } from '../store/slices/tasksSlice';
 import { addNotification } from '../store/slices/uiSlice';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useTasks } from '../hooks/useTasks';
-import { tasksService } from '../services/api'; // Ajoutez cette ligne
+import { tasksService } from '../services/api';
 
-// === Début : Définition des interfaces TypeScript ===
-// Explication simple : On explique à l'ordinateur à quoi ressemblent les informations qu'on va utiliser, comme un client ou une tâche.
-// Explication technique : Interfaces TypeScript qui définissent la structure des données manipulées par le composant, assurant la sécurité des types.
-// Interfaces pour typer les données
+// Interfaces
 interface Client {
   _id: string;
   name: string;
+  logo?: string;
+  status?: string;
+  description?: string;
 }
 
 interface Task {
@@ -27,413 +21,887 @@ interface Task {
   title: string;
   description: string;
   clientId: string | { _id: string; name: string };
-  status: string;
-  priority: string;
+  status: 'à faire' | 'en cours' | 'terminée';
+  priority: 'basse' | 'moyenne' | 'haute' | 'urgente';
   dueDate: string;
   category: string;
-  actionPoints: number;
+  actionPoints?: number;
+  timeSpent?: number; // Changé de actualTime
+  estimatedTime?: number;
+  isHighImpact?: boolean;
+  createdAt?: string;
+  completedAt?: string;
 }
-// === Fin : Définition des interfaces TypeScript ===
 
-// === Début : Composant principal Tasks ===
-// Explication simple : C'est comme une grande boîte qui contient toute la page des tâches avec ses boutons et sa liste.
-// Explication technique : Composant fonctionnel React qui constitue la page principale de gestion des tâches, orchestrant l'affichage et les interactions.
+interface ClientProfitability {
+  clientId: string;
+  spentHours: number;
+  revenue: number;
+  hourlyRate: number;
+  targetHours: number;
+}
+
 const Tasks: React.FC = () => {
-  // === Début : Configuration des hooks React et Redux ===
-  // Explication simple : On prépare les outils dont on a besoin pour faire fonctionner la page et communiquer avec le reste de l'application.
-  // Explication technique : Initialisation des hooks Redux pour le dispatch d'actions et la récupération d'état, hook de navigation React Router, et hook personnalisé pour gérer les tâches.
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const { tasks, loading, error, refreshTasks } = useTasks(); // Utiliser le hook personnalisé au lieu de useState + useEffect + fetch
+  const { tasks, loading, error, refreshTasks } = useTasks();
   const { clients } = useAppSelector(state => state.clients) as { clients: Client[] };
+  const [localClients, setLocalClients] = useState<Client[]>([]);
+  const [clientsProfitability, setClientsProfitability] = useState<Record<string, ClientProfitability>>({});
+  
+  // États
   const [searchTerm, setSearchTerm] = useState('');
-  const tasksState = useAppSelector(state => state.tasks || {});
-  const { filteredTasks = [] as Task[], filters = {} } = tasksState;
-  // === Fin : Configuration des hooks React et Redux ===
+  const [selectedClient, setSelectedClient] = useState<string>('all');
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
+  
+  // État pour la création de tâche
+  const [newTask, setNewTask] = useState({
+    title: '',
+    description: '',
+    clientId: '',
+    priority: 'moyenne' as const,
+    dueDate: '',
+    estimatedTime: 60,
+    isHighImpact: false,
+    category: 'autre'
+  });
 
-  // === Début : Gestion du rafraîchissement des tâches ===
-  // Explication simple : Cette fonction permet de mettre à jour la liste des tâches quand on en crée une nouvelle.
-  // Explication technique : Handler qui déclenche le rechargement des tâches depuis l'API via le hook personnalisé useTasks après une création réussie.
-  // Fonction pour après la création d'une tâche
-  const handleTaskCreated = () => {
-    refreshTasks(); // Rechargement automatique des tâches
-  };
-  // === Fin : Gestion du rafraîchissement des tâches ===
+  // Charger les clients et la rentabilité au montage
+  useEffect(() => {
+    fetchClients();
+    fetchAllClientsProfitability();
+  }, []);
 
-  // === Début : Gestion des filtres de tâches ===
-  // Explication simple : Cette fonction change les filtres quand tu choisis un statut, une priorité ou un client dans les menus déroulants.
-  // Explication technique : Handler qui met à jour les filtres dans le store Redux quand l'utilisateur sélectionne des options de filtrage, avec gestion des valeurs par défaut.
-  // Appliquer les filtres
-  const handleFilterChange = (filterName: string, value: string) => {
-    dispatch(setTaskFilters({
-      ...filters,
-      [filterName]: value === 'tous' ? undefined : value
-    }));
-  };
-  // === Fin : Gestion des filtres de tâches ===
-
-  // === Début : Filtrage des tâches pour l'affichage ===
-  // Explication simple : Cette partie trie les tâches pour n'afficher que celles qui correspondent à ta recherche ou tes filtres.
-  // Explication technique : Logique de filtrage combinant la recherche textuelle et les filtres sélectionnés pour produire la liste finale des tâches à afficher.
-  // Filtrer les tâches en fonction de la recherche
-  const displayedTasks: Task[] = searchTerm
-    ? filteredTasks.filter((task: Task) =>
-      task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      task.description.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    : filteredTasks.filter((task: Task) => {
-      if (filters.clientId) {
-        const taskClientId = typeof task.clientId === 'object' ? task.clientId._id : task.clientId;
-        if (taskClientId !== filters.clientId) return false;
+  const fetchClients = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/clients`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setLocalClients(data);
       }
-      return true;
-    });
-  // === Fin : Filtrage des tâches pour l'affichage ===
-
-  // === Début : Navigation vers les détails d'une tâche ===
-  // Explication simple : Cette fonction t'emmène sur la page détaillée d'une tâche quand tu cliques dessus.
-  // Explication technique : Fonction de navigation qui gère le clic sur une tâche et redirige vers sa page de détail, avec gestion des formats d'ID différents.
-  // Naviguer vers la page de détail de la tâche
-  const handleTaskClick = (taskId: string | any) => {
-    const id = typeof taskId === 'object' ? taskId._id : taskId;
-    navigate(`/tasks/${id}`);
+    } catch (error) {
+      console.error('Erreur chargement clients:', error);
+    }
   };
-  // === Fin : Navigation vers les détails d'une tâche ===
 
-  // === Début : Navigation vers la création d'une tâche ===
-  // Explication simple : Cette fonction t'emmène sur la page pour créer une nouvelle tâche quand tu cliques sur le bouton "Nouvelle tâche".
-  // Explication technique : Handler qui gère la redirection vers la page de création de tâche via le hook useNavigate de React Router.
-  // Naviguer vers la page de création de tâche
-  const handleCreateTask = () => {
-    navigate('/tasks/new');
+  // NOUVEAU : Récupérer la rentabilité de tous les clients
+  const fetchAllClientsProfitability = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/profitability`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const profitabilityMap: Record<string, ClientProfitability> = {};
+        data.forEach((prof: any) => {
+          profitabilityMap[prof.clientId._id || prof.clientId] = prof;
+        });
+        setClientsProfitability(profitabilityMap);
+      }
+    } catch (error) {
+      console.error('Erreur chargement rentabilité:', error);
+    }
   };
-  // === Fin : Navigation vers la création d'une tâche ===
 
-  // === Début : Fonction utilitaire pour récupérer le nom du client ===
-  // Explication simple : Cette fonction trouve le nom du client associé à une tâche pour l'afficher.
-  // Explication technique : Fonction utilitaire qui extrait le nom du client à partir d'un ID ou d'un objet client, avec gestion défensive des cas particuliers.
-  // Obtenir le nom du client à partir de son ID
+  // Utiliser localClients si clients du store est vide
+  const allClients = clients.length > 0 ? clients : localClients;
+  const getTaskId = (taskId: string | { _id: string }): string => {
+    return typeof taskId === 'object' ? taskId._id : taskId;
+  };
+
+  const getClientId = (clientId: string | { _id: string; name: string }): string => {
+    if (typeof clientId === 'object' && clientId !== null) {
+      return clientId._id;
+    }
+    return clientId;
+  };
+
   const getClientName = (clientId: string | { _id: string; name: string }) => {
     if (typeof clientId === 'object' && clientId !== null) return clientId.name;
-    const client = clients.find(c => c._id === clientId);
+    const client = allClients.find(c => c._id === clientId);
     return client ? client.name : 'Client inconnu';
   };
-  // === Fin : Fonction utilitaire pour récupérer le nom du client ===
 
-  // === Début : Fonction de formatage des dates ===
-  // Explication simple : Cette fonction transforme les dates en textes faciles à comprendre comme "Aujourd'hui" ou "Demain".
-  // Explication technique : Fonction utilitaire qui convertit une date au format ISO en représentation textuelle relative, facilitant la lecture pour l'utilisateur.
-  // Formater la date d'échéance
-  const formatDueDate = (dateString: string) => {
+  // Filtrage des tâches
+  const filteredTasks = tasks.filter((task: Task) => {
+    const matchSearch = searchTerm === '' || 
+      task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      task.description.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const taskClientId = getClientId(task.clientId);
+    const matchClient = selectedClient === 'all' || taskClientId === selectedClient;
+    const matchStatus = selectedStatus === 'all' || task.status === selectedStatus;
+    
+    return matchSearch && matchClient && matchStatus;
+  });
+
+  // Grouper les tâches par client
+  const tasksByClient = filteredTasks.reduce((acc: Record<string, Task[]>, task: Task) => {
+    const clientId = getClientId(task.clientId);
+    if (!acc[clientId]) {
+      acc[clientId] = [];
+    }
+    acc[clientId].push(task);
+    return acc;
+  }, {});
+
+  // AMÉLIORÉ : Calcul des statistiques par client avec rentabilité
+  const getClientStats = (clientTasks: Task[], clientId: string) => {
+    const completed = clientTasks.filter(t => t.status === 'terminée');
+    const inProgress = clientTasks.filter(t => t.status === 'en cours');
+    const todo = clientTasks.filter(t => t.status === 'à faire');
+    
+    // Calculer le temps total du mois en cours
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+    
+    const monthlyTasks = completed.filter(t => {
+      if (!t.completedAt) return false;
+      return new Date(t.completedAt) >= startOfMonth;
+    });
+    
+    const monthlyMinutes = monthlyTasks.reduce((sum, t) => sum + (t.timeSpent || 0), 0);
+    const monthlyHours = monthlyMinutes / 60;
+    
+    // Récupérer les infos de rentabilité
+    const profitability = clientsProfitability[clientId];
+    const budget = profitability?.revenue || 0;
+    const targetHours = profitability?.targetHours || 40;
+    const hourlyRate = profitability?.hourlyRate || 100;
+    
+    // Calculer le taux horaire actuel
+    let currentHourlyRate = 0;
+    if (monthlyHours > 0 && budget > 0) {
+      currentHourlyRate = budget / monthlyHours;
+    } else if (budget > 0) {
+      // Taux théorique si pas encore d'heures
+      currentHourlyRate = budget / 160; // Base 160h/mois
+    }
+    
+    // Calcul du pourcentage de progression et budget
+    const progress = clientTasks.length > 0 ? (completed.length / clientTasks.length) * 100 : 0;
+    const budgetConsumed = monthlyHours > 0 ? (monthlyHours / targetHours) * 100 : 0;
+    
+    return {
+      total: clientTasks.length,
+      completed: completed.length,
+      inProgress: inProgress.length,
+      todo: todo.length,
+      monthlyMinutes,
+      monthlyHours,
+      budget,
+      targetHours,
+      hourlyRate,
+      currentHourlyRate,
+      progress,
+      budgetConsumed
+    };
+  };
+
+  // Toggle expansion client
+  const toggleClientExpansion = (clientId: string) => {
+    const newExpanded = new Set(expandedClients);
+    if (newExpanded.has(clientId)) {
+      newExpanded.delete(clientId);
+    } else {
+      newExpanded.add(clientId);
+    }
+    setExpandedClients(newExpanded);
+  };
+
+  // Création de tâche
+  const handleCreateTask = async () => {
+    if (!newTask.title || !newTask.clientId) {
+      dispatch(addNotification({
+        message: '⚠️ Veuillez remplir tous les champs obligatoires',
+        type: 'warning'
+      }));
+      return;
+    }
+
+    try {
+      const taskData = {
+        ...newTask,
+        status: 'à faire' as const,
+        timeSpent: 0, // Changé de actualTime
+        actionPoints: newTask.isHighImpact ? 10 : 5
+      };
+
+      await tasksService.createTask(taskData);
+      
+      dispatch(addNotification({
+        message: '✅ Tâche créée avec succès!',
+        type: 'success'
+      }));
+      
+      setShowCreateModal(false);
+      setNewTask({
+        title: '',
+        description: '',
+        clientId: '',
+        priority: 'moyenne',
+        dueDate: '',
+        estimatedTime: 60,
+        isHighImpact: false,
+        category: 'autre'
+      });
+      
+      refreshTasks();
+    } catch (error) {
+      console.error('Erreur création:', error);
+      dispatch(addNotification({
+        message: '❌ Erreur lors de la création de la tâche',
+        type: 'error'
+      }));
+    }
+  };
+
+  // Mise à jour du statut
+  const handleStatusUpdate = async (taskId: string, newStatus: string) => {
+    try {
+      if (newStatus === 'terminée') {
+        // Utiliser la route /complete pour bénéficier de la gamification
+        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/tasks/${taskId}/complete`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.rewards) {
+            dispatch(addNotification({
+              message: `🎉 Tâche terminée! +${data.rewards.points} points, +${data.rewards.experience} XP`,
+              type: 'success'
+            }));
+          }
+        }
+      } else {
+        await tasksService.updateTask(taskId, { status: newStatus });
+      }
+      
+      refreshTasks();
+      fetchAllClientsProfitability(); // Rafraîchir la rentabilité
+    } catch (error) {
+      console.error('Erreur mise à jour:', error);
+      dispatch(addNotification({
+        message: '❌ Erreur lors de la mise à jour',
+        type: 'error'
+      }));
+    }
+  };
+
+  // Suppression de tâche
+  const handleDeleteTask = async (taskId: string) => {
+    if (!window.confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) return;
+    
+    try {
+      await tasksService.deleteTask(taskId);
+      dispatch(addNotification({
+        message: '🗑️ Tâche supprimée',
+        type: 'success'
+      }));
+      refreshTasks();
+    } catch (error) {
+      console.error('Erreur suppression:', error);
+      dispatch(addNotification({
+        message: '❌ Erreur lors de la suppression',
+        type: 'error'
+      }));
+    }
+  };
+
+  // Formatage
+  const formatTime = (minutes?: number) => {
+    if (!minutes) return '0h';
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return mins > 0 ? `${hours}h${mins}min` : `${hours}h`;
+  };
+
+  const formatHours = (hours: number) => {
+    return hours.toFixed(1) + 'h';
+  };
+
+  const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const today = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    // Vérifier si la date est aujourd'hui, demain ou plus tard
     if (date.toDateString() === today.toDateString()) {
       return 'Aujourd\'hui';
     } else if (date.toDateString() === tomorrow.toDateString()) {
       return 'Demain';
     } else {
-      return date.toLocaleDateString();
+      return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
     }
   };
-  // === Fin : Fonction de formatage des dates ===
 
-  // === Début : Fonction pour les couleurs de priorité ===
-  // Explication simple : Cette fonction choisit la bonne couleur pour chaque niveau de priorité (rouge pour urgent, vert pour basse priorité, etc.).
-  // Explication technique : Fonction utilitaire qui retourne les classes CSS Tailwind appropriées en fonction du niveau de priorité, assurant la cohérence visuelle.
-  // Obtenir la couleur en fonction de la priorité
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'urgente':
-        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
-      case 'haute':
-        return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
-      case 'moyenne':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
-      case 'basse':
-        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-      default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
+      case 'urgente': return 'border-l-4 border-red-500';
+      case 'haute': return 'border-l-4 border-orange-500';
+      case 'moyenne': return 'border-l-4 border-yellow-500';
+      case 'basse': return 'border-l-4 border-green-500';
+      default: return 'border-l-4 border-gray-400';
     }
   };
-  // === Fin : Fonction pour les couleurs de priorité ===
 
-  // === Début : Fonction pour les couleurs de statut ===
-  // Explication simple : Cette fonction choisit la bonne couleur pour chaque statut de tâche (gris pour "à faire", bleu pour "en cours", vert pour "terminée").
-  // Explication technique : Fonction utilitaire qui mappe les statuts de tâche aux classes CSS Tailwind correspondantes pour l'affichage visuel des badges de statut.
-  // Obtenir la couleur en fonction du statut
-  const getStatusColor = (status: string) => {
+  const getPriorityBadge = (priority: string) => {
+    switch (priority) {
+      case 'urgente': return '🔴';
+      case 'haute': return '🟠';
+      case 'moyenne': return '🟡';
+      case 'basse': return '🟢';
+      default: return '⚪';
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'à faire':
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
-      case 'en cours':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
-      case 'terminée':
-        return 'bg-green-100 text-green-800 dark:text-green-200';
-      default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
+      case 'terminée': return '✅';
+      case 'en cours': return '🏃';
+      case 'à faire': return '📋';
+      default: return '📋';
     }
   };
-  // === Fin : Fonction pour les couleurs de statut ===
 
-  // === Début : Fonction pour les icônes de catégorie ===
-  // Explication simple : Cette fonction choisit la bonne petite image pour chaque type de tâche (une enveloppe pour les emails, un graphique pour les rapports, etc.).
-  // Explication technique : Fonction qui retourne le composant SVG approprié en fonction de la catégorie de tâche, fournissant des repères visuels pour identifier rapidement les types de tâches.
-  // Obtenir l'icône en fonction de la catégorie
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'campagne':
-        return (
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
-          </svg>
-        );
-      case 'landing':
-        return (
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
-          </svg>
-        );
-      case 'rapport':
-        return (
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-        );
-      case 'email':
-        return (
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-          </svg>
-        );
-      case 'reunion':
-        return (
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-          </svg>
-        );
-      case 'tracking':
-        return (
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-          </svg>
-        );
-      case 'cro':
-        return (
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-          </svg>
-        );
-      default:
-        return (
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-          </svg>
-        );
-    }
+  // Couleur du taux horaire
+  const getHourlyRateColor = (current: number, target: number) => {
+    const ratio = current / target;
+    if (ratio >= 1) return 'text-emerald-600';
+    if (ratio >= 0.8) return 'text-amber-600';
+    return 'text-red-600';
   };
-  // === Fin : Fonction pour les icônes de catégorie ===
 
-  // === Début : Rendu principal de l'interface utilisateur ===
-  // Explication simple : C'est la partie qui dessine toute la page avec la barre de recherche, les filtres et la liste des tâches.
-  // Explication technique : Rendu JSX principal du composant, incluant l'en-tête, les filtres, la gestion des états (chargement/erreur/vide) et la liste des tâches avec animations Framer Motion.
+  // Composant Logo Client
+  const ClientLogo = ({ client }: { client: Client }) => {
+    if (client.logo) {
+      return (
+        <img 
+          src={client.logo} 
+          alt={client.name}
+          className="w-12 h-12 rounded-lg object-cover"
+        />
+      );
+    }
+    
+    return (
+      <div className="w-12 h-12 bg-gradient-to-br from-[#026aa1] to-[#0487d9] rounded-lg flex items-center justify-center text-white font-bold text-lg">
+        {client.name.charAt(0).toUpperCase()}
+      </div>
+    );
+  };
+
   return (
-    <div className="container mx-auto">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Tâches</h1>
-          <p className="text-gray-600 dark:text-gray-300 mt-1">Gérez vos tâches pour chaque client</p>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Header moderne */}
+      <div className="bg-white dark:bg-gray-800 shadow-sm sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Mes Tâches</h1>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                {tasks.length} tâches • {tasksByClient && Object.keys(tasksByClient).length} clients actifs • Mois en cours
+              </p>
+            </div>
+            
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="bg-[#026aa1] hover:bg-[#0487d9] text-white px-6 py-2.5 rounded-xl font-medium shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Nouvelle tâche
+            </button>
+          </div>
         </div>
-        <button
-          onClick={handleCreateTask}
-          className="mt-4 md:mt-0 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors flex items-center"
-        >
-          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-          </svg>
-          Nouvelle tâche
-        </button>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div>
-            <label htmlFor="search" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Rechercher
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
+      {/* Barre de recherche et filtres */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-4">
+          <div className="flex flex-col md:flex-row gap-4">
+            {/* Recherche */}
+            <div className="flex-1 relative">
+              <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
               <input
-                id="search"
                 type="text"
+                placeholder="Rechercher une tâche..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
-                placeholder="Rechercher une tâche..."
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#026aa1] focus:border-transparent dark:bg-gray-700 dark:text-white transition-all"
               />
             </div>
-          </div>
-          <div>
-            <label htmlFor="status" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Statut
-            </label>
-            <select
-              id="status"
-              value={filters.status || 'tous'}
-              onChange={(e) => handleFilterChange('status', e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
-            >
-              <option value="tous">Tous</option>
-              <option value="à faire">À faire</option>
-              <option value="en cours">En cours</option>
-              <option value="terminée">Terminée</option>
-            </select>
-          </div>
-          <div>
-            <label htmlFor="priority" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Priorité
-            </label>
-            <select
-              id="priority"
-              value={filters.priority || 'tous'}
-              onChange={(e) => handleFilterChange('priority', e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
-            >
-              <option value="tous">Toutes</option>
-              <option value="basse">Basse</option>
-              <option value="moyenne">Moyenne</option>
-              <option value="haute">Haute</option>
-              <option value="urgente">Urgente</option>
-            </select>
-          </div>
-          <div>
-            <label htmlFor="client" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Client
-            </label>
-            <select
-              id="client"
-              value={filters.clientId || 'tous'}
-              onChange={(e) => handleFilterChange('clientId', e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
-            >
-              <option value="tous">Tous</option>
-              {clients.map(client => (
-                <option key={client._id} value={client._id}>{client.name}</option>
-              ))}
-            </select>
+
+            {/* Filtres */}
+            <div className="flex gap-2">
+              <select
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value)}
+                className="px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#026aa1] dark:bg-gray-700 dark:text-white"
+              >
+                <option value="all">Tous les statuts</option>
+                <option value="à faire">📋 À faire</option>
+                <option value="en cours">🏃 En cours</option>
+                <option value="terminée">✅ Terminées</option>
+              </select>
+
+              <select
+                value={selectedClient}
+                onChange={(e) => setSelectedClient(e.target.value)}
+                className="px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#026aa1] dark:bg-gray-700 dark:text-white"
+              >
+                <option value="all">Tous les clients</option>
+                {allClients.map(client => (
+                  <option key={client._id} value={client._id}>{client.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
       </div>
 
-      {loading ? (
-        <div className="flex justify-center items-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
-        </div>
-      ) : error ? (
-        <div className="bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200 p-4 rounded-md">
-          {error}
-        </div>
-      ) : displayedTasks.length === 0 ? (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-12 text-center">
-          <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-          </svg>
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Aucune tâche trouvée</h3>
-          <p className="text-gray-600 dark:text-gray-300 mb-6">
-            {searchTerm || Object.values(filters).some(v => v !== undefined)
-              ? "Aucune tâche ne correspond à vos critères de recherche."
-              : "Vous n'avez pas encore ajouté de tâches."}
-          </p>
-          <button
-            onClick={handleCreateTask}
-            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors inline-flex items-center"
-          >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            Ajouter une tâche
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {displayedTasks.map((task) => (
-            <motion.div
-              key={typeof task._id === 'object' ? task._id._id : task._id}
-              whileHover={{ y: -2, transition: { duration: 0.2 } }}
-              className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden cursor-pointer hover:shadow-lg transition-shadow"
-              onClick={() => handleTaskClick(task._id)}
+      {/* Contenu principal */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+        {loading ? (
+          <div className="flex justify-center items-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#026aa1]"></div>
+          </div>
+        ) : error ? (
+          <div className="bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 p-6 rounded-2xl">
+            <p className="font-medium">Erreur de chargement</p>
+            <p className="text-sm mt-1">{error}</p>
+          </div>
+        ) : Object.keys(tasksByClient).length === 0 ? (
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-12 text-center">
+            <div className="w-20 h-20 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Aucune tâche trouvée</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              Commencez par créer votre première tâche
+            </p>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="inline-flex items-center gap-2 text-[#026aa1] hover:text-[#0487d9] font-medium"
             >
-              <div className="p-4 md:p-6">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center mb-2">
-                      <div className="mr-2 text-gray-600 dark:text-gray-300">
-                        {getCategoryIcon(task.category)}
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Créer une tâche
+            </button>
+          </div>
+        ) : (
+          <div className="grid gap-6">
+            {Object.entries(tasksByClient).map(([clientId, clientTasks]) => {
+              const client = allClients.find(c => c._id === clientId);
+              const stats = getClientStats(clientTasks as Task[], clientId);
+              const isExpanded = expandedClients.has(clientId);
+              
+              return (
+                <motion.div
+                  key={clientId}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden"
+                >
+                  {/* En-tête du client AMÉLIORÉ */}
+                  <div 
+                    className="p-6 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                    onClick={() => toggleClientExpansion(clientId)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        {client && <ClientLogo client={client} />}
+                        <div>
+                          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                            {client?.name || 'Sans client'}
+                          </h2>
+                          <div className="flex items-center gap-6 mt-2 text-sm text-gray-600 dark:text-gray-400">
+                            <span className="flex items-center gap-1">
+                              <span className="font-medium text-gray-900 dark:text-white">{stats.total}</span> tâches
+                            </span>
+                            <span className="flex items-center gap-1">
+                              {getStatusIcon('terminée')} <span className="font-medium text-green-600">{stats.completed}</span>
+                            </span>
+                            <span className="flex items-center gap-1">
+                              {getStatusIcon('en cours')} <span className="font-medium text-blue-600">{stats.inProgress}</span>
+                            </span>
+                            <span className="flex items-center gap-1">
+                              {getStatusIcon('à faire')} <span className="font-medium text-gray-600">{stats.todo}</span>
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                      <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{task.title}</h2>
-                    </div>
-                    <p className="text-gray-600 dark:text-gray-300 mb-3 line-clamp-2">{task.description}</p>
-                    <div className="flex flex-wrap items-center gap-2 mb-2">
-                      <span className="text-sm text-gray-600 dark:text-gray-300">
-                        Client: <span>{getClientName(task.clientId)}</span>
-                      </span>
-                      <span className="mx-2 text-gray-300 dark:text-gray-600">•</span>
-                      <span className="text-sm text-gray-600 dark:text-gray-300">
-                        Échéance: <span className="font-medium">{formatDueDate(task.dueDate)}</span>
-                      </span>
-                      <span className="mx-2 text-gray-300 dark:text-gray-600">•</span>
-                      <span className="text-sm text-gray-600 dark:text-gray-300">
-                        Points: <span className="font-medium">{task.actionPoints}</span>
-                      </span>
+                      
+                      <div className="flex items-center gap-6">
+                        {/* NOUVEAU : Informations de rentabilité */}
+                        <div className="text-right">
+                          <div className="flex items-center gap-2 justify-end">
+                            <span className="text-sm text-gray-600">Ce mois:</span>
+                            <span className="font-bold text-lg text-gray-900 dark:text-white">
+                              {formatHours(stats.monthlyHours)}
+                            </span>
+                          </div>
+                          {stats.budget > 0 && (
+                            <>
+                              <div className="flex items-center gap-2 justify-end mt-1">
+                                <span className="text-xs text-gray-500">Taux:</span>
+                                <span className={`font-medium ${getHourlyRateColor(stats.currentHourlyRate, stats.hourlyRate)}`}>
+                                  {Math.round(stats.currentHourlyRate)}€/h
+                                </span>
+                              </div>
+                              <div className="mt-2">
+                                <div className="flex items-center gap-2 text-xs">
+                                  <span className="text-gray-500">Budget:</span>
+                                  <div className="w-24 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                                    <div 
+                                      className={`h-1.5 rounded-full transition-all duration-500 ${
+                                        stats.budgetConsumed > 100 ? 'bg-red-500' :
+                                        stats.budgetConsumed > 80 ? 'bg-amber-500' :
+                                        'bg-emerald-500'
+                                      }`}
+                                      style={{ width: `${Math.min(stats.budgetConsumed, 100)}%` }}
+                                    />
+                                  </div>
+                                  <span className="font-medium">
+                                    {Math.round(stats.budgetConsumed)}%
+                                  </span>
+                                </div>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                        
+                        {/* Barre de progression des tâches */}
+                        <div className="hidden sm:block">
+                          <div className="flex items-center gap-3">
+                            <div className="w-32 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                              <div 
+                                className="bg-gradient-to-r from-[#026aa1] to-[#0487d9] h-2 rounded-full transition-all duration-500"
+                                style={{ width: `${stats.progress}%` }}
+                              />
+                            </div>
+                            <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                              {Math.round(stats.progress)}%
+                            </span>
+                          </div>
+                        </div>
+                        
+                        {/* Chevron */}
+                        <svg 
+                          className={`w-5 h-5 text-gray-400 transform transition-transform ${isExpanded ? 'rotate-180' : ''}`} 
+                          fill="none" 
+                          stroke="currentColor" 
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center mt-3 md:mt-0 space-x-2">
-                    <span className={`px-3 py-1 text-xs rounded-full ${getPriorityColor(task.priority)}`}>
-                      {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
-                    </span>
-                    <span className={`px-3 py-1 text-xs rounded-full ${getStatusColor(task.status)}`}>
-                      {task.status.charAt(0).toUpperCase() + task.status.slice(1)}
-                    </span>
-                    {task.status !== 'terminée' && (
-                      <button
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          try {
-                            // Appel API pour marquer comme terminée
-                            await tasksService.updateTask(
-                              typeof task._id === 'object' ? (task._id as any)._id : task._id,
-                              { status: 'terminée' }
-                            );
-                            dispatch(addNotification({ message: 'Tâche marquée comme terminée', type: 'success' }));
-                            // Recharge la liste
-                            refreshTasks();
-                          } catch (error) {
-                            dispatch(addNotification({ message: "Erreur lors de la complétion", type: "error" }));
-                          }
-                        }}
-                        className="ml-2 px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-xs"
+
+                  {/* Liste des tâches */}
+                  <AnimatePresence>
+                    {isExpanded && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="border-t border-gray-100 dark:border-gray-700"
                       >
-                        Terminer
-                      </button>
+                        <div className="divide-y divide-gray-100 dark:divide-gray-700">
+                          {(clientTasks as Task[]).map((task) => {
+                            const taskId = getTaskId(task._id);
+                            
+                            return (
+                              <div
+                                key={taskId}
+                                className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors ${getPriorityColor(task.priority)}`}
+                              >
+                                <div className="flex items-start justify-between gap-4">
+                                  <div className="flex-1">
+                                    <div className="flex items-start gap-3">
+                                      <div className="mt-1">
+                                        <span className="text-lg">{getStatusIcon(task.status)}</span>
+                                      </div>
+                                      <div className="flex-1">
+                                        <h3 className={`font-medium text-gray-900 dark:text-white ${task.status === 'terminée' ? 'line-through opacity-60' : ''}`}>
+                                          {task.title}
+                                        </h3>
+                                        {task.description && (
+                                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
+                                            {task.description}
+                                          </p>
+                                        )}
+                                        <div className="flex flex-wrap items-center gap-4 mt-3 text-xs">
+                                          <span className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                            </svg>
+                                            {formatDate(task.dueDate)}
+                                          </span>
+                                          <span className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                            {formatTime(task.timeSpent)} / {formatTime(task.estimatedTime)}
+                                          </span>
+                                          <span className="flex items-center gap-1">
+                                            {getPriorityBadge(task.priority)} {task.priority}
+                                          </span>
+                                          {task.isHighImpact && (
+                                            <span className="flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-amber-100 to-orange-100 text-orange-700 rounded-full font-medium">
+                                              🚀 80/20
+                                            </span>
+                                          )}
+                                          {task.actionPoints && (
+                                            <span className="flex items-center gap-1 text-purple-600 dark:text-purple-400 font-medium">
+                                              🏆 {task.actionPoints} pts
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Actions */}
+                                  <div className="flex items-center gap-2">
+                                    {task.status !== 'terminée' && (
+                                      <select
+                                        value={task.status}
+                                        onChange={(e) => handleStatusUpdate(taskId, e.target.value)}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#026aa1] dark:bg-gray-700 dark:text-white"
+                                      >
+                                        <option value="à faire">À faire</option>
+                                        <option value="en cours">En cours</option>
+                                        <option value="terminée">Terminée</option>
+                                      </select>
+                                    )}
+                                    
+                                    <button
+                                      onClick={() => navigate(`/tasks/${taskId}`)}
+                                      className="p-2 text-[#026aa1] hover:bg-[#026aa1]/10 rounded-lg transition-colors"
+                                      title="Voir les détails"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                      </svg>
+                                    </button>
+                                    
+                                    <button
+                                      onClick={() => handleDeleteTask(taskId)}
+                                      className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                      title="Supprimer"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </motion.div>
                     )}
+                  </AnimatePresence>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Modal de création (inchangé) */}
+      <AnimatePresence>
+        {showCreateModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowCreateModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white dark:bg-gray-800 rounded-2xl max-w-lg w-full max-h-[90vh] overflow-hidden shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="bg-[#026aa1] p-6 text-white">
+                <h2 className="text-2xl font-bold">Nouvelle tâche</h2>
+              </div>
+              
+              {/* Contenu */}
+              <div className="p-6 space-y-4 overflow-y-auto max-h-[60vh]">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Titre *
+                  </label>
+                  <input
+                    type="text"
+                    value={newTask.title}
+                    onChange={(e) => setNewTask({...newTask, title: e.target.value})}
+                    placeholder="Ex: Créer la landing page"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#026aa1] focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    autoFocus
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Client *
+                  </label>
+                  <select
+                    value={newTask.clientId}
+                    onChange={(e) => setNewTask({...newTask, clientId: e.target.value})}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#026aa1] focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  >
+                    <option value="">Sélectionner un client</option>
+                    {allClients.map(client => (
+                      <option key={client._id} value={client._id}>{client.name}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Description
+                  </label>
+                  <textarea
+                    value={newTask.description}
+                    onChange={(e) => setNewTask({...newTask, description: e.target.value})}
+                    placeholder="Détails de la tâche..."
+                    rows={3}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#026aa1] focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white resize-none"
+                  />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Priorité
+                    </label>
+                    <select
+                      value={newTask.priority}
+                      onChange={(e) => setNewTask({...newTask, priority: e.target.value as any})}
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#026aa1] focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    >
+                      <option value="basse">🟢 Basse</option>
+                      <option value="moyenne">🟡 Moyenne</option>
+                      <option value="haute">🟠 Haute</option>
+                      <option value="urgente">🔴 Urgente</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Date d'échéance
+                    </label>
+                    <input
+                      type="date"
+                      value={newTask.dueDate}
+                      onChange={(e) => setNewTask({...newTask, dueDate: e.target.value})}
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#026aa1] focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    />
                   </div>
                 </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Temps estimé (minutes)
+                  </label>
+                  <input
+                    type="number"
+                    value={newTask.estimatedTime}
+                    onChange={(e) => setNewTask({...newTask, estimatedTime: parseInt(e.target.value) || 0})}
+                    min="0"
+                    step="15"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#026aa1] focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  />
+                </div>
+                
+                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
+                  <label className="flex items-center space-x-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newTask.isHighImpact}
+                      onChange={(e) => setNewTask({...newTask, isHighImpact: e.target.checked})}
+                      className="w-5 h-5 text-orange-500 rounded focus:ring-orange-500"
+                    />
+                    <div>
+                      <span className="font-medium text-gray-900 dark:text-white">🚀 Tâche à fort impact (80/20)</span>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                        Cette tâche fait partie des 20% qui apportent 80% des résultats
+                      </p>
+                    </div>
+                  </label>
+                </div>
+                
+                {newTask.isHighImpact && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl"
+                  >
+                    <p className="text-sm text-amber-700 dark:text-amber-400 font-medium">
+                      ✨ Cette tâche bénéficiera d'un bonus XP x2 !
+                    </p>
+                  </motion.div>
+                )}
+              </div>
+              
+              {/* Footer */}
+              <div className="border-t border-gray-200 dark:border-gray-700 p-6 bg-gray-50 dark:bg-gray-900 flex justify-end gap-3">
+                <button
+                  onClick={() => setShowCreateModal(false)}
+                  className="px-6 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 font-medium transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleCreateTask}
+                  disabled={!newTask.title || !newTask.clientId}
+                  className="px-6 py-2.5 bg-[#026aa1] hover:bg-[#0487d9] text-white rounded-xl font-medium transition-all disabled:bg-gray-300"
+                >
+                  Créer la tâche
+                </button>
               </div>
             </motion.div>
-          ))}
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
-  // === Fin : Rendu principal de l'interface utilisateur ===
 };
-// === Fin : Composant principal Tasks ===
 
 export default Tasks;
