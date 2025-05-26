@@ -1,0 +1,1027 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useAppDispatch, useAppSelector } from '../../hooks';
+import {
+  toggleTimerPopup,
+  hideTimerPopup,
+  setRunningTimer,
+  startTimer,
+  pauseTimer,
+  stopTimer
+} from '../../store/slices/timerSlice';
+import { addNotification } from '../../store/slices/uiSlice';
+import { addTask } from '../../store/slices/tasksSlice';
+import ClientLogo from '../Clients/ClientLogo';
+import axios from 'axios';
+import { timerService } from '../../services/api';
+import { useGamification } from '../../hooks/useGamification';
+import { useTasks } from '../../hooks/useTasks';
+
+// Détection automatique de l'URL pour GitHub Codespaces
+const getApiUrl = () => {
+  if (window.location.hostname === 'localhost') {
+    return 'http://localhost:5000';
+  }
+  if (window.location.hostname.includes('github.dev')) {
+    return window.location.origin.replace('-3000.', '-5000.');
+  }
+  return process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com';
+};
+
+const API_URL = getApiUrl();
+console.log("🌐 API URL détectée:", API_URL);
+
+interface TimerPopupProps {}
+
+const TimerPopup: React.FC<TimerPopupProps> = () => {
+  const dispatch = useAppDispatch();
+  const { showTimerPopup, runningTimer } = useAppSelector(state => state.timer);
+  const { addExperience, checkAchievement, showReward } = useGamification();
+  const { refreshTasks } = useTasks();
+
+  // États principaux
+  const [selectedClientId, setSelectedClientId] = useState<string>('');
+  const [selectedTaskId, setSelectedTaskId] = useState<string>('');
+  const [timerDuration, setTimerDuration] = useState<number>(0);
+  const [isRunning, setIsRunning] = useState<boolean>(false);
+  const [timerId, setTimerId] = useState<string | null>(null);
+  const [description, setDescription] = useState<string>('');
+  const [billable, setBillable] = useState<boolean>(true);
+  const [pauseReason, setPauseReason] = useState<string>('');
+  const [showPauseModal, setShowPauseModal] = useState<boolean>(false);
+
+  // États pour les données
+  const [clients, setClients] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [selectedClient, setSelectedClient] = useState<any>(null);
+  const [selectedTask, setSelectedTask] = useState<any>(null);
+  const [profitability, setProfitability] = useState<any>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+
+  // États pour la rentabilité
+  const [currentHourlyRate, setCurrentHourlyRate] = useState<number>(0);
+  const [hoursRemaining, setHoursRemaining] = useState<number>(0);
+  const [isOverBudget, setIsOverBudget] = useState<boolean>(false);
+
+  // États UI
+  const [isMinimized, setIsMinimized] = useState<boolean>(false);
+  const [showNewTaskForm, setShowNewTaskForm] = useState<boolean>(false);
+  const [showCreateClient, setShowCreateClient] = useState<boolean>(false);
+  const popupRef = useRef<HTMLDivElement>(null);
+
+  // Formulaire nouvelle tâche
+  const [newTaskData, setNewTaskData] = useState({
+    title: '',
+    description: '',
+    priority: 'moyenne',
+    dueDate: '',
+    isHighImpact: false
+  });
+
+  // Test de connexion API au chargement
+  useEffect(() => {
+    if (showTimerPopup) {
+      console.log("🔍 === DIAGNOSTIC TIMER ===");
+      console.log("API_URL:", API_URL);
+      console.log("Token présent:", !!localStorage.getItem('token'));
+      
+      const token = localStorage.getItem('token');
+      if (token) {
+        fetch(`${API_URL}/api/profitability`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        .then(res => {
+          console.log("Route profitability status:", res.status);
+          if (!res.ok) {
+            console.error("❌ Route profitability non accessible!");
+          }
+        })
+        .catch(err => console.error("❌ Erreur test profitability:", err));
+      }
+    }
+  }, [showTimerPopup]);
+
+  // Charger les données initiales
+  useEffect(() => {
+    if (showTimerPopup) {
+      fetchClientsAndTasks();
+      checkRunningTimer();
+    }
+  }, [showTimerPopup]);
+
+  // Timer interval
+  useEffect(() => {
+    if (isRunning) {
+      const interval = setInterval(() => {
+        setTimerDuration(prev => {
+          const newDuration = prev + 1;
+          updateRealTimeMetrics(newDuration);
+          return newDuration;
+        });
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [isRunning, profitability]);
+
+  const fetchClientsAndTasks = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const [clientsRes, tasksRes] = await Promise.all([
+        axios.get(`${API_URL}/api/clients`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/api/tasks`, { headers: { Authorization: `Bearer ${token}` } })
+      ]);
+
+      setClients(clientsRes.data);
+      setTasks(tasksRes.data);
+    } catch (error) {
+      console.error('Erreur chargement données:', error);
+    }
+  };
+
+  const checkRunningTimer = async () => {
+    try {
+      const timers = await timerService.getAllTimers();
+      const activeTimer = timers.find((t: any) => !t.endTime);
+      
+      if (activeTimer) {
+        setTimerId(activeTimer._id);
+        setIsRunning(true);
+        setTimerDuration(activeTimer.duration || 0);
+        if (activeTimer.clientId) {
+          setSelectedClientId(activeTimer.clientId._id || activeTimer.clientId);
+          fetchClientDetails(activeTimer.clientId._id || activeTimer.clientId);
+        }
+        if (activeTimer.taskId) {
+          setSelectedTaskId(activeTimer.taskId._id || activeTimer.taskId);
+          fetchTaskDetails(activeTimer.taskId._id || activeTimer.taskId);
+        }
+      }
+    } catch (error) {
+      console.error('Erreur timer actif:', error);
+    }
+  };
+
+  const fetchClientDetails = async (clientId: string) => {
+    console.log("📊 fetchClientDetails appelé pour:", clientId);
+    
+    try {
+      const token = localStorage.getItem('token');
+      if (!token || !clientId) {
+        console.warn("⚠️ Token ou clientId manquant");
+        return;
+      }
+
+      // 1. Récupérer le client
+      console.log("1️⃣ Récupération client...");
+      const clientRes = await axios.get(`${API_URL}/api/clients/${clientId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      console.log("✅ Client récupéré:", clientRes.data);
+      setSelectedClient(clientRes.data);
+
+      // 2. Récupérer la rentabilité avec gestion d'erreur améliorée
+      console.log("2️⃣ Récupération rentabilité...");
+      try {
+        const profitUrl = `${API_URL}/api/profitability/client/${clientId}`;
+        console.log("URL rentabilité:", profitUrl);
+        
+        const profitRes = await axios.get(profitUrl, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        console.log("✅ Rentabilité récupérée:", profitRes.data);
+        
+        const profitData = profitRes.data;
+        
+        // Mapper les données correctement
+        const mappedData = {
+          hourlyRate: profitData.hourlyRate || 0,
+          targetHours: profitData.targetHours || 0,
+          spentHours: profitData.actualHours || profitData.spentHours || profitData.actualTime || 0,
+          monthlyBudget: profitData.revenue || profitData.monthlyBudget || 0,
+          revenue: profitData.revenue || 0,
+          profit: profitData.profit || 0,
+          profitability: profitData.profitability || 0
+        };
+        
+        console.log("📊 Données mappées:", mappedData);
+        setProfitability(mappedData);
+        
+        // Calculer le taux horaire initial
+        calculateInitialHourlyRate(mappedData);
+        
+        // Calculs
+        const remaining = mappedData.targetHours - mappedData.spentHours;
+        setHoursRemaining(remaining);
+        setIsOverBudget(remaining < 0);
+        
+      } catch (profitError: any) {
+        console.error("❌ Erreur rentabilité:", profitError.response?.status, profitError.response?.data);
+        
+        // Si 404, créer des données par défaut
+        if (profitError.response?.status === 404) {
+          console.log("📝 Création de données de rentabilité par défaut...");
+          
+          try {
+            const createRes = await axios.post(`${API_URL}/api/profitability/client/${clientId}`, {
+              hourlyRate: 50,
+              targetHours: 40,
+              actualHours: 0,
+              revenue: 2000
+            }, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            console.log("✅ Rentabilité créée:", createRes.data);
+            setProfitability(createRes.data.profitability);
+            setCurrentHourlyRate(50);
+            
+          } catch (createError) {
+            console.error("❌ Impossible de créer la rentabilité:", createError);
+            setProfitability({
+              hourlyRate: 50,
+              targetHours: 0,
+              spentHours: 0,
+              monthlyBudget: 0
+            });
+            setCurrentHourlyRate(50);
+          }
+        }
+      }
+      
+    } catch (error: any) {
+      console.error("❌ Erreur globale fetchClientDetails:", error);
+      setSelectedClient(null);
+      setProfitability(null);
+    }
+  };
+
+  const calculateInitialHourlyRate = (profitData: any) => {
+    // Si on a déjà des heures travaillées, calculer le taux réel
+    if (profitData.spentHours > 0) {
+      const realRate = profitData.revenue / profitData.spentHours;
+      setCurrentHourlyRate(realRate);
+      console.log("💰 Taux horaire réel basé sur heures existantes:", realRate, "€/h");
+    } else {
+      // Sinon, utiliser l'objectif
+      setCurrentHourlyRate(profitData.hourlyRate);
+      console.log("💰 Pas d'heures travaillées, utilisation de l'objectif:", profitData.hourlyRate, "€/h");
+    }
+  };
+
+  const fetchTaskDetails = async (taskId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token || !taskId) return;
+
+      const response = await axios.get(`${API_URL}/api/tasks/${taskId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setSelectedTask(response.data);
+      if (response.data.clientId && !selectedClientId) {
+        const clientId = response.data.clientId._id || response.data.clientId;
+        setSelectedClientId(clientId);
+        fetchClientDetails(clientId);
+      }
+    } catch (error) {
+      console.error('Erreur détails tâche:', error);
+    }
+  };
+
+  const updateRealTimeMetrics = (duration: number) => {
+    if (!profitability || !profitability.revenue) return;
+
+    const hoursFromTimer = duration / 3600;
+    const totalHoursWorked = (profitability.spentHours || 0) + hoursFromTimer;
+    
+    // Toujours calculer le taux réel basé sur le total des heures
+    if (totalHoursWorked > 0) {
+      const realHourlyRate = profitability.revenue / totalHoursWorked;
+      setCurrentHourlyRate(realHourlyRate);
+    }
+
+    const remaining = profitability.targetHours - totalHoursWorked;
+    setHoursRemaining(remaining);
+    setIsOverBudget(remaining < 0);
+
+    // Alerte intelligente
+    if (remaining <= 1 && remaining > 0.95 && totalHoursWorked > 1 && !localStorage.getItem('alert_shown_1h')) {
+      dispatch(addNotification({
+        message: `⚠️ Attention: moins d'1h avant d'atteindre votre objectif de ${profitability.hourlyRate}€/h`,
+        type: 'warning'
+      }));
+      localStorage.setItem('alert_shown_1h', 'true');
+    }
+  };
+
+  const formatDuration = (seconds: number): string => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const handleStartTimer = async () => {
+    // Validation stricte
+    if (!selectedClientId || !selectedTaskId) {
+      dispatch(addNotification({
+        message: '⚠️ Veuillez sélectionner un client ET une tâche',
+        type: 'error'
+      }));
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('Non authentifié');
+
+      const timerData = {
+        clientId: selectedClientId,
+        taskId: selectedTaskId,
+        description: description || `Travail sur: ${selectedTask?.title}`,
+        billable
+      };
+
+      const response = await timerService.startTimer(timerData);
+      const newTimer = response.timer || response;
+
+      setTimerId(newTimer._id);
+      setIsRunning(true);
+      setTimerDuration(0);
+
+      dispatch(setRunningTimer({
+        _id: newTimer._id,
+        isRunning: true,
+        startTime: new Date().toISOString(),
+        duration: 0,
+        clientId: selectedClientId,
+        taskId: selectedTaskId
+      } as any));
+
+      dispatch(addNotification({
+        message: '▶️ Timer démarré!',
+        type: 'success'
+      }));
+    } catch (error) {
+      console.error('Erreur démarrage:', error);
+      dispatch(addNotification({
+        message: 'Erreur lors du démarrage',
+        type: 'error'
+      }));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePauseClick = () => {
+    setShowPauseModal(true);
+  };
+
+  const handlePauseConfirm = async () => {
+    if (!timerId) return;
+
+    try {
+      setLoading(true);
+      
+      const updatedDescription = description + (pauseReason ? ` [Pause: ${pauseReason}]` : '');
+      
+      await timerService.stopTimer(timerId, timerDuration);
+      
+      setIsRunning(false);
+      dispatch(pauseTimer(timerId, 'task'));
+      
+      setDescription(updatedDescription);
+      
+      dispatch(addNotification({
+        message: '⏸️ Timer mis en pause',
+        type: 'info'
+      }));
+      
+      setShowPauseModal(false);
+      setPauseReason('');
+    } catch (error) {
+      console.error('Erreur pause:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStopTimer = async () => {
+    if (!timerId || !window.confirm('Arrêter définitivement le timer?')) return;
+
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('Non authentifié');
+
+      // 1. Arrêter le timer
+      await timerService.stopTimer(timerId);
+      console.log("✅ Timer arrêté");
+
+      // 2. MISE À JOUR DU TEMPS DE LA TÂCHE
+      if (selectedTaskId && timerDuration > 0) {
+        console.log("📝 Mise à jour du temps de la tâche...");
+        
+        try {
+          const taskRes = await axios.get(`${API_URL}/api/tasks/${selectedTaskId}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          
+          const currentTask = taskRes.data;
+          const previousTime = currentTask.actualTime || 0;
+          const newTotalTime = previousTime + Math.round(timerDuration / 60);
+          
+          console.log("⏱️ Temps:", {
+            previous: previousTime,
+            added: Math.round(timerDuration / 60),
+            newTotal: newTotalTime
+          });
+          
+          await axios.put(`${API_URL}/api/tasks/${selectedTaskId}`, {
+            actualTime: newTotalTime
+          }, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          
+          console.log("✅ Temps de la tâche mis à jour");
+          refreshTasks();
+          
+        } catch (taskError) {
+          console.error("❌ Erreur mise à jour tâche:", taskError);
+        }
+      }
+
+      // 3. MISE À JOUR DE LA RENTABILITÉ
+      if (selectedClientId) {
+        console.log("💰 Mise à jour de la rentabilité...");
+        
+        try {
+          await axios.put(`${API_URL}/api/profitability/update-hours/${selectedClientId}`, {}, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          
+          console.log("✅ Rentabilité mise à jour");
+          
+        } catch (profitError) {
+          console.error("❌ Erreur mise à jour rentabilité:", profitError);
+        }
+      }
+
+      // 4. Gamification
+      if (timerDuration > 600) {
+        const points = Math.floor(timerDuration / 60);
+        const multiplier = selectedTask?.isHighImpact ? 2 : 1;
+        await addExperience(points * multiplier, `Timer: ${formatDuration(timerDuration)}`);
+      }
+
+      // 5. Reset états
+      setIsRunning(false);
+      setTimerDuration(0);
+      setTimerId(null);
+      dispatch(setRunningTimer(null));
+
+      dispatch(addNotification({
+        message: '⏹️ Timer arrêté et données synchronisées',
+        type: 'success'
+      }));
+
+    } catch (error: any) {
+      console.error('❌ Erreur arrêt timer:', error);
+      dispatch(addNotification({
+        message: 'Erreur lors de l\'arrêt du timer',
+        type: 'error'
+      }));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateTask = async () => {
+    if (!newTaskData.title || !selectedClientId) {
+      dispatch(addNotification({
+        message: 'Titre et client requis',
+        type: 'warning'
+      }));
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      
+      const taskData = {
+        ...newTaskData,
+        clientId: selectedClientId,
+        status: 'à faire'
+      };
+
+      const response = await axios.post(`${API_URL}/api/tasks`, taskData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      dispatch(addTask(response.data));
+      refreshTasks();
+
+      setSelectedTaskId(response.data._id);
+      setSelectedTask(response.data);
+      
+      setNewTaskData({
+        title: '',
+        description: '',
+        priority: 'moyenne',
+        dueDate: '',
+        isHighImpact: false
+      });
+      setShowNewTaskForm(false);
+
+      dispatch(addNotification({
+        message: '✅ Tâche créée!',
+        type: 'success'
+      }));
+    } catch (error) {
+      console.error('Erreur création tâche:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFinishTask = async () => {
+    if (!selectedTaskId) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      await axios.put(`${API_URL}/api/tasks/${selectedTaskId}`, 
+        { status: 'terminée' },
+        { headers: { Authorization: `Bearer ${token}` }}
+      );
+
+      if (isRunning) {
+        await handleStopTimer();
+      }
+
+      dispatch(addNotification({
+        message: '🎉 Tâche terminée!',
+        type: 'success'
+      }));
+
+      refreshTasks();
+    } catch (error) {
+      console.error('Erreur fin tâche:', error);
+    }
+  };
+
+  const getRentabilityColor = () => {
+    if (!profitability) return '';
+    const ratio = currentHourlyRate / profitability.hourlyRate;
+    if (ratio >= 1) return 'text-green-400';
+    if (ratio >= 0.8) return 'text-orange-400';
+    return 'text-red-400';
+  };
+
+  // Calculer la valeur actuelle basée sur le taux horaire réel
+  const getCurrentValue = () => {
+    if (!profitability || timerDuration === 0) return 0;
+    const hours = timerDuration / 3600;
+    return hours * currentHourlyRate;
+  };
+
+  // Bouton flottant si fermé
+  if (!showTimerPopup) {
+    return (
+      <button
+        onClick={() => dispatch(toggleTimerPopup(true))}
+        className="fixed bottom-4 right-4 bg-blue-600 text-white p-4 rounded-full shadow-2xl hover:bg-blue-700 transition-all hover:scale-110 z-50"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </button>
+    );
+  }
+
+  return (
+    <>
+      <motion.div
+        ref={popupRef}
+        drag
+        dragMomentum={false}
+        dragElastic={0}
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.9 }}
+        className={`fixed z-50 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl transition-all ${
+          isMinimized ? 'w-80 h-20' : 'w-[400px]'
+        }`}
+        style={{ 
+          bottom: 20, 
+          right: 20,
+          maxHeight: isMinimized ? '80px' : '85vh'
+        }}
+      >
+        {/* Header avec client */}
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white rounded-t-2xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              {selectedClient && (
+                <div className="relative">
+                  <ClientLogo client={selectedClient} size="large" />
+                  {isRunning && (
+                    <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                  )}
+                </div>
+              )}
+              <div>
+                <h3 className="font-bold text-lg">
+                  {selectedClient?.name || 'Timer'}
+                </h3>
+                {selectedTask && (
+                  <p className="text-sm opacity-90">{selectedTask.title}</p>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setIsMinimized(!isMinimized)}
+                className="p-1 hover:bg-white/20 rounded"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isMinimized ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"} />
+                </svg>
+              </button>
+              <button
+                onClick={() => dispatch(hideTimerPopup())}
+                className="p-1 hover:bg-white/20 rounded"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Rentabilité en temps réel */}
+          {selectedClient && profitability && !isMinimized && (
+            <div className="mt-3 p-3 bg-white/10 backdrop-blur rounded-lg">
+              <div className="flex justify-between items-center">
+                <div>
+                  <span className="text-sm opacity-90">Taux horaire</span>
+                  <div className={`text-2xl font-bold ${getRentabilityColor()}`}>
+                    {Math.round(currentHourlyRate)}€/h
+                  </div>
+                  <span className="text-xs opacity-75">
+                    Objectif: {profitability.hourlyRate}€/h
+                    {currentHourlyRate > profitability.hourlyRate && (
+                      <span className="text-green-400"> ✅ Dépassé!</span>
+                    )}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-sm opacity-90">Budget: {profitability.revenue}€</span>
+                  <div className="font-bold">
+                    {((profitability.spentHours || 0) + (timerDuration / 3600)).toFixed(2)}h travaillées
+                  </div>
+                  <span className={`text-xs ${hoursRemaining < 0 ? 'text-red-400' : hoursRemaining < 1 ? 'text-orange-400' : 'text-green-400'}`}>
+                    {hoursRemaining > 0 
+                      ? `${hoursRemaining.toFixed(1)}h pour garder ${profitability.hourlyRate}€/h`
+                      : `${Math.abs(hoursRemaining).toFixed(1)}h de trop!`
+                    }
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Contenu scrollable */}
+        {!isMinimized && (
+          <div className="p-6 overflow-y-auto" style={{ maxHeight: 'calc(85vh - 180px)' }}>
+            {/* Timer Display */}
+            <div className="text-center mb-6">
+              <div className="text-5xl font-mono font-bold text-gray-800 dark:text-white">
+                {formatDuration(timerDuration)}
+              </div>
+              {isRunning && (
+                <div className="mt-2 flex justify-center space-x-1">
+                  <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                  <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse delay-75" />
+                  <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse delay-150" />
+                </div>
+              )}
+              {selectedClient && profitability && (
+                <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                  Valeur actuelle: <span className="font-bold text-green-600">
+                    {getCurrentValue().toFixed(2)}€
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Impact de la tâche */}
+            {selectedTask && (
+              <div className={`mb-4 p-3 rounded-lg ${
+                selectedTask.isHighImpact 
+                  ? 'bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-orange-300' 
+                  : 'bg-gray-50 border border-gray-200'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-sm font-medium">Impact de la tâche</span>
+                    <p className={`font-bold ${selectedTask.isHighImpact ? 'text-orange-600' : 'text-gray-600'}`}>
+                      {selectedTask.isHighImpact ? '🚀 Fort impact (80/20)' : 'Tâche standard'}
+                    </p>
+                  </div>
+                  {selectedTask.isHighImpact && <span className="text-3xl">💎</span>}
+                </div>
+              </div>
+            )}
+
+            {/* Boutons de contrôle */}
+            <div className="flex gap-3 mb-4">
+              {!isRunning ? (
+                <button
+                  onClick={handleStartTimer}
+                  disabled={loading || !selectedClientId || !selectedTaskId}
+                  className="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Démarrer
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={handlePauseClick}
+                    disabled={loading}
+                    className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-lg transition-colors"
+                  >
+                    ⏸️ Pause
+                  </button>
+                  <button
+                    onClick={handleStopTimer}
+                    disabled={loading}
+                    className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-lg transition-colors"
+                  >
+                    ⏹️ Arrêter
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Sélecteurs */}
+            <div className="space-y-3">
+              {/* Client */}
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Client *</label>
+                  <button
+                    onClick={() => setShowCreateClient(true)}
+                    className="text-xs text-blue-600 hover:text-blue-700"
+                  >
+                    + Créer un client
+                  </button>
+                </div>
+                <select
+                  value={selectedClientId}
+                  onChange={(e) => {
+                    setSelectedClientId(e.target.value);
+                    if (e.target.value) fetchClientDetails(e.target.value);
+                  }}
+                  disabled={isRunning}
+                  className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 dark:bg-gray-800 dark:border-gray-700"
+                >
+                  <option value="">Sélectionner un client</option>
+                  {clients.map(client => (
+                    <option key={client._id} value={client._id}>{client.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Tâche */}
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Tâche *</label>
+                  <button
+                    onClick={() => setShowNewTaskForm(true)}
+                    className="text-xs text-blue-600 hover:text-blue-700"
+                    disabled={!selectedClientId}
+                  >
+                    + Nouvelle tâche
+                  </button>
+                </div>
+                <select
+                  value={selectedTaskId}
+                  onChange={(e) => {
+                    setSelectedTaskId(e.target.value);
+                    if (e.target.value) fetchTaskDetails(e.target.value);
+                  }}
+                  disabled={isRunning || !selectedClientId}
+                  className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 dark:bg-gray-800 dark:border-gray-700"
+                >
+                  <option value="">Sélectionner une tâche</option>
+                  {tasks
+                    .filter(task => {
+                      const taskClientId = task.clientId?._id || task.clientId;
+                      return taskClientId === selectedClientId && task.status !== 'terminée';
+                    })
+                    .map(task => (
+                      <option key={task._id} value={task._id}>{task.title}</option>
+                    ))}
+                </select>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
+                <input
+                  type="text"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Que faites-vous?"
+                  className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700"
+                />
+              </div>
+
+              {/* Facturable */}
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={billable}
+                  onChange={(e) => setBillable(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 rounded"
+                />
+                <span className="text-sm font-medium">{billable ? '💸 Facturable' : '⏳ Non facturable'}</span>
+              </label>
+            </div>
+
+            {/* Bouton terminer la tâche */}
+            {selectedTaskId && (
+              <button
+                onClick={handleFinishTask}
+                className="w-full mt-3 bg-green-600 hover:bg-green-700 text-white font-medium py-2 rounded-lg transition-colors"
+              >
+                ✅ Marquer la tâche comme terminée
+              </button>
+            )}
+          </div>
+        )}
+      </motion.div>
+
+      {/* Modal Pause */}
+      <AnimatePresence>
+        {showPauseModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"
+            onClick={() => setShowPauseModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.9 }}
+              className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-bold mb-4 dark:text-white">Mettre en pause le timer</h3>
+              <textarea
+                value={pauseReason}
+                onChange={(e) => setPauseReason(e.target.value)}
+                placeholder="Raison de la pause (optionnel)"
+                className="w-full p-3 border rounded-lg mb-4 dark:bg-gray-700 dark:border-gray-600"
+                rows={3}
+              />
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowPauseModal(false)}
+                  className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handlePauseConfirm}
+                  className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
+                >
+                  Mettre en pause
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal Nouvelle Tâche */}
+      <AnimatePresence>
+        {showNewTaskForm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"
+            onClick={() => setShowNewTaskForm(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.9 }}
+              className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-bold mb-4 dark:text-white">Créer une nouvelle tâche</h3>
+              
+              <div className="space-y-4">
+                <input
+                  type="text"
+                  value={newTaskData.title}
+                  onChange={(e) => setNewTaskData({...newTaskData, title: e.target.value})}
+                  placeholder="Titre de la tâche *"
+                  className="w-full p-3 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
+                />
+                
+                <textarea
+                  value={newTaskData.description}
+                  onChange={(e) => setNewTaskData({...newTaskData, description: e.target.value})}
+                  placeholder="Description"
+                  className="w-full p-3 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
+                  rows={3}
+                />
+                
+                <select
+                  value={newTaskData.priority}
+                  onChange={(e) => setNewTaskData({...newTaskData, priority: e.target.value})}
+                  className="w-full p-3 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
+                >
+                  <option value="basse">Priorité basse</option>
+                  <option value="moyenne">Priorité moyenne</option>
+                  <option value="haute">Priorité haute</option>
+                  <option value="urgente">Priorité urgente</option>
+                </select>
+                
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    checked={newTaskData.isHighImpact}
+                    onChange={(e) => setNewTaskData({...newTaskData, isHighImpact: e.target.checked})}
+                    className="w-4 h-4"
+                  />
+                  <span>🚀 Tâche à fort impact (80/20)</span>
+                </label>
+              </div>
+              
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => setShowNewTaskForm(false)}
+                  className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleCreateTask}
+                  disabled={!newTaskData.title}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300"
+                >
+                  Créer la tâche
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal Créer Client */}
+      {showCreateClient && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-bold mb-4 dark:text-white">Redirection vers la création de client</h3>
+            <p className="mb-4 dark:text-gray-300">Vous allez être redirigé vers la section Clients pour créer un nouveau client.</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowCreateClient(false)}
+                className="flex-1 px-4 py-2 border rounded-lg dark:border-gray-600"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => {
+                  window.location.href = '/clients?action=create';
+                }}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg"
+              >
+                Aller à Clients
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+export default TimerPopup;

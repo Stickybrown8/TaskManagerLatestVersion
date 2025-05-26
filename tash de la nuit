@@ -1,0 +1,22 @@
+ backend/controllers/profitability.controller.js  |  125 [32m+[m[31m-[m
+ backend/controllers/task.controller.js           |   66 [32m+[m[31m-[m
+ backend/controllers/timer.controller.js          |  140 [32m+[m[31m-[m
+ backend/logs/mongodb-error.log                   |   55 [32m+[m
+ backend/logs/mongodb.log                         | 7343 [32m++++++++++++++++++++++[m
+ backend/middleware/auth.js                       |   13 [32m+[m[31m-[m
+ backend/models/Client.js                         |    4 [32m+[m
+ backend/package-lock.json                        |    1 [32m+[m
+ backend/routes/tasks.js                          |    7 [32m+[m[31m-[m
+ backend/server.js                                |   24 [32m+[m[31m-[m
+ frontend/src/App.css                             |   27 [32m+[m
+ frontend/src/components/Clients/ClientLogo.tsx   |   15 [32m+[m[31m-[m
+ frontend/src/components/Clients/LogoUploader.tsx |   70 [32m+[m[31m-[m
+ frontend/src/components/Header.tsx               |   81 [32m+[m[31m-[m
+ frontend/src/components/timer/TimerPopup.tsx     | 2226 [32m+++[m[31m----[m
+ frontend/src/pages/ClientDetail.tsx              |  160 [32m+[m[31m-[m
+ frontend/src/pages/Clients.tsx                   |  193 [32m+[m[31m-[m
+ frontend/src/pages/TaskDetail.tsx                |  790 [32m++[m[31m-[m
+ frontend/src/pages/Tasks.tsx                     | 1170 [32m++[m[31m--[m
+ frontend/src/services/api.ts                     |  198 [32m+[m[31m-[m
+ frontend/src/types/api.ts                        |   11 [32m+[m
+ 21 files changed, 10533 insertions(+), 2186 deletions(-)
