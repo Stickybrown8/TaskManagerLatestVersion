@@ -10,6 +10,7 @@ import { updateUserProfile } from '../store/slices/authSlice';
 import { addNotification } from '../store/slices/uiSlice';
 import { motion } from 'framer-motion';
 import axios from 'axios';
+import AvatarUploader from '../components/UI/AvatarUploader';
 
 // === Début : Configuration de l'URL de l'API ===
 // Explication simple : On définit l'adresse du serveur avec lequel notre application va communiquer.
@@ -46,6 +47,7 @@ const Profile: React.FC = () => {
     level: 1,
     streakDays: 0,
     badges: [],
+    avatar: '',
   }), []); // Utiliser useMemo pour éviter les re-renders inutiles
   // === Fin : Définition des valeurs par défaut du profil ===
   
@@ -254,17 +256,20 @@ const Profile: React.FC = () => {
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="flex items-center mb-6">
                   <div className="flex-shrink-0 mr-6">
-                    <div className="relative">
-                      <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary-500 to-secondary-500 flex items-center justify-center text-white text-3xl font-bold">
-                        {formData.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="absolute bottom-0 right-0 bg-white dark:bg-gray-800 p-1 rounded-full shadow-md">
-                        <svg className="w-5 h-5 text-gray-600 dark:text-gray-300 cursor-pointer" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                      </div>
-                    </div>
+                    <AvatarUploader
+                      currentAvatar={formData.profile.avatar}
+                      userName={formData.name}
+                      onAvatarChange={(avatarPath) => {
+                        setFormData(prev => ({
+                          ...prev,
+                          profile: {
+                            ...prev.profile,
+                            avatar: avatarPath
+                          }
+                        }));
+                      }}
+                      size="large"
+                    />
                   </div>
                   
                   <div className="flex-1">

@@ -49,6 +49,7 @@ const clientRoutes = require('./routes/clients');
 const authRoutes = require('./routes/auth');
 const timerRoutes = require('./routes/timers');
 const uploadRoutes = require('./routes/upload'); // AJOUTER CETTE LIGNE
+const profitabilityRoutes = require('./routes/profitability');
 // === Fin : Importation des routes ===
 
 // === Début : Initialisation de l'application Express ===
@@ -110,6 +111,7 @@ app.use('/api/clients', clientRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/timers', timerRoutes);
 app.use('/api/upload', uploadRoutes); // AJOUTER CETTE LIGNE
+app.use('/api/profitability', profitabilityRoutes);
 // === Fin : Montage des routes API ===
 
 // === Début : Route de vérification d'état ===

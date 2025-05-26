@@ -6,6 +6,7 @@
 
 import axios from 'axios';
 import { store } from '../store/index';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { logout } from '../store/slices/authSlice';
 
 // === Début : Configuration de la connexion API ===
@@ -16,11 +17,11 @@ import { logout } from '../store/slices/authSlice';
 const getApiUrl = () => {
   // Si une variable d'environnement est définie, l'utiliser
   if (process.env.REACT_APP_API_URL) {
-    return process.env.REACT_APP_API_URL.endsWith('/api') 
-      ? process.env.REACT_APP_API_URL 
+    return process.env.REACT_APP_API_URL.endsWith('/api')
+      ? process.env.REACT_APP_API_URL
       : `${process.env.REACT_APP_API_URL}/api`;
   }
-  
+
   // Détection automatique de l'environnement Codespaces
   if (process.env.NODE_ENV === 'development' && window.location.hostname.includes('app.github.dev')) {
     const codespaceMatch = window.location.hostname.match(/^(.*?)-3000\.app\.github\.dev$/);
@@ -28,12 +29,12 @@ const getApiUrl = () => {
       return `https://${codespaceMatch[1]}-5000.app.github.dev/api`;
     }
   }
-  
+
   // Développement local
   if (process.env.NODE_ENV === 'development') {
     return 'http://localhost:5000/api';
   }
-  
+
   // Production - URL corrigée
   return 'https://task-manager-api-yx13.onrender.com/api';
 };
@@ -81,7 +82,7 @@ api.interceptors.response.use(
       data: error.response?.data,
       message: error.message
     });
-    
+
     if (error.response && error.response.status === 401) {
       // Gérer la déconnexion
       store.dispatch({ type: 'auth/logout' });
@@ -96,13 +97,14 @@ api.interceptors.response.use(
 // Explication simple : C'est comme un plan qui décrit à quoi ressemble un chronométrage, avec son heure de début, de fin, et à quoi il est lié.
 // Explication technique : Interface TypeScript qui définit la structure des objets Timer, spécifiant les types de toutes les propriétés pour assurer la cohérence des données.
 // Ajoutez ceci en haut du fichier api.ts
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface Timer {
   _id: string;
   startTime: Date;
   endTime?: Date;
   duration?: number;
-  clientId?: string | {_id: string; name: string};
-  taskId?: string | {_id: string; title: string};
+  clientId?: string | { _id: string; name: string };
+  taskId?: string | { _id: string; title: string };
   description?: string;
   billable?: boolean;
 }
@@ -255,7 +257,7 @@ export const timerService = {
       if (!token) {
         throw new Error("Token d'authentification manquant");
       }
-      
+
       // Faire la requête avec le token explicite
       const response = await axios({
         method: 'post',
@@ -266,7 +268,7 @@ export const timerService = {
           'Authorization': `Bearer ${token}`
         }
       });
-      
+
       console.log("⏱️ Timer démarré avec succès:", response.data);
       return response.data;
     } catch (error: any) {
@@ -274,7 +276,7 @@ export const timerService = {
       throw error;
     }
   },
-  
+
   stopTimer: async (id: string, duration?: number) => {
     console.log(`⏱️ Arrêt du timer ${id} avec duration:`, duration);
     try {
@@ -287,7 +289,7 @@ export const timerService = {
       throw error;
     }
   },
-  
+
   getRunningTimer: async () => {
     try {
       console.log("⏱️ Recherche du timer en cours");
@@ -300,7 +302,7 @@ export const timerService = {
       throw error;
     }
   },
-  
+
   getTimerHistory: async (taskId: string) => {
     try {
       console.log("⏱️ Récupération de l'historique pour la tâche:", taskId);
@@ -447,7 +449,7 @@ export default api;
 // === Fin : Exportation de l'instance API ===
 
 // Améliorer la fonction uploadLogo
-export const uploadLogo = async (file: File): Promise<{logoPath: string, message: string}> => {
+export const uploadLogo = async (file: File): Promise<{ path: string, filename: string, success: boolean }> => {
   const formData = new FormData();
   formData.append('logo', file);
 
@@ -459,27 +461,39 @@ export const uploadLogo = async (file: File): Promise<{logoPath: string, message
     });
 
     console.log('✅ Upload réussi:', response.data);
-    return response.data;
+
+    // ✅ L'API retourne {success, filename, path}
+    // Nous retournons exactement ce que l'API nous donne
+    return {
+      path: response.data.path,
+      filename: response.data.filename,
+      success: response.data.success
+    };
   } catch (error: any) {
     console.error('❌ Erreur upload:', error.response?.data || error);
     throw error;
   }
 };
 
-// Ajouter une fonction pour uploader l'avatar utilisateur
-export const uploadUserAvatar = async (file: File): Promise<{logoPath: string, message: string}> => {
+// Nouvelle fonction pour upload d'avatar utilisateur
+export const uploadUserAvatar = async (file: File): Promise<{ path: string, filename: string, success: boolean }> => {
   const formData = new FormData();
-  formData.append('logo', file);
+  formData.append('logo', file); // Réutilise la même route backend
 
   try {
-    const response = await api.post('/upload/avatar', formData, {
+    const response = await api.post('/upload/logo', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
     });
 
-    console.log('✅ Upload avatar réussi:', response.data);
-    return response.data;
+    console.log('✅ Avatar upload réussi:', response.data);
+
+    return {
+      path: response.data.path,
+      filename: response.data.filename,
+      success: response.data.success
+    };
   } catch (error: any) {
     console.error('❌ Erreur upload avatar:', error.response?.data || error);
     throw error;
