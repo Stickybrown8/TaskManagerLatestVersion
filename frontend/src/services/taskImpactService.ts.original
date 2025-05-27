@@ -5,7 +5,6 @@
 // Connecté à : API backend via Axios, service d'authentification (authHeader), et composants React qui gèrent la priorisation et l'analyse des tâches.
 
 import axios from 'axios';
-import api from './api';
 import { getAuthHeader } from './authHeader';
 
 // === Début : Configuration de l'URL de l'API ===
@@ -32,8 +31,7 @@ interface ApiResponse<T> {
 
 // Explication simple : C'est l'adresse où l'application va chercher et envoyer les informations, comme l'adresse de ton école où tu déposes et récupères tes devoirs.
 // Explication technique : Constante qui définit l'URL de base pour les requêtes API, récupérée depuis les variables d'environnement ou utilisant une valeur par défaut pour le développement local.
-const getApiUrl = () => api.defaults.baseURL || 'http://localhost:5000/api';
-const API_URL = getApiUrl();
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 // === Fin : Configuration de l'URL de l'API ===
 
 // === Début : Définition du service d'analyse d'impact des tâches ===

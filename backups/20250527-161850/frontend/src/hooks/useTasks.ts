@@ -29,7 +29,6 @@
 // Explication simple : On prend tous les outils dont on a besoin pour faire fonctionner notre gestionnaire de tâches, comme quand tu rassembles tes crayons et ton cahier avant de faire tes devoirs.
 // Explication technique : Importation des hooks React pour la gestion d'état et du cycle de vie, de la bibliothèque axios pour les requêtes HTTP, et des outils Redux personnalisés pour interagir avec le store global.
 import { useState, useEffect, useCallback } from 'react';
-import api from '../services/api';
 import axios from 'axios';
 import { useAppDispatch, useAppSelector } from '../hooks';
 import {
@@ -50,7 +49,7 @@ const getApiUrl = () => {
       return `https://${match[1]}-5000.app.github.dev`;
     }
   }
-  return api.defaults.baseURL?.replace('/api', '') || 'http://localhost:5000';
+  return process.env.REACT_APP_API_URL || 'http://localhost:5000';
 };
 const API_URL = getApiUrl();
 const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import api from '../services/api';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAppDispatch } from '../hooks';
 import { addNotification } from '../store/slices/uiSlice';
@@ -53,7 +52,7 @@ const TaskDetail: React.FC = () => {
       const token = localStorage.getItem('token');
       if (!token || !id) return;
 
-      const response = await fetch(`${api.defaults.baseURL?.replace('/api', '') || 'http://localhost:5000'}/api/tasks/${id}`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/tasks/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -82,7 +81,7 @@ const TaskDetail: React.FC = () => {
   const fetchClientDetails = async (clientId: string) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${api.defaults.baseURL?.replace('/api', '') || 'http://localhost:5000'}/api/clients/${clientId}`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/clients/${clientId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -119,7 +118,7 @@ const TaskDetail: React.FC = () => {
 
     try {
       if (newStatus === 'terminée') {
-        const response = await fetch(`${api.defaults.baseURL?.replace('/api', '') || 'http://localhost:5000'}/api/tasks/${id}/complete`, {
+        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/tasks/${id}/complete`, {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,

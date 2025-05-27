@@ -5,7 +5,6 @@
 // Connecté à : API d'inscription backend via fetch, react-router-dom pour la navigation, et Framer Motion pour les animations.
 
 import React, { useState } from 'react';
-import api from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
@@ -40,7 +39,7 @@ const Register: React.FC = () => {
     try {
       // Log pour debug en prod/déploiement
       console.log("REACT_APP_API_URL =", process.env.REACT_APP_API_URL);
-      const apiUrl = (api.defaults.baseURL?.replace('/api', '') || 'http://localhost:5000').replace(/\/$/, ''); // supprime le slash de fin
+      const apiUrl = (process.env.REACT_APP_API_URL || 'http://localhost:5000').replace(/\/$/, ''); // supprime le slash de fin
       const url = `${apiUrl}/api/users/register`; // <-- ajoute /api
       console.log("URL d'inscription appelée :", url);
 

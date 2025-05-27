@@ -30,7 +30,6 @@
 // Explication simple : On prend tous les outils dont on a besoin pour faire fonctionner notre page de client, comme quand tu rassembles tes jouets avant de commencer à jouer.
 // Explication technique : Importation des hooks React pour la gestion d'état et du cycle de vie, des composants de routage, des hooks Redux personnalisés, des actions Redux, des services d'API, des composants UI spécifiques et des bibliothèques tierces.
 import React, { useState, useEffect } from 'react';
-import api from '../services/api';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../hooks';
 import { fetchClientStart, fetchClientSuccess, fetchClientFailure, updateClientStart, updateClientSuccess, updateClientFailure, deleteClientStart, deleteClientSuccess, deleteClientFailure } from '../store/slices/clientsSlice';
@@ -57,7 +56,7 @@ const getApiUrl = () => {
   }
   
   if (process.env.NODE_ENV === 'development') {
-    return api.defaults.baseURL?.replace('/api', '') || 'http://localhost:5000';
+    return 'http://localhost:5000';
   }
   
   // Corriger cette ligne pour retourner l'URL correcte

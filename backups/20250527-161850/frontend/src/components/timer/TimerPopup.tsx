@@ -1,6 +1,5 @@
 import { formatDurationHuman } from '../../utils/dateUtils';
 import React, { useState, useEffect, useRef } from 'react';
-import api from '../../services/api';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { useAppDispatch, useAppSelector } from '../../hooks';
 import {
@@ -21,7 +20,7 @@ import { useTasks } from '../../hooks/useTasks';
 // Détection automatique de l'URL pour GitHub Codespaces
 const getApiUrl = () => {
   if (window.location.hostname === 'localhost') {
-    return api.defaults.baseURL?.replace('/api', '') || 'http://localhost:5000';
+    return 'http://localhost:5000';
   }
   if (window.location.hostname.includes('github.dev')) {
     return window.location.origin.replace('-3000.', '-5000.');

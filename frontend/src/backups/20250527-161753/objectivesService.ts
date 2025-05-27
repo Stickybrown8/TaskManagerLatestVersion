@@ -6,7 +6,6 @@ import { ApiResponse } from "../types/api";
 // Connecté à : API backend via Axios, service d'authentification (authHeader), et composants React qui gèrent les objectifs.
 
 import axios from 'axios';
-import api from './api';
 import { getAuthHeader } from './authHeader';
 
 // === Début : Configuration de l'URL de l'API ===
@@ -41,8 +40,7 @@ interface UpdateObjectiveData extends Partial<CreateObjectiveData> {
 
 // Explication simple : C'est l'adresse où ton application va chercher les informations, comme une adresse postale pour envoyer et recevoir du courrier.
 // Explication technique : Constante qui définit l'URL de base de l'API, récupérée depuis les variables d'environnement ou utilisant une valeur par défaut pour le développement local.
-const getApiUrl = () => api.defaults.baseURL || 'http://localhost:5000/api';
-const API_URL = getApiUrl();
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 // === Fin : Configuration de l'URL de l'API ===
 
 // === Début : Définition du service d'objectifs ===

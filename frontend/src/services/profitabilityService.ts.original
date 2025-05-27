@@ -6,7 +6,6 @@ import { ApiResponse } from "../types/api";
 // Connecté à : API backend via Axios, service d'authentification (authHeader), et composants React qui gèrent ou affichent les données de rentabilité.
 
 import axios from 'axios';
-import api from './api';
 import { getAuthHeader } from './authHeader';
 
 // === Début : Configuration de l'URL de l'API ===
@@ -42,8 +41,7 @@ interface UpdateProfitabilityData extends Partial<CreateProfitabilityData> {
 
 // Explication simple : C'est l'adresse où l'application va chercher les informations, comme l'adresse d'un magasin où tu vas faire tes courses.
 // Explication technique : Constante qui définit l'URL de base de l'API, récupérée depuis les variables d'environnement ou utilisant une valeur par défaut pour le développement local.
-const getApiUrl = () => api.defaults.baseURL || 'http://localhost:5000/api';
-const API_URL = getApiUrl();
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 // === Fin : Configuration de l'URL de l'API ===
 
 // === Début : Définition du service de rentabilité ===

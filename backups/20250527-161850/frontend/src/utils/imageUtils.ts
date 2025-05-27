@@ -1,4 +1,3 @@
-import { getImageUrl as getImageUrlFromApi } from '../services/api';
 // === Utilitaires pour la gestion des images ===
 
 const getApiBaseUrl = (): string => {
@@ -13,7 +12,7 @@ const getApiBaseUrl = (): string => {
   }
   
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return getImageUrlFromApi('').replace('/api', '');
+    return 'http://localhost:5000';
   }
   
   return 'https://task-manager-api-yx13.onrender.com';
