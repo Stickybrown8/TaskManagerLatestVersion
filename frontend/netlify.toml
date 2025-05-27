@@ -1,0 +1,64 @@
+# frontend/netlify.toml
+# Configuration pour le déploiement sur Netlify
+
+[build]
+  # Commande de build
+  command = "npm run build"
+  
+  # Dossier de publication
+  publish = "build"
+  
+  # Variables d'environnement de build
+  environment = { NODE_VERSION = "18" }
+
+[build.environment]
+  # URL de l'API en production
+  REACT_APP_API_URL = "https://task-manager-api-yx13.onrender.com"
+  REACT_APP_ENV = "production"
+
+# Redirections pour React Router (SPA)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Headers de sécurité
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    
+# Headers de cache pour les assets statiques
+[[headers]]
+  for = "/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+    
+# Headers de cache pour les images
+[[headers]]
+  for = "/*.jpg"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+    
+[[headers]]
+  for = "/*.png"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+    
+[[headers]]
+  for = "/*.svg"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+    
+[[headers]]
+  for = "/*.webp"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+
+# Configuration des fonctions (si vous en utilisez)
+[functions]
+  directory = "netlify/functions"

@@ -11,3 +11,7 @@ build/
 /frontend/build/
 
 /frontend/.env
+# Toutes les variantes de .env
+.env.*
+/backend/.env.*
+/frontend/.env.*

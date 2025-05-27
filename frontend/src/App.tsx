@@ -1,11 +1,9 @@
-// === Ce fichier est le point d'entrée principal qui organise toute la navigation de l'application === /workspaces/TaskManagerLatestVersion/frontend/src/App.tsx
-// Explication simple : Ce fichier est comme le sommaire d'un grand livre - il liste toutes les pages disponibles et décide quelles pages montrer selon où tu cliques, tout en gardant les éléments communs comme les menus.
-// Explication technique : Composant React fonctionnel racine qui définit l'arborescence des routes de l'application en utilisant React Router, conditionnant l'accès à certaines pages via des routes protégées.
-// Utilisé dans : index.tsx comme composant racine, rendu à l'intérieur du Provider Redux et BrowserRouter pour former l'application complète.
-// Connecté à : Tous les composants de page importés, le routeur React Router (Routes, Route), le composant Layout qui fournit la structure commune, et indirectement au store Redux via les composants enfants.
+// frontend/src/App.tsx
+// Application principale avec persistance de l'authentification
 
 import React, { useState, useEffect } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
 import Layout from './components/Layout';
 import PrivateRoute from './components/PrivateRoute';
 import TimerPopup from './components/timer/TimerPopup';
@@ -27,22 +25,58 @@ import TestLogin from './TestLogin';
 import AdminSetup from './AdminSetup';
 import ClientStatistics from './pages/ClientStatistics';
 import ConfettiEffect from './components/gamification/ConfettiEffect';
+import { initializeAuth } from './services/api';
+import { loginSuccess } from './store/slices/authSlice';
 
-// === Début : Définition du composant principal App ===
-// Explication simple : Cette partie crée la grande boîte magique qui contient toute l'application - elle décide quelles pages montrer et comment elles sont organisées.
-// Explication technique : Composant fonctionnel React (FC) déclaré avec TypeScript qui constitue le point d'entrée principal de l'application, orchestrant la navigation et les composants partagés.
 const App: React.FC = () => {
-  console.log("App.tsx rendu !");
-  
-  // === Début : État pour l'animation de confetti ===
-  // Explication simple : Cette ligne crée un interrupteur pour les confettis - quand il est activé, des confettis colorés apparaissent à l'écran comme lors d'une fête.
-  // Explication technique : Hook useState qui initialise un état booléen à false pour contrôler l'affichage du composant ConfettiEffect, avec une fonction setter pour modifier cet état.
+  const dispatch = useDispatch();
   const [showConfetti, setShowConfetti] = useState(false);
-  // === Fin : État pour l'animation de confetti ===
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // === Début : Configuration de l'écouteur d'événements pour les confettis ===
-  // Explication simple : Ce bloc surveille si quelqu'un demande des confettis dans l'application - si oui, il les affiche pendant 3 secondes puis les fait disparaître.
-  // Explication technique : Hook useEffect qui enregistre un écouteur d'événement personnalisé 'trigger-confetti' sur l'objet window, activant et désactivant l'animation via setTimeout, avec nettoyage approprié lors du démontage du composant.
+  // === Vérification de l'authentification au démarrage ===
+  useEffect(() => {
+    const checkAuth = async () => {
+      console.log('🔐 Vérification de l\'authentification...');
+      
+      try {
+        // Vérifier le token stocké
+        const token = localStorage.getItem('token');
+        const userStr = localStorage.getItem('user');
+        
+        if (token && userStr) {
+          // Vérifier la validité du token avec l'API
+          const isValid = await initializeAuth();
+          
+          if (isValid) {
+            // Token valide - restaurer l'état Redux
+            const user = JSON.parse(userStr);
+            dispatch(loginSuccess({ user, token }));
+            setIsAuthenticated(true);
+            console.log('✅ Utilisateur authentifié:', user.name);
+          } else {
+            // Token invalide - nettoyer
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            setIsAuthenticated(false);
+            console.log('❌ Token invalide, utilisateur déconnecté');
+          }
+        } else {
+          console.log('📍 Pas de session trouvée');
+          setIsAuthenticated(false);
+        }
+      } catch (error) {
+        console.error('❌ Erreur lors de la vérification:', error);
+        setIsAuthenticated(false);
+      } finally {
+        setIsInitializing(false);
+      }
+    };
+
+    checkAuth();
+  }, [dispatch]);
+
+  // === Écouteur d'événements pour les confettis ===
   useEffect(() => {
     const handleTriggerConfetti = () => {
       setShowConfetti(true);
@@ -52,23 +86,45 @@ const App: React.FC = () => {
     window.addEventListener('trigger-confetti', handleTriggerConfetti);
     return () => window.removeEventListener('trigger-confetti', handleTriggerConfetti);
   }, []);
-  // === Fin : Configuration de l'écouteur d'événements pour les confettis ===
 
-  // === Début : Rendu de l'interface avec définition des routes ===
-  // Explication simple : Cette partie est comme une carte routière qui indique où aller selon le chemin que tu choisis - elle dit quelles pages afficher quand tu cliques sur différents liens.
-  // Explication technique : Fonction de rendu JSX qui retourne l'arborescence complète des routes de l'application utilisant React Router v6, avec imbrication de routes pour les sections protégées et publiques.
+  // === Affichage du loader pendant l'initialisation ===
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement de l'application...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <TimerPopup />
       <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+        {/* Routes publiques */}
+        <Route 
+          path="/login" 
+          element={
+            isAuthenticated ? <Navigate to="/" replace /> : <Login />
+          } 
+        />
+        <Route 
+          path="/register" 
+          element={
+            isAuthenticated ? <Navigate to="/" replace /> : <Register />
+          } 
+        />
         <Route path="/test-api" element={<TestApi />} />
         <Route path="/test-login" element={<TestLogin />} />
         <Route path="/admin-setup" element={<AdminSetup />} />
+
+        {/* Routes protégées */}
         <Route element={<PrivateRoute />}>
           <Route element={<Layout />}>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/dashboard" element={<Navigate to="/" replace />} />
             <Route path="/clients" element={<Clients />} />
             <Route path="/clients/new" element={<ClientForm />} />
             <Route path="/clients/:id" element={<ClientDetail />} />
@@ -80,32 +136,38 @@ const App: React.FC = () => {
             <Route path="/gamification" element={<Gamification />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/client-statistics" element={<ClientStatistics />} />
-            <Route path="*" element={<div>Page non trouvée</div>} />
           </Route>
         </Route>
+
+        {/* Route 404 */}
+        <Route 
+          path="*" 
+          element={
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+              <div className="text-center">
+                <h1 className="text-6xl font-bold text-gray-800 mb-4">404</h1>
+                <p className="text-xl text-gray-600 mb-8">Page non trouvée</p>
+                <a 
+                  href="/" 
+                  className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Retour à l'accueil
+                </a>
+              </div>
+            </div>
+          } 
+        />
       </Routes>
       
-      {/* === Début : Affichage conditionnel des outils de débogage ===
-       * Explication simple : Ces lignes montrent des outils spéciaux pour aider les développeurs, mais seulement quand l'application est en mode développement - comme des lunettes magiques qui ne fonctionnent que pour les réparateurs.
-       * Explication technique : Rendu conditionnel basé sur la variable d'environnement NODE_ENV qui n'affiche les composants de débogage du timer que lorsque l'application n'est pas en mode production.
-       */}
-      {/* === Fin : Affichage conditionnel des outils de débogage === */}
-      
-      {/* === Début : Composant d'effet de confetti ===
-       * Explication simple : Cette partie gère les confettis colorés qui tombent à l'écran quand quelque chose d'important est accompli - comme les confettis lors d'une fête.
-       * Explication technique : Rendu du composant ConfettiEffect avec des props pour contrôler son affichage, sa durée et son comportement en fonction de l'état showConfetti.
-       */}
+      {/* Effet de confetti */}
       <ConfettiEffect 
         show={showConfetti} 
         duration={3000}
         particleCount={100}
         onComplete={() => setShowConfetti(false)}
       />
-      {/* === Fin : Composant d'effet de confetti === */}
     </>
   );
-  // === Fin : Rendu de l'interface avec définition des routes ===
 };
-// === Fin : Définition du composant principal App ===
 
 export default App;

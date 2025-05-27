@@ -42,16 +42,7 @@ import {
 // Explication simple : On prépare les informations importantes dont on aura besoin, comme l'adresse du serveur et combien de temps attendre avant de rafraîchir les tâches.
 // Explication technique : Définition des constantes pour l'URL de l'API avec fallback et l'intervalle de rafraîchissement périodique des données en millisecondes.
 // Configuration de l'URL de l'API
-const getApiUrl = () => {
-  if (typeof window !== 'undefined' && window.location.hostname.includes('app.github.dev')) {
-    const match = window.location.hostname.match(/^(.*?)-3000\.app\.github\.dev$/);
-    if (match && match[1]) {
-      return `https://${match[1]}-5000.app.github.dev`;
-    }
-  }
-  return process.env.REACT_APP_API_URL || 'http://localhost:5000';
-};
-const API_URL = getApiUrl();
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
 // === Fin : Configuration des constantes ===
 

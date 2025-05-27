@@ -19,7 +19,7 @@ const getApiUrl = (): string => {
 
   // 2. Production (Netlify ou domaine personnalisé)
   if (window.location.hostname.includes('netlify.app') || 
-      window.location.hostname.includes('task-manager-steven.netlify.app') ||
+      window.location.hostname.includes('votre-domaine.com') ||
       process.env.NODE_ENV === 'production') {
     console.log('🚀 Environnement Production');
     return 'https://task-manager-api-yx13.onrender.com/api';

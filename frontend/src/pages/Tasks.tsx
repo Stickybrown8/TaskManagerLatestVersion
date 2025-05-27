@@ -5,7 +5,7 @@ import { setTaskFilters } from '../store/slices/tasksSlice';
 import { addNotification } from '../store/slices/uiSlice';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTasks } from '../hooks/useTasks';
-import { tasksService } from '../services/api';
+import { tasksService, clientsService, profitabilityService } from '../services/api';
 
 // Interfaces
 interface Client {
@@ -26,7 +26,7 @@ interface Task {
   dueDate: string;
   category: string;
   actionPoints?: number;
-  timeSpent?: number; // Changé de actualTime
+  timeSpent?: number;
   estimatedTime?: number;
   isHighImpact?: boolean;
   createdAt?: string;
@@ -76,42 +76,29 @@ const Tasks: React.FC = () => {
 
   const fetchClients = async () => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) return;
-      
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/clients`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setLocalClients(data);
-      }
+      const data = await clientsService.getClients();
+      setLocalClients(data);
     } catch (error) {
       console.error('Erreur chargement clients:', error);
+      setLocalClients([]);
     }
   };
 
-  // NOUVEAU : Récupérer la rentabilité de tous les clients
   const fetchAllClientsProfitability = async () => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) return;
+      const data = await profitabilityService.getAllProfitability();
       
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/profitability`, {
-        headers: { Authorization: `Bearer ${token}` }
+      const profitMap: Record<string, any> = {};
+      data.forEach((prof: any) => {
+        if (prof.clientId && prof.clientId._id) {
+          profitMap[prof.clientId._id] = prof;
+        }
       });
       
-      if (response.ok) {
-        const data = await response.json();
-        const profitabilityMap: Record<string, ClientProfitability> = {};
-        data.forEach((prof: any) => {
-          profitabilityMap[prof.clientId._id || prof.clientId] = prof;
-        });
-        setClientsProfitability(profitabilityMap);
-      }
+      setClientsProfitability(profitMap);
     } catch (error) {
       console.error('Erreur chargement rentabilité:', error);
+      setClientsProfitability({});
     }
   };
 
@@ -157,7 +144,7 @@ const Tasks: React.FC = () => {
     return acc;
   }, {});
 
-  // AMÉLIORÉ : Calcul des statistiques par client avec rentabilité
+  // Calcul des statistiques par client avec rentabilité
   const getClientStats = (clientTasks: Task[], clientId: string) => {
     const completed = clientTasks.filter(t => t.status === 'terminée');
     const inProgress = clientTasks.filter(t => t.status === 'en cours');
@@ -236,7 +223,7 @@ const Tasks: React.FC = () => {
       const taskData = {
         ...newTask,
         status: 'à faire' as const,
-        timeSpent: 0, // Changé de actualTime
+        timeSpent: 0,
         actionPoints: newTask.isHighImpact ? 10 : 5
       };
 
@@ -274,22 +261,13 @@ const Tasks: React.FC = () => {
     try {
       if (newStatus === 'terminée') {
         // Utiliser la route /complete pour bénéficier de la gamification
-        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/tasks/${taskId}/complete`, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            'Content-Type': 'application/json'
-          }
-        });
+        const completedTask = await tasksService.completeTask(taskId);
         
-        if (response.ok) {
-          const data = await response.json();
-          if (data.rewards) {
-            dispatch(addNotification({
-              message: `🎉 Tâche terminée! +${data.rewards.points} points, +${data.rewards.experience} XP`,
-              type: 'success'
-            }));
-          }
+        if (completedTask.rewards) {
+          dispatch(addNotification({
+            message: `🎉 Tâche terminée! +${completedTask.rewards.points} points, +${completedTask.rewards.experience} XP`,
+            type: 'success'
+          }));
         }
       } else {
         await tasksService.updateTask(taskId, { status: newStatus });
@@ -527,7 +505,7 @@ const Tasks: React.FC = () => {
                   animate={{ opacity: 1, y: 0 }}
                   className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden"
                 >
-                  {/* En-tête du client AMÉLIORÉ */}
+                  {/* En-tête du client */}
                   <div 
                     className="p-6 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                     onClick={() => toggleClientExpansion(clientId)}
@@ -557,7 +535,7 @@ const Tasks: React.FC = () => {
                       </div>
                       
                       <div className="flex items-center gap-6">
-                        {/* NOUVEAU : Informations de rentabilité */}
+                        {/* Informations de rentabilité */}
                         <div className="text-right">
                           <div className="flex items-center gap-2 justify-end">
                             <span className="text-sm text-gray-600">Ce mois:</span>
@@ -739,7 +717,7 @@ const Tasks: React.FC = () => {
         )}
       </div>
 
-      {/* Modal de création (inchangé) */}
+      {/* Modal de création */}
       <AnimatePresence>
         {showCreateModal && (
           <motion.div

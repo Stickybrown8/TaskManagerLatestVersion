@@ -1,123 +1,210 @@
-/*
- * ROUTES DE GESTION DES UTILISATEURS - backend/routes/users.js
- *
- * Explication simple:
- * Ce fichier définit maintenant uniquement les chemins d'accès pour les utilisateurs,
- * comme un panneau d'indication qui dit "pour s'inscrire, allez par là" et "pour se connecter, allez par ici".
- * La vraie logique de ce qui se passe est maintenant dans le contrôleur dédié.
- *
- * Explication technique:
- * Routes Express.js refactorisées selon le pattern MVC, délégant la logique métier
- * au contrôleur auth.controller.js. Ce fichier ne gère plus que le routage et l'application
- * des middlewares d'authentification.
- *
- * AVANT REFACTORISATION : 150+ lignes avec logique métier mélangée
- * APRÈS REFACTORISATION : 30 lignes, responsabilités séparées
- *
- * Connexions avec d'autres fichiers:
- * - Utilise auth.controller.js pour toute la logique d'authentification
- * - Utilise middleware/auth.js pour la protection des routes
- * - Monté dans server.js via app.use('/api/users', userRoutes)
- */
+// backend/routes/users.js
+// Routes pour la gestion des utilisateurs avec authentification
 
-// === IMPORTATIONS ===
 const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../middleware/auth');
 const authController = require('../controllers/auth.controller');
 const mongoLogger = require('../utils/mongoLogger');
 
-// === MIDDLEWARE DE LOGGING ===
-// Log toutes les requêtes sur les routes utilisateurs
-router.use((req, res, next) => {
-  mongoLogger.info(`Route utilisateur appelée`, {
-    method: req.method,
-    path: req.originalUrl,
-    ip: req.ip
-  });
+// === Routes publiques (sans authentification) ===
+
+// Inscription
+router.post('/register', (req, res, next) => {
+  mongoLogger.info('📝 Route register appelée', { email: req.body.email });
   next();
+}, authController.register);
+
+// Connexion
+router.post('/login', (req, res, next) => {
+  mongoLogger.info('🔐 Route login appelée', { email: req.body.email });
+  next();
+}, authController.login);
+
+// === Routes protégées (nécessitent authentification) ===
+
+// Vérification du token
+router.get('/verify', verifyToken, async (req, res) => {
+  try {
+    // Si on arrive ici, le token est valide (vérifié par le middleware)
+    const User = require('../models/User');
+    const user = await User.findById(req.user.id).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Utilisateur non trouvé'
+      });
+    }
+    
+    res.json({
+      success: true,
+      valid: true,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        profile: user.profile,
+        gamification: user.gamification
+      }
+    });
+  } catch (error) {
+    mongoLogger.error('❌ Erreur vérification token', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la vérification'
+    });
+  }
 });
 
-// === ROUTES D'AUTHENTIFICATION ===
-
-/**
- * INSCRIPTION D'UN NOUVEL UTILISATEUR
- * POST /api/users/register
- * 
- * Avant: 50+ lignes de logique ici
- * Après: Délégation au contrôleur
- */
-router.post('/register', authController.register);
-
-/**
- * CONNEXION D'UN UTILISATEUR
- * POST /api/users/login
- * 
- * Avant: 30+ lignes de logique ici
- * Après: Délégation au contrôleur
- */
-router.post('/login', authController.login);
-
-/**
- * RÉCUPÉRATION DU PROFIL UTILISATEUR
- * GET /api/users/profile
- * 
- * Avant: 20+ lignes de logique ici
- * Après: Middleware d'auth + délégation au contrôleur
- */
+// Récupération du profil
 router.get('/profile', verifyToken, authController.getProfile);
 
-/**
- * MISE À JOUR DU PROFIL UTILISATEUR
- * PUT /api/users/profile
- * 
- * Nouvelle route gérée par le contrôleur
- */
-router.put('/profile', verifyToken, authController.updateProfile);
-
-/**
- * VÉRIFICATION DE LA VALIDITÉ DU TOKEN
- * GET /api/users/verify
- * 
- * Nouvelle route pour vérifier si un token est encore valide
- */
-router.get('/verify', verifyToken, authController.verifyToken);
-
-// === ROUTES FUTURES (PLACEHOLDERS) ===
-// Ces routes pourront être ajoutées plus tard selon les besoins
-
-/**
- * LISTE DE TOUS LES UTILISATEURS (ADMIN)
- * GET /api/users
- * TODO: Créer userController.getAllUsers()
- */
-// router.get('/', verifyToken, verifyAdmin, userController.getAllUsers);
-
-/**
- * RÉCUPÉRATION D'UN UTILISATEUR SPÉCIFIQUE (ADMIN)
- * GET /api/users/:id
- * TODO: Créer userController.getUserById()
- */
-// router.get('/:id', verifyToken, verifyAdmin, userController.getUserById);
-
-/**
- * SUPPRESSION D'UN UTILISATEUR (ADMIN)
- * DELETE /api/users/:id
- * TODO: Créer userController.deleteUser()
- */
-// router.delete('/:id', verifyToken, verifyAdmin, userController.deleteUser);
-
-// === GESTION D'ERREURS SPÉCIFIQUE AUX ROUTES UTILISATEURS ===
-router.use((error, req, res, next) => {
-  mongoLogger.error('Erreur dans les routes utilisateurs', {
-    error: error.message,
-    route: req.originalUrl,
-    method: req.method
-  });
-  
-  // Passer l'erreur au middleware global de gestion d'erreurs
-  next(error);
+// Mise à jour du profil
+router.put('/profile', verifyToken, async (req, res) => {
+  try {
+    const User = require('../models/User');
+    const userId = req.user.id;
+    const updates = req.body;
+    
+    mongoLogger.info('📝 Mise à jour profil', {
+      userId,
+      fields: Object.keys(updates)
+    });
+    
+    // Empêcher la modification de certains champs
+    delete updates._id;
+    delete updates.password;
+    delete updates.email; // Email ne peut pas être changé directement
+    
+    // Gérer la mise à jour de l'avatar dans le profil
+    if (updates['profile.avatar']) {
+      updates.profile = updates.profile || {};
+      updates.profile.avatar = updates['profile.avatar'];
+      delete updates['profile.avatar'];
+    }
+    
+    // Mettre à jour l'utilisateur
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { 
+        $set: updates,
+        $currentDate: { updatedAt: true }
+      },
+      { 
+        new: true, 
+        runValidators: true 
+      }
+    ).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Utilisateur non trouvé'
+      });
+    }
+    
+    mongoLogger.info('✅ Profil mis à jour', {
+      userId: user._id,
+      name: user.name
+    });
+    
+    res.json({
+      success: true,
+      message: 'Profil mis à jour avec succès',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        profile: user.profile,
+        gamification: user.gamification,
+        preferences: user.preferences
+      }
+    });
+    
+  } catch (error) {
+    mongoLogger.error('❌ Erreur mise à jour profil', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la mise à jour du profil',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
 });
 
-// === EXPORTATION ===
+// Changement de mot de passe
+router.put('/change-password', verifyToken, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user.id;
+    const bcrypt = require('bcrypt');
+    const User = require('../models/User');
+    
+    // Validation
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mot de passe actuel et nouveau requis'
+      });
+    }
+    
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Le nouveau mot de passe doit contenir au moins 6 caractères'
+      });
+    }
+    
+    // Récupérer l'utilisateur avec le mot de passe
+    const user = await User.findById(userId).select('+password');
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Utilisateur non trouvé'
+      });
+    }
+    
+    // Vérifier le mot de passe actuel
+    const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        success: false,
+        message: 'Mot de passe actuel incorrect'
+      });
+    }
+    
+    // Hasher et sauvegarder le nouveau mot de passe
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    user.password = hashedPassword;
+    await user.save();
+    
+    mongoLogger.info('✅ Mot de passe changé', { userId });
+    
+    res.json({
+      success: true,
+      message: 'Mot de passe changé avec succès'
+    });
+    
+  } catch (error) {
+    mongoLogger.error('❌ Erreur changement mot de passe', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors du changement de mot de passe'
+    });
+  }
+});
+
+// Route de déconnexion (optionnelle, côté client suffit généralement)
+router.post('/logout', verifyToken, (req, res) => {
+  // Ici on pourrait invalider le token côté serveur si on avait une blacklist
+  // Pour l'instant, la déconnexion est gérée côté client
+  mongoLogger.info('👋 Déconnexion utilisateur', { userId: req.user.id });
+  
+  res.json({
+    success: true,
+    message: 'Déconnexion réussie'
+  });
+});
+
+// Export
 module.exports = router;

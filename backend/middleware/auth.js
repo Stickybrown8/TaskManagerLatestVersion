@@ -1,137 +1,202 @@
-/*
- * MIDDLEWARE D'AUTHENTIFICATION - backend/middleware/auth.js
- *
- * Explication simple:
- * Ce fichier vérifie si un utilisateur est bien connecté avant de le laisser accéder à certaines
- * parties de l'application. C'est comme un videur à l'entrée d'une boîte de nuit qui vérifie les cartes d'identité.
- *
- * Explication technique:
- * Middleware Express.js qui vérifie l'authenticité et la validité des JWT (JSON Web Tokens)
- * pour sécuriser les routes de l'API.
- *
- * Où ce fichier est utilisé:
- * Appliqué sur les routes de l'API qui nécessitent une authentification utilisateur.
- *
- * Connexions avec d'autres fichiers:
- * - Utilisé par les fichiers de routes (routes/*.js) pour protéger les endpoints de l'API
- * - Utilise mongoLogger.js pour la journalisation des tentatives d'accès
- * - Interagit indirectement avec les contrôleurs qui gèrent les requêtes authentifiées
- * - Peut accéder au modèle User pour des vérifications supplémentaires (actuellement commenté)
- */
+// backend/middleware/auth.js
+// Middleware d'authentification avec support multi-environnements
 
-// === Début : Importation des dépendances ===
-// Explication simple : On fait venir les outils dont on a besoin pour vérifier si quelqu'un est bien connecté.
-// Explication technique : Importation des modules nécessaires - jsonwebtoken pour la manipulation des JWT, mongoose pour la gestion des IDs MongoDB, et mongoLogger pour la journalisation structurée.
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const mongoLogger = require('../utils/mongoLogger');
-// === Fin : Importation des dépendances ===
 
-// === Début : Configuration et variables d'environnement ===
-// Explication simple : On prépare les règles de sécurité et on vérifie si on doit contrôler les entrées ou laisser tout le monde passer.
-// Explication technique : Initialisation des constantes de configuration avec fallback vers des valeurs par défaut, et détermination du mode d'authentification basé sur les variables d'environnement.
+// === Configuration JWT ===
 const JWT_SECRET = process.env.JWT_SECRET || 'e34aaef4c604376cab0329dfa150e060a2e67601835e118ae6518a5754923e7d';
-const AUTH_REQUIRED = process.env.AUTH_REQUIRED !== 'false'; // Activer par défaut
-// === Fin : Configuration et variables d'environnement ===
+const JWT_EXPIRES_IN = '7d'; // Token valide 7 jours
+const AUTH_REQUIRED = process.env.AUTH_REQUIRED !== 'false';
 
-// === Début : Fonction principale de vérification du token ===
-// Explication simple : Cette fonction vérifie si un visiteur a le droit d'accéder à une zone protégée du site en contrôlant son badge numérique.
-// Explication technique : Middleware Express asynchrone qui intercepte les requêtes, vérifie la présence et la validité d'un JWT et enrichit l'objet request avec l'identifiant de l'utilisateur authentifié.
+// === Middleware principal de vérification du token ===
 const verifyToken = async (req, res, next) => {
-  // === Début : Journalisation des requêtes entrantes ===
-  // Explication simple : On note qui essaie d'entrer, avec quel appareil et ce qu'il veut faire.
-  // Explication technique : Enregistrement des métadonnées de la requête entrante dans les logs pour faciliter le débogage et l'audit, en excluant les données sensibles.
-  mongoLogger.debug('Requête API reçue', {
-    method: req.method,
-    path: req.originalUrl,
-    ip: req.ip,
-    userAgent: req.get('User-Agent')
-  });
-  // === Fin : Journalisation des requêtes entrantes ===
-  
-  // === Début : Mode de transition sans authentification ===
-  // Explication simple : Si on a décidé de ne pas vérifier les badges pour l'instant, on laisse tout le monde passer mais on le note.
-  // Explication technique : Court-circuit conditionnel du processus d'authentification pour les environnements de développement ou de test, avec attribution d'un ID utilisateur factice.
-  if (!AUTH_REQUIRED) {
-    mongoLogger.warn('Mode sans authentification activé (NE PAS UTILISER EN PRODUCTION)', {
-      path: req.originalUrl
-    });
-    // Mode dev - essayer d'extraire l'ID du token même sans vérification complète
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    console.log("🔍 Token extrait:", token?.substring(0, 50) + "...");
-    if (token) {
-      try {
-        const decoded = jwt.decode(token); // decode sans vérifier
-        req.userId = decoded?.id || "507f1f77bcf86cd799439011";
-      } catch {
-        req.userId = "507f1f77bcf86cd799439011";
-      }
-    } else {
-      req.userId = "507f1f77bcf86cd799439011";
+  try {
+    // Log de la requête en développement
+    if (process.env.NODE_ENV === 'development') {
+      mongoLogger.debug('🔐 Vérification auth', {
+        method: req.method,
+        path: req.originalUrl,
+        hasAuthHeader: !!req.headers.authorization
+      });
     }
+    
+    // Mode sans authentification (dev uniquement)
+    if (!AUTH_REQUIRED && process.env.NODE_ENV !== 'production') {
+      mongoLogger.warn('⚠️  Mode sans auth activé (DEV)', {
+        path: req.originalUrl
+      });
+      
+      // Essayer d'extraire l'ID du token même sans vérification
+      const token = req.headers.authorization?.replace('Bearer ', '');
+      if (token) {
+        try {
+          const decoded = jwt.decode(token);
+          req.userId = decoded?.id || "507f1f77bcf86cd799439011";
+          req.user = { 
+            id: decoded?.id || "507f1f77bcf86cd799439011",
+            email: decoded?.email,
+            username: decoded?.username || decoded?.name
+          };
+        } catch {
+          req.userId = "507f1f77bcf86cd799439011";
+          req.user = { id: "507f1f77bcf86cd799439011" };
+        }
+      } else {
+        req.userId = "507f1f77bcf86cd799439011";
+        req.user = { id: "507f1f77bcf86cd799439011" };
+      }
+      return next();
+    }
+    
+    // Extraction du token
+    let token = req.headers['x-access-token'] || req.headers['authorization'];
+    
+    if (!token) {
+      return res.status(401).json({ 
+        success: false,
+        message: 'Aucun token fourni'
+      });
+    }
+    
+    // Retirer le préfixe "Bearer "
+    if (token.startsWith('Bearer ')) {
+      token = token.slice(7);
+    }
+    
+    // Vérification du token
+    jwt.verify(token, JWT_SECRET, (err, decoded) => {
+      if (err) {
+        // Log de l'erreur
+        mongoLogger.warn('❌ Token invalide', {
+          error: err.message,
+          path: req.originalUrl,
+          tokenPreview: token ? `${token.substring(0, 20)}...` : 'Aucun'
+        });
+        
+        // Gestion spécifique des erreurs
+        if (err.name === 'TokenExpiredError') {
+          return res.status(401).json({
+            success: false,
+            message: 'Token expiré',
+            expired: true
+          });
+        }
+        
+        if (err.name === 'JsonWebTokenError') {
+          return res.status(401).json({
+            success: false,
+            message: 'Token invalide',
+            error: err.message
+          });
+        }
+        
+        // Erreur générique
+        return res.status(401).json({
+          success: false,
+          message: 'Erreur d\'authentification'
+        });
+      }
+      
+      // Token valide - enrichir la requête
+      req.userId = decoded.id;
+      req.user = {
+        id: decoded.id,
+        email: decoded.email,
+        username: decoded.username || decoded.name
+      };
+      
+      // Log de succès en développement
+      if (process.env.NODE_ENV === 'development') {
+        mongoLogger.debug('✅ Auth réussie', {
+          userId: req.user.id,
+          username: req.user.username
+        });
+      }
+      
+      next();
+    });
+  } catch (error) {
+    mongoLogger.error('❌ Erreur middleware auth', {
+      error: error.message,
+      stack: error.stack
+    });
+    
+    res.status(500).json({
+      success: false,
+      message: 'Erreur serveur lors de l\'authentification'
+    });
+  }
+};
+
+// === Fonction pour générer un token ===
+const generateToken = (user) => {
+  const payload = {
+    id: user._id || user.id,
+    email: user.email,
+    username: user.name || user.username
+  };
+
+  const token = jwt.sign(payload, JWT_SECRET, {
+    expiresIn: JWT_EXPIRES_IN
+  });
+
+  if (process.env.NODE_ENV === 'development') {
+    mongoLogger.info('🎫 Token généré', {
+      userId: payload.id,
+      username: payload.username,
+      expiresIn: JWT_EXPIRES_IN
+    });
+  }
+
+  return token;
+};
+
+// === Middleware optionnel (ne bloque pas si pas de token) ===
+const optionalAuth = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  const token = authHeader && authHeader.startsWith('Bearer ') 
+    ? authHeader.substring(7) 
+    : null;
+
+  if (!token) {
+    req.user = null;
     return next();
   }
-  // === Fin : Mode de transition sans authentification ===
-  
-  // === Début : Extraction du token d'authentification ===
-  // Explication simple : On cherche le badge numérique dans les poches du visiteur.
-  // Explication technique : Récupération du JWT depuis les headers HTTP standardisés ou personnalisés, avec vérification de sa présence pour continuer le processus.
-  let token = req.headers['x-access-token'] || req.headers['authorization'];
-  console.log("🔍 Headers reçus:", req.headers.authorization);
-  
-  if (!token) {
-    mongoLogger.warn('Accès sans token refusé', { path: req.originalUrl });
-    return res.status(403).json({ 
-      success: false,
-      message: 'Aucun token fourni'
-    });
-  }
-  // === Fin : Extraction du token d'authentification ===
-  
-  // === Début : Nettoyage du format du token ===
-  // Explication simple : On enlève l'emballage autour du badge pour pouvoir le lire correctement.
-  // Explication technique : Traitement du préfixe "Bearer " conforme aux standards d'authentification OAuth pour extraire uniquement la valeur du token JWT.
-  if (token.startsWith('Bearer ')) {
-    token = token.slice(7);
-  }
-  // === Fin : Nettoyage du format du token ===
-  
-  // === Début : Vérification et traitement du token ===
-  // Explication simple : On vérifie si le badge est vrai et pas périmé, et si oui, on note qui est le visiteur.
-  // Explication technique : Décodage et vérification cryptographique du JWT avec gestion des exceptions pour les tokens invalides ou expirés, et enrichissement de la requête avec les données d'identité.
-  try {
-    // Vérifier le token
-    console.log("🔑 Secret pour vérification:", JWT_SECRET.substring(0, 20) + "...");
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.userId = decoded.id;
-    req.user = { id: decoded.id };  // ← AJOUTE CETTE LIGNE
-    
-    // Vérifier si l'utilisateur existe toujours en base (optionnel)
-    // const User = require('../models/User');
-    // const user = await User.findById(decoded.id).select('_id isActive');
-    // if (!user || !user.isActive) {
-    //   throw new Error('Utilisateur inactif ou supprimé');
-    // }
-    
-    next();
-  } catch (error) {
-    mongoLogger.warn('Token invalide', {
-      error: error.message,
-      path: req.originalUrl
-    });
-    
-    return res.status(401).json({
-      success: false,
-      message: 'Token invalide ou expiré',
-      error: process.env.NODE_ENV === 'production' ? undefined : error.message
-    });
-  }
-  // === Fin : Vérification et traitement du token ===
-};
-// === Fin : Fonction principale de vérification du token ===
 
-// === Début : Exportation du middleware ===
-// Explication simple : On rend disponible notre fonction de vérification pour que d'autres parties de l'application puissent l'utiliser.
-// Explication technique : Exposition du middleware via le système de modules CommonJS pour permettre son importation et son utilisation dans les configurations de routes Express.
-module.exports = { verifyToken };
-// === Fin : Exportation du middleware ===
+  jwt.verify(token, JWT_SECRET, (err, decoded) => {
+    if (err) {
+      req.user = null;
+    } else {
+      req.user = {
+        id: decoded.id,
+        email: decoded.email,
+        username: decoded.username || decoded.name
+      };
+    }
+    next();
+  });
+};
+
+// === Fonction de vérification de token (pour les routes de vérification) ===
+const verifyTokenOnly = (token) => {
+  return new Promise((resolve, reject) => {
+    jwt.verify(token, JWT_SECRET, (err, decoded) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(decoded);
+      }
+    });
+  });
+};
+
+module.exports = { 
+  verifyToken, 
+  generateToken, 
+  optionalAuth,
+  verifyTokenOnly,
+  JWT_SECRET,
+  JWT_EXPIRES_IN
+};
