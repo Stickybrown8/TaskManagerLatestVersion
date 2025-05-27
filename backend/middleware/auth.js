@@ -58,6 +58,7 @@ const verifyToken = async (req, res, next) => {
     });
     // Mode dev - essayer d'extraire l'ID du token même sans vérification complète
     const token = req.headers.authorization?.replace('Bearer ', '');
+    console.log("🔍 Token extrait:", token?.substring(0, 50) + "...");
     if (token) {
       try {
         const decoded = jwt.decode(token); // decode sans vérifier
@@ -76,6 +77,7 @@ const verifyToken = async (req, res, next) => {
   // Explication simple : On cherche le badge numérique dans les poches du visiteur.
   // Explication technique : Récupération du JWT depuis les headers HTTP standardisés ou personnalisés, avec vérification de sa présence pour continuer le processus.
   let token = req.headers['x-access-token'] || req.headers['authorization'];
+  console.log("🔍 Headers reçus:", req.headers.authorization);
   
   if (!token) {
     mongoLogger.warn('Accès sans token refusé', { path: req.originalUrl });
@@ -99,8 +101,10 @@ const verifyToken = async (req, res, next) => {
   // Explication technique : Décodage et vérification cryptographique du JWT avec gestion des exceptions pour les tokens invalides ou expirés, et enrichissement de la requête avec les données d'identité.
   try {
     // Vérifier le token
+    console.log("🔑 Secret pour vérification:", JWT_SECRET.substring(0, 20) + "...");
     const decoded = jwt.verify(token, JWT_SECRET);
     req.userId = decoded.id;
+    req.user = { id: decoded.id };  // ← AJOUTE CETTE LIGNE
     
     // Vérifier si l'utilisateur existe toujours en base (optionnel)
     // const User = require('../models/User');

@@ -26,15 +26,15 @@ const Profile: React.FC = () => {
   // Explication simple : On se connecte à la mémoire centrale de l'application pour récupérer les informations de l'utilisateur.
   // Explication technique : Initialisation du dispatcher Redux et extraction des données utilisateur depuis le store avec gestion défensive des propriétés potentiellement undefined.
   const dispatch = useAppDispatch();
-  
+
   // Accès sécurisé à l'état Redux
   const authState = useAppSelector(state => state.auth || {});
   const { user = null, loading: authLoading = false } = authState;
-  
+
   // État local pour le loading
   const [loading, setLoading] = useState(false);
   // === Fin : Configuration du Redux et accès aux données utilisateur ===
-  
+
   // === Début : Définition des valeurs par défaut du profil ===
   // Explication simple : On prépare un modèle vide qui servira si certaines informations du profil sont manquantes.
   // Explication technique : Utilisation de useMemo pour créer un objet de profil par défaut qui ne sera recalculé que si nécessaire, optimisant ainsi les performances.
@@ -50,7 +50,7 @@ const Profile: React.FC = () => {
     avatar: '',
   }), []); // Utiliser useMemo pour éviter les re-renders inutiles
   // === Fin : Définition des valeurs par défaut du profil ===
-  
+
   // === Début : Initialisation du formulaire avec les données utilisateur ===
   // Explication simple : On prépare le formulaire avec les informations actuelles de l'utilisateur, ou des valeurs vides si on n'a pas encore ces informations.
   // Explication technique : État React qui contient les données du formulaire, initialisé avec les valeurs de l'utilisateur ou des valeurs par défaut, avec une structure imbriquée pour gérer le profil et ses paramètres.
@@ -101,7 +101,7 @@ const Profile: React.FC = () => {
   // Explication technique : État React qui maintient l'onglet actif, permettant un affichage conditionnel des différentes sections de l'interface.
   const [activeTab, setActiveTab] = useState('info');
   // === Fin : Gestion des onglets de l'interface ===
-  
+
   // === Début : Gestion des changements dans le formulaire ===
   // Explication simple : Cette fonction s'occupe de mettre à jour les informations quand tu modifies quelque chose dans le formulaire.
   // Explication technique : Fonction qui gère les événements onChange des champs de formulaire, mettant à jour le state formData avec les nouvelles valeurs.
@@ -109,7 +109,7 @@ const Profile: React.FC = () => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
-  
+
   const handleSettingChange = (setting: string, value: boolean | string) => {
     setFormData(prev => ({
       ...prev,
@@ -123,45 +123,53 @@ const Profile: React.FC = () => {
     }));
   };
   // === Fin : Gestion des changements dans le formulaire ===
-  
+
   // === Début : Soumission du formulaire et sauvegarde des changements ===
   // Explication simple : Cette fonction envoie tes modifications au serveur pour les sauvegarder quand tu cliques sur le bouton "Enregistrer".
   // Explication technique : Fonction asynchrone qui gère la soumission du formulaire, incluant la gestion des états de chargement, la communication avec l'API via axios, et les notifications de succès ou d'erreur.
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
       setLoading(true);
-      
+
       console.log("Données du profil à mettre à jour:", formData);
-      
+
       // Récupérer le token d'authentification depuis localStorage
       const token = localStorage.getItem('token');
-      
+
       if (!token) {
         throw new Error("Vous n'êtes pas authentifié");
       }
-      
+
+      // 🚨 NOUVEAU : Transformer les données pour le backend
+      const dataForBackend = {
+        username: formData.name,  // ✅ Le backend attend "username", pas "name"
+        profile: formData.profile  // ✅ Garder tout le contenu de profile
+      };
+
+      console.log("📤 Données transformées pour le backend:", dataForBackend);
+
       // Appel API direct avec les headers d'authentification
       const response = await axios({
         method: 'put',
         url: `${API_URL}/api/users/profile`,
-        data: formData,
+        data: dataForBackend,  // 🚨 Utilise dataForBackend au lieu de formData
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         }
       });
-      
+
       console.log("Réponse de mise à jour du profil:", response.data);
-      
+
       // Mettre à jour le state Redux
       dispatch(updateUserProfile({
         ...formData,
         profile: {
           ...formData.profile,
           avatar: formData.profile.avatar || '',
-          theme: formData.profile.theme || 'default', // Valeur par défaut pour theme
+          theme: formData.profile.theme || 'default',
           settings: {
             notifications: !!formData.profile.settings?.notifications,
             language: formData.profile.settings?.language || 'fr',
@@ -169,14 +177,14 @@ const Profile: React.FC = () => {
           }
         }
       }));
-      
+
       dispatch(addNotification({
         message: 'Profil mis à jour avec succès!',
         type: 'success'
       }));
     } catch (error: any) {
       console.error("Erreur lors de la mise à jour du profil:", error);
-      
+
       // Ajouter des logs supplémentaires pour diagnostiquer le problème
       if (error.response) {
         console.error("Détails de l'erreur:", error.response.data);
@@ -184,7 +192,7 @@ const Profile: React.FC = () => {
       } else if (error.request) {
         console.error("Aucune réponse reçue:", error.request);
       }
-      
+
       dispatch(addNotification({
         message: error.response?.data?.message || 'Erreur lors de la mise à jour du profil: ' + error.message,
         type: 'error'
@@ -194,7 +202,7 @@ const Profile: React.FC = () => {
     }
   };
   // === Fin : Soumission du formulaire et sauvegarde des changements ===
-  
+
   // === Début : Rendu conditionnel pendant le chargement ===
   // Explication simple : Si on n'a pas encore les informations de l'utilisateur, on montre une animation de chargement en attendant.
   // Explication technique : Condition de rendu qui affiche un indicateur de chargement lorsque les données utilisateur ne sont pas encore disponibles.
@@ -206,25 +214,25 @@ const Profile: React.FC = () => {
     );
   }
   // === Fin : Rendu conditionnel pendant le chargement ===
-  
+
   // === Début : Rendu principal de l'interface utilisateur ===
   // Explication simple : C'est la partie qui dessine toute la page avec les onglets, les formulaires et les boutons.
   // Explication technique : Rendu JSX principal du composant, comprenant l'animation d'entrée via Framer Motion, les onglets de navigation, et le contenu conditionnel basé sur l'onglet actif.
   return (
     <div className="container mx-auto">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Mon Profil</h1>
-        
+
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
           <div className="flex border-b border-gray-200 dark:border-gray-700">
             <button
               className={`px-6 py-3 text-sm font-medium ${activeTab === 'info'
-                  ? 'text-primary-600 dark:text-primary-400 border-b-2 border-primary-500'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                ? 'text-primary-600 dark:text-primary-400 border-b-2 border-primary-500'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                 }`}
               onClick={() => setActiveTab('info')}
             >
@@ -232,8 +240,8 @@ const Profile: React.FC = () => {
             </button>
             <button
               className={`px-6 py-3 text-sm font-medium ${activeTab === 'settings'
-                  ? 'text-primary-600 dark:text-primary-400 border-b-2 border-primary-500'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                ? 'text-primary-600 dark:text-primary-400 border-b-2 border-primary-500'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                 }`}
               onClick={() => setActiveTab('settings')}
             >
@@ -241,15 +249,15 @@ const Profile: React.FC = () => {
             </button>
             <button
               className={`px-6 py-3 text-sm font-medium ${activeTab === 'security'
-                  ? 'text-primary-600 dark:text-primary-400 border-b-2 border-primary-500'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                ? 'text-primary-600 dark:text-primary-400 border-b-2 border-primary-500'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                 }`}
               onClick={() => setActiveTab('security')}
             >
               Sécurité
             </button>
           </div>
-          
+
           <div className="p-6">
             {/* Onglet Informations */}
             {activeTab === 'info' && (
@@ -271,7 +279,7 @@ const Profile: React.FC = () => {
                       size="large"
                     />
                   </div>
-                  
+
                   <div className="flex-1">
                     <div>
                       <label htmlFor="name" className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
@@ -288,7 +296,7 @@ const Profile: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 <div>
                   <label htmlFor="email" className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
                     Email
@@ -304,7 +312,7 @@ const Profile: React.FC = () => {
                   />
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">L'email ne peut pas être modifié.</p>
                 </div>
-                
+
                 <div className="flex justify-end">
                   <button
                     type="submit"
@@ -324,12 +332,12 @@ const Profile: React.FC = () => {
                 </div>
               </form>
             )}
-            
+
             {/* Onglet Préférences */}
             {activeTab === 'settings' && (
               <div className="space-y-6">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white">Préférences d'affichage</h3>
-                
+
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="text-gray-700 dark:text-gray-300">Mode sombre</span>
@@ -353,7 +361,7 @@ const Profile: React.FC = () => {
                       ></label>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <span className="text-gray-700 dark:text-gray-300">Notifications</span>
                     <div className="relative inline-block w-12 h-6 transition duration-200 ease-in-out rounded-full">
@@ -370,7 +378,7 @@ const Profile: React.FC = () => {
                       ></label>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <span className="text-gray-700 dark:text-gray-300">Effets sonores</span>
                     <div className="relative inline-block w-12 h-6 transition duration-200 ease-in-out rounded-full">
@@ -403,7 +411,7 @@ const Profile: React.FC = () => {
                     </select>
                   </div>
                 </div>
-                
+
                 <div className="flex justify-end">
                   <button
                     onClick={handleSubmit}
@@ -423,17 +431,17 @@ const Profile: React.FC = () => {
                 </div>
               </div>
             )}
-            
+
             {/* Onglet Sécurité */}
             {activeTab === 'security' && (
               <div className="space-y-6">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white">Sécurité du compte</h3>
-                
+
                 <div className="space-y-4">
                   <p className="text-gray-600 dark:text-gray-300">
                     Pour des raisons de sécurité, la fonctionnalité de modification du mot de passe est temporairement indisponible.
                   </p>
-                  
+
                   <div className="bg-yellow-50 dark:bg-yellow-900/30 p-4 rounded-lg">
                     <p className="text-yellow-800 dark:text-yellow-200 text-sm">
                       Si vous avez besoin de réinitialiser votre mot de passe, veuillez contacter l'administrateur du système.

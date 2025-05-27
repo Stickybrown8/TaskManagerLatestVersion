@@ -83,6 +83,18 @@ api.interceptors.response.use(
       message: error.message
     });
 
+    // 🚨 NOUVEAU : Gestion spéciale pour token invalide
+    if (error.response?.status === 401 && error.response?.data?.error === 'invalid signature') {
+      console.log("🔑 Token invalide détecté, déconnexion automatique");
+      // Nettoyer le localStorage
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('persist:root');
+      // Rediriger vers login
+      window.location.href = '/login';
+      return Promise.reject(error);
+    }
+
     if (error.response && error.response.status === 401) {
       // Gérer la déconnexion
       store.dispatch({ type: 'auth/logout' });
