@@ -9225,3 +9225,44 @@
 {"doc":"✅","level":"debug","message":"MongoDB users.findOne","query":"{\"username\":\"Steven Test\",\"_id\":{\"$ne\":\"682f58d171400a61ef80cd4a\"}}","service":"mongodb","timestamp":"2025-05-27 13:43:20"}
 {"doc":"✅","level":"debug","message":"MongoDB users.findOneAndUpdate","query":"{\"_id\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-27 13:43:20"}
 {"level":"info","message":"Profil mis à jour: Steven Test","service":"mongodb","timestamp":"2025-05-27 13:43:20"}
+{"ip":"::1","level":"debug","message":"Requête API reçue","method":"GET","path":"/api/tasks","service":"mongodb","timestamp":"2025-05-27 13:48:05","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-27 13:48:05"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831b8f9afbadb7716252f18\",\"6831a9bbafbadb7716252db0\"]}}","service":"mongodb","timestamp":"2025-05-27 13:48:05"}
+{"level":"info","message":"Tentative de connexion à MongoDB...","service":"mongodb","timestamp":"2025-05-27 13:52:41"}
+{"level":"info","message":"MongoDB connecté avec succès: ac-3gzsp6o-shard-00-00.dxsnbnq.mongodb.net","service":"mongodb","timestamp":"2025-05-27 13:52:41"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.createIndex","query":"{\"userId\":1,\"status\":1}","service":"mongodb","timestamp":"2025-05-27 13:52:41"}
+{"doc":"✅","level":"debug","message":"MongoDB activities.createIndex","query":"{\"userId\":1}","service":"mongodb","timestamp":"2025-05-27 13:52:41"}
+{"doc":"✅","level":"debug","message":"MongoDB timers.createIndex","query":"{\"userId\":1}","service":"mongodb","timestamp":"2025-05-27 13:52:41"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.createIndex","query":"{\"clientId\":1,\"status\":1}","service":"mongodb","timestamp":"2025-05-27 13:52:41"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.createIndex","query":"{\"name\":1}","service":"mongodb","timestamp":"2025-05-27 13:52:41"}
+{"doc":"✅","level":"debug","message":"MongoDB users.createIndex","query":"{\"email\":1}","service":"mongodb","timestamp":"2025-05-27 13:52:41"}
+{"doc":"✅","level":"debug","message":"MongoDB timers.createIndex","query":"{\"clientId\":1}","service":"mongodb","timestamp":"2025-05-27 13:52:41"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.createIndex","query":"{\"userId\":1,\"status\":1}","service":"mongodb","timestamp":"2025-05-27 13:52:41"}
+{"doc":"✅","level":"debug","message":"MongoDB timers.createIndex","query":"{\"startTime\":-1}","service":"mongodb","timestamp":"2025-05-27 13:52:41"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.createIndex","query":"{\"dueDate\":1}","service":"mongodb","timestamp":"2025-05-27 13:52:41"}
+{"doc":"✅","level":"debug","message":"MongoDB activities.createIndex","query":"{\"timestamp\":1}","service":"mongodb","timestamp":"2025-05-27 13:52:41"}
+{"doc":"✅","level":"debug","message":"MongoDB activities.createIndex","query":"{\"userId\":1,\"timestamp\":1}","service":"mongodb","timestamp":"2025-05-27 13:52:42"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.createIndex","query":"{\"userId\":1,\"status\":1}","service":"mongodb","timestamp":"2025-05-27 13:52:42"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.createIndex","query":"{\"clientId\":1,\"status\":1}","service":"mongodb","timestamp":"2025-05-27 13:52:42"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.createIndex","query":"{\"dueDate\":1}","service":"mongodb","timestamp":"2025-05-27 13:52:42"}
+{"level":"info","message":"Tentative de connexion à MongoDB...","service":"mongodb","timestamp":"2025-05-27 13:58:05"}
+{"level":"info","message":"MongoDB connecté avec succès: ac-3gzsp6o-shard-00-00.dxsnbnq.mongodb.net","service":"mongodb","timestamp":"2025-05-27 13:58:05"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.createIndex","query":"{\"userId\":1,\"status\":1}","service":"mongodb","timestamp":"2025-05-27 13:58:05"}
+{"doc":"✅","level":"debug","message":"MongoDB activities.createIndex","query":"{\"userId\":1}","service":"mongodb","timestamp":"2025-05-27 13:58:06"}
+{"doc":"✅","level":"debug","message":"MongoDB timers.createIndex","query":"{\"userId\":1}","service":"mongodb","timestamp":"2025-05-27 13:58:06"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.createIndex","query":"{\"clientId\":1,\"status\":1}","service":"mongodb","timestamp":"2025-05-27 13:58:06"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.createIndex","query":"{\"name\":1}","service":"mongodb","timestamp":"2025-05-27 13:58:06"}
+{"doc":"✅","level":"debug","message":"MongoDB users.createIndex","query":"{\"email\":1}","service":"mongodb","timestamp":"2025-05-27 13:58:06"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.createIndex","query":"{\"dueDate\":1}","service":"mongodb","timestamp":"2025-05-27 13:58:06"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.createIndex","query":"{\"userId\":1,\"status\":1}","service":"mongodb","timestamp":"2025-05-27 13:58:06"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.createIndex","query":"{\"userId\":1,\"status\":1}","service":"mongodb","timestamp":"2025-05-27 13:58:06"}
+{"doc":"✅","level":"debug","message":"MongoDB activities.createIndex","query":"{\"timestamp\":1}","service":"mongodb","timestamp":"2025-05-27 13:58:06"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.createIndex","query":"{\"clientId\":1,\"status\":1}","service":"mongodb","timestamp":"2025-05-27 13:58:06"}
+{"doc":"✅","level":"debug","message":"MongoDB timers.createIndex","query":"{\"clientId\":1}","service":"mongodb","timestamp":"2025-05-27 13:58:06"}
+{"doc":"✅","level":"debug","message":"MongoDB activities.createIndex","query":"{\"userId\":1,\"timestamp\":1}","service":"mongodb","timestamp":"2025-05-27 13:58:06"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.createIndex","query":"{\"dueDate\":1}","service":"mongodb","timestamp":"2025-05-27 13:58:06"}
+{"doc":"✅","level":"debug","message":"MongoDB timers.createIndex","query":"{\"startTime\":-1}","service":"mongodb","timestamp":"2025-05-27 13:58:06"}
+{"ip":"::1","level":"debug","message":"Requête API reçue","method":"GET","path":"/api/tasks","service":"mongodb","timestamp":"2025-05-27 13:59:35","userAgent":"curl/7.68.0"}
+{"level":"warn","message":"Accès sans token refusé","path":"/api/tasks","service":"mongodb","timestamp":"2025-05-27 13:59:35"}
+{"ip":"::1","level":"debug","message":"Requête API reçue","method":"GET","path":"/api/tasks","service":"mongodb","timestamp":"2025-05-27 14:01:15","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"}
+{"level":"warn","message":"Accès sans token refusé","path":"/api/tasks","service":"mongodb","timestamp":"2025-05-27 14:01:15"}
