@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../hooks';
 import { useTaskCompletion } from '../hooks/useTaskCompletion';
 import { addNotification } from '../store/slices/uiSlice';
-import { toggleTimerPopup } from '../store/slices/timerSlice';
 import { motion, AnimatePresence } from 'framer-motion';
 import ConfettiEffect from '../components/gamification/ConfettiEffect';
 import { useTasks } from '../hooks/useTasks';
@@ -233,11 +232,11 @@ const Tasks: React.FC = () => {
   }, [tasks, clients, timers, selectedMonth, showArchived, clientsProfitability]);
 
   // Actions
-  const handleReactivateTask = async (taskId: string) => {
+  const handleReopenTask = async (taskId: string) => {
     try {
-      await tasksService.updateTask(taskId, { status: 'à faire' });
+      await tasksService.updateTask(taskId, { status: 'en cours' });
       dispatch(addNotification({
-        message: '🔄 Tâche réactivée',
+        message: '🔄 Tâche rouverte',
         type: 'success'
       }));
       refreshTasks();
@@ -527,7 +526,7 @@ const Tasks: React.FC = () => {
                                   {/* Actions */}
                                   <div className="flex items-center gap-2">
                                     <button
-                                      onClick={() => dispatch(toggleTimerPopup(true))}
+                                      onClick={() => navigate(`/timer?taskId=${taskId}`)}
                                       className="px-4 py-2 bg-[#026aa1] hover:bg-[#0487d9] text-white rounded-lg font-medium transition-colors"
                                       title="Démarrer un timer"
                                     >
@@ -537,11 +536,11 @@ const Tasks: React.FC = () => {
                                     {isCompleted ? (
                                       <>
                                         <button
-                                          onClick={() => handleReactivateTask(taskId)}
+                                          onClick={() => handleReopenTask(taskId)}
                                           className="px-4 py-2 border border-gray-300 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700 rounded-lg transition-colors"
                                           title="Rouvrir la tâche"
                                         >
-                                          🔄 Réactiver
+                                          🔄 Rouvrir
                                         </button>
                                         <button
                                           onClick={() => handleArchiveTask(taskId)}
