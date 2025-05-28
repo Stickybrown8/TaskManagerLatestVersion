@@ -1,0 +1,22 @@
+--- task.controller.js.orig
++++ task.controller.js
+@@ -333,6 +333,17 @@
+       levelUp = true;
+     }
+     
++    // 4. Créer une activité pour l'historique
++    await Activity.create({
++      userId: req.userId,
++      type: 'task_completed',
++      description: `Tâche "${task.title}" terminée`,
++      timestamp: Date.now(),
++      details: {
++        taskId: task._id,
++        clientId: task.clientId,
++        pointsEarned: pointsEarned,
++        experienceEarned: expEarned,
++        levelUp: levelUp
++      }
++    });
++    
+     res.status(200).json({

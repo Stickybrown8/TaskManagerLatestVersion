@@ -321,23 +321,8 @@ const completeTask = async (req, res) => {
     if (user.gamification.experience >= user.gamification.level * 100) {
       user.gamification.level += 1;
       levelUp = true;
-    }
-    
-    // 4. Créer une activité pour l'historique
-    await Activity.create({
-      userId: req.userId,
-      type: 'task_completed',
-      description: `Tâche "${task.title}" terminée`,
-      timestamp: Date.now(),
-      details: {
-        taskId: task._id,
-        clientId: task.clientId,
-        pointsEarned: pointsEarned,
-        experienceEarned: expEarned,
-        levelUp: levelUp
-      }
-    });
       // await user.save({ session }); // Pas nécessaire avec findByIdAndUpdate
+    }
     
     // 5. Valider la transaction
     await session.commitTransaction();

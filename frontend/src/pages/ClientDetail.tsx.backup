@@ -170,9 +170,12 @@ const ClientDetail: React.FC = () => {
         // Récupération des données de rentabilité
         try {
           const token = localStorage.getItem('token');
-          const profitabilityResponse = await api.get("/profitability");
-          if (profitabilityResponse.data) {
-            const profitabilityData = profitabilityResponse.data;
+          const profitabilityResponse = await fetch(`${API_URL}/api/profitability`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          
+          if (profitabilityResponse.ok) {
+            const profitabilityData = await profitabilityResponse.json();
             const clientProfitability = profitabilityData.find((p: any) => p.clientId._id === id);
             
             if (clientProfitability) {
@@ -316,7 +319,7 @@ const ClientDetail: React.FC = () => {
       }
       
       // Mettre à jour les informations du client
-      const response = await api.put(`/clients/${id}`, formData, {
+      const response = await axios.put(`${API_URL}/api/clients/${id}`, formData, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -327,7 +330,7 @@ const ClientDetail: React.FC = () => {
       
       // Mettre à jour les données de rentabilité
       try {
-        await api.post(`/profitability/client/${id}`, formData.profitability, {
+        await axios.post(`${API_URL}/api/profitability/client/${id}`, formData.profitability, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -370,7 +373,7 @@ const ClientDetail: React.FC = () => {
       }
       
       // Supprimer le client
-      await api.delete(`/clients/${id}`, {
+      await axios.delete(`${API_URL}/api/clients/${id}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

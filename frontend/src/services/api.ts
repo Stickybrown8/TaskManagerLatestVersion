@@ -284,7 +284,7 @@ export const gamificationService = {
 // === Service des badges ===
 export const badgesService = {
   getUserBadges: async () => {
-    const response = await api.get('/badges/user');
+    const response = await api.get('/gamification/badges');
     return response.data;
   },
   getAllBadges: async () => {
@@ -359,7 +359,7 @@ export const taskImpactService = {
 // === Service de rentabilité ===
 export const profitabilityService = {
   getAllProfitability: async () => {
-    const response = await api.get('/profitability/all');
+    const response = await api.get('/profitability');
     return response.data;
   },
   getClientProfitability: async (clientId: string) => {

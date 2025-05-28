@@ -95,7 +95,7 @@ const Gamification: React.FC = () => {
       dispatch(fetchActivitiesStart());
       const activitiesData = await gamificationService.getActivities(page, 10);
       dispatch(fetchActivitiesSuccess(activitiesData.activities));
-      setTotalPages(activitiesData.totalPages);
+      setTotalPages(activitiesData.pagination.pages);
     } catch (error: any) {
       dispatch(fetchActivitiesFailure(error.message));
       dispatch(addNotification({

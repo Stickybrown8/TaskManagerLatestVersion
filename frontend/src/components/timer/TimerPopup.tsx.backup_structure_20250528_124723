@@ -365,10 +365,12 @@ const TimerPopup: React.FC<TimerPopupProps> = () => {
             setSelectedTaskId('');
             setSelectedTask(null);
             setTimerDuration(0);
+            setTimerId(null);
             dispatch(setRunningTimer(null));
 
             refreshTasks();
             fetchClientsAndTasks();
+          }
         } catch (error) {
           console.error('Erreur fin tâche:', error);
           dispatch(addNotification({

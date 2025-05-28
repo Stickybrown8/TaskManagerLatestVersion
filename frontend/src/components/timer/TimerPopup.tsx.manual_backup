@@ -342,6 +342,8 @@ const TimerPopup: React.FC<TimerPopupProps> = () => {
           }
 
           await handleCompleteTask(selectedTaskId);
+          
+          // Si le timer a duré plus de 3 minutes, donner des points bonus
 
             if (timerDuration > 180) {
               const points = Math.floor(timerDuration / 60);
@@ -349,9 +351,10 @@ const TimerPopup: React.FC<TimerPopupProps> = () => {
               await addExperience(points * multiplier, `Timer: ${formatDuration(timerDuration)}`);
             }
 
-            if (false) {
+            // Rewards gérés par handleCompleteTask
+            if (true) {
               dispatch(addNotification({
-                message: `🎉 Tâche terminée! +${10} points, +${50} XP`,
+                message: `🎉 Tâche terminée! +10 points, +50 XP`,
                 type: 'success'
               }));
             } else {
@@ -365,6 +368,7 @@ const TimerPopup: React.FC<TimerPopupProps> = () => {
             setSelectedTaskId('');
             setSelectedTask(null);
             setTimerDuration(0);
+            setTimerId(null);
             dispatch(setRunningTimer(null));
 
             refreshTasks();
@@ -1215,7 +1219,6 @@ const TimerPopup: React.FC<TimerPopupProps> = () => {
           </motion.div>
         )}
       </AnimatePresence>
-      <ConfettiEffect show={showConfetti} />
     </>
   );
 };

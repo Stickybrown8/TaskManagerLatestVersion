@@ -111,21 +111,49 @@ const createClient = async (req, res) => {
 // === Fonction 4: Mettre à jour un client ===
 const updateClient = async (req, res) => {
   try {
-    const { name, email, phone, company, notes } = req.body;
+    // Récupérer toutes les données possibles du body
+    const updateData = {};
+    
+    // Champs simples
+    if (req.body.name !== undefined) updateData.name = req.body.name;
+    if (req.body.description !== undefined) updateData.description = req.body.description;
+    if (req.body.status !== undefined) updateData.status = req.body.status;
+    if (req.body.notes !== undefined) updateData.notes = req.body.notes;
+    if (req.body.tags !== undefined) updateData.tags = req.body.tags;
+    if (req.body.logo !== undefined) updateData.logo = req.body.logo;
+    
+    // Gestion des contacts (tableau)
+    if (req.body.contacts !== undefined) updateData.contacts = req.body.contacts;
+    
+    // Ajouter la date de mise à jour
+    updateData.lastActivity = new Date();
     
     const updatedClient = await Client.findOneAndUpdate(
       { _id: req.params.id, userId: req.userId },
-      { name, email, phone, company, notes, updatedAt: Date.now() },
-      { new: true }
+      updateData,
+      { new: true, runValidators: true }
     );
     
     if (!updatedClient) {
-      return res.status(404).json({ message: 'Client non trouvé' });
+      return res.status(404).json({ 
+        success: false,
+        message: 'Client non trouvé' 
+      });
     }
     
-    res.status(200).json({ message: 'Client mis à jour avec succès', client: updatedClient });
+    res.status(200).json({ 
+      success: true,
+      message: 'Client mis à jour avec succès', 
+      data: updatedClient,
+      client: updatedClient // Pour la compatibilité
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Erreur lors de la mise à jour du client', error: error.message });
+    console.error('Erreur updateClient:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Erreur lors de la mise à jour du client', 
+      error: error.message 
+    });
   }
 };
 

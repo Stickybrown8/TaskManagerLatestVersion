@@ -342,72 +342,72 @@ const getProfile = async (req, res) => {
  * METTRE À JOUR LE PROFIL UTILISATEUR
  * PUT /api/auth/profile
  */
-const updateProfile = async (req, res) => {
-  try {
-    const { username, preferences, profile } = req.body;
-    const userId = req.user.id;
-
-    // Construction de l'objet de mise à jour
-    const updateData = {};
-
-    if (username) {
-      // Vérifier l'unicité du nouveau nom d'utilisateur
-      const existingUser = await User.findOne({
-        username,
-        _id: { $ne: userId }
-      });
-
-      if (existingUser) {
-        return res.status(409).json({
-          success: false,
-          message: 'Ce nom d\'utilisateur est déjà utilisé',
-          errorCode: 'USERNAME_EXISTS'
-        });
-      }
-      updateData.username = username;
-    }
-
-    if (preferences) {
-      updateData.preferences = preferences;
-    }
-
-    if (profile) {
-      updateData.profile = profile;
-    }
-
-    // Mise à jour de l'utilisateur
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      { $set: updateData },
-      { new: true, runValidators: true }
-    ).select('-password');
-
-    if (!updatedUser) {
-      return res.status(404).json({
-        success: false,
-        message: 'Utilisateur non trouvé',
-        errorCode: 'USER_NOT_FOUND'
-      });
-    }
-
-    mongoLogger.info(`Profil mis à jour: ${updatedUser.name}`);
-
-    res.status(200).json({
-      success: true,
-      message: 'Profil mis à jour avec succès',
-      data: { user: updatedUser }
-    });
-
-  } catch (error) {
-    mongoLogger.error('Erreur lors de la mise à jour du profil', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur interne du serveur',
-      errorCode: 'UPDATE_PROFILE_ERROR'
-    });
-  }
-};
-
+// // const updateProfile = async (req, res) => {
+// //   try {
+// //     const { username, preferences, profile } = req.body;
+// //     const userId = req.user.id;
+// // 
+// //     // Construction de l'objet de mise à jour
+// //     const updateData = {};
+// // 
+// //     if (username) {
+// //       // Vérifier l'unicité du nouveau nom d'utilisateur
+// //       const existingUser = await User.findOne({
+// //         username,
+// //         _id: { $ne: userId }
+// //       });
+// // 
+// //       if (existingUser) {
+// //         return res.status(409).json({
+// //           success: false,
+// //           message: 'Ce nom d\'utilisateur est déjà utilisé',
+// //           errorCode: 'USERNAME_EXISTS'
+// //         });
+// //       }
+// //       updateData.username = username;
+// //     }
+// // 
+// //     if (preferences) {
+// //       updateData.preferences = preferences;
+// //     }
+// // 
+// //     if (profile) {
+// //       updateData.profile = profile;
+// //     }
+// // 
+// //     // Mise à jour de l'utilisateur
+// //     const updatedUser = await User.findByIdAndUpdate(
+// //       userId,
+//       { $set: updateData },
+//       { new: true, runValidators: true }
+//     ).select('-password');
+// 
+//     if (!updatedUser) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'Utilisateur non trouvé',
+//         errorCode: 'USER_NOT_FOUND'
+//       });
+// //     }
+// 
+//     mongoLogger.info(`Profil mis à jour: ${updatedUser.name}`);
+// 
+//     res.status(200).json({
+//       success: true,
+//       message: 'Profil mis à jour avec succès',
+//       data: { user: updatedUser }
+//     });
+// 
+//   } catch (error) {
+//     mongoLogger.error('Erreur lors de la mise à jour du profil', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Erreur interne du serveur',
+//       errorCode: 'UPDATE_PROFILE_ERROR'
+//     });
+//   }
+// };
+// 
 /**
  * VÉRIFIER LA VALIDITÉ D'UN TOKEN
  * GET /api/auth/verify
@@ -449,6 +449,6 @@ module.exports = {
   register,
   login,
   getProfile,
-  updateProfile,
+  // updateProfile,
   verifyToken
 };

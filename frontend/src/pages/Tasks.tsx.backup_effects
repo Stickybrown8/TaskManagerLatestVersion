@@ -262,10 +262,16 @@ const Tasks: React.FC = () => {
   // Mise à jour du statut
   const handleStatusUpdate = async (taskId: string, newStatus: string) => {
     try {
-    console.log("handleStatusUpdate appelé avec:", taskId, newStatus);
       if (newStatus === 'terminée') {
         // Utiliser la route /complete pour bénéficier de la gamification
-        await handleCompleteTask(taskId);
+        const completedTask = await tasksService.completeTask(taskId);
+        
+        if (completedTask.rewards) {
+          dispatch(addNotification({
+            message: `🎉 Tâche terminée! +${completedTask.rewards.points} points, +${completedTask.rewards.experience} XP`,
+            type: 'success'
+          }));
+        }
       } else {
         await tasksService.updateTask(taskId, { status: newStatus });
       }

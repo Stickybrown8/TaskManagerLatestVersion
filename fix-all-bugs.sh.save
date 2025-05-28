@@ -1,0 +1,119 @@
+#!/bin/bash
+# Script complet de correction des bugs Task Manager
+
+echo "🔧 Correction des bugs Task Manager"
+echo "==================================="
+
+# Couleurs
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+# 1. Corriger le conflit updateProfile
+echo -e "\n${YELLOW}1. Correction du conflit updateProfile${NC}"
+cd /workspaces/TaskManagerLatestVersion/backend
+
+# Vérifier si la fonction existe avant de la commenter
+if grep -q "const updateProfile = async" controllers/auth.controller.js; then
+    # Faire une sauvegarde
+    cp controllers/auth.controller.js controllers/auth.controller.js.backup
+    
+    # Obtenir les numéros de ligne exacts
+    START_LINE=$(grep -n "const updateProfile = async" controllers/auth.controller.js | cut -d: -f1)
+    END_LINE=$((START_LINE + 35))
+    
+    # Commenter la fonction
+    sed -i "${START_LINE},${END_LINE}s/^/\/\/ /" controllers/auth.controller.js
+    
+    # Commenter l'export
+    sed -i 's/updateProfile,/\/\/ updateProfile,/' controllers/auth.controller.js
+    
+    echo -e "${GREEN}✅ Fonction updateProfile commentée${NC}"
+else
+    echo -e "${GREEN}✅ Fonction updateProfile déjà corrigée${NC}"
+fi
+
+# 2. Ajouter la route levels
+echo -e "\n${YELLOW}2. Ajout de la route /levels${NC}"
+cd /workspaces/TaskManagerLatestVersion/backend
+
+# Vérifier si la route existe déjà
+if ! grep -q "router.get.*levels" routes/gamification.js; then
+    # Ajouter la route avant le module.exports
+    cat >> routes/gamification.js << 'EOF'
+
+// GET /api/gamification/levels
+router.get('/levels', auth, async (req, res) => {
+  try {
+    const levels = [
+      { level: 1, name: 'Débutant', experienceRequired: 0, icon: '🌱' },
+      { level: 2, name: 'Apprenti', experienceRequired: 100, icon: '🌿' },
+      { level: 3, name: 'Confirmé', experienceRequired: 300, icon: '🌳' },
+      { level: 4, name: 'Expert', experienceRequired: 600, icon: '🏆' },
+      { level: 5, name: 'Maître', experienceRequired: 1000, icon: '👑' }
+    ];
+    res.json(levels);
+  } catch (error) {
+    console.error('Erreur levels:', error);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+EOF
+    echo -e "${GREEN}✅ Route /levels ajoutée${NC}"
+else
+    echo -e "${GREEN}✅ Route /levels déjà présente${NC}"
+fi
+
+# 3. Corriger les URLs hardcodées
+echo -e "\n${YELLOW}3. Correction des URLs hardcodées${NC}"
+cd /workspaces/TaskManagerLatestVersion/frontend/src
+
+# Corriger chaque fichier
+FILES=(
+    "components/timer/TimerPopup.tsx"
+    "services/profitabilityService.ts"
+    "services/timerService.ts"
+    "services/objectivesService.ts"
+    "services/taskImpactService.ts"
+)
+
+for file in "${FILES[@]}"; do
+    if [ -f "$file" ]; then
+        # Remplacer localhost:5000 par une chaîne vide dans les fallbacks
+        sed -i "s||| 'http://localhost:5000'||| ''|g" "$file"
+        sed -i "s|'http://localhost:5000/api'|''|g" "$file"
+        echo -e "${GREEN}✅ Corrigé: $file${NC}"
+    fi
+done
+
+# 4. Rechercher ClientStatistics
+echo -e "\n${YELLOW}4. Recherche de ClientStatistics${NC}"
+STATS_USAGE=$(grep -r "ClientStatistics" . --include="*.tsx" --include="*.ts" 2>/dev/null | head -1)
+if [ -n "$STATS_USAGE" ]; then
+    echo "ClientStatistics trouvé dans:"
+    echo "$STATS_USAGE"
+else
+    echo "ClientStatistics non trouvé - l'erreur vient peut-être d'un autre composant"
+fi
+
+# 5. Vérifier les corrections
+echo -e "\n${YELLOW}5. Vérification finale${NC}"
+cd /workspaces/TaskManagerLatestVersion
+
+# Compter les URLs hardcodées restantes
+REMAINING=$(grep -r "localhost:5000" frontend/src --include="*.ts" --include="*.tsx" 2>/dev/null | grep -v "window.location" | wc -l)
+echo "URLs hardcodées restantes: $REMAINING"
+
+# Vérifier les routes
+echo -e "\n${YELLOW}Routes API montées:${NC}"
+grep "app.use.*'/api/" backend/server.js | grep -E "(auth|users|gamification)"
+
+echo -e "\n${GREEN}✅ Corrections terminées !${NC}"
+echo -e "\n${YELLOW}Actions suivantes:${NC}"
+echo "1. Redémarrer le serveur backend: cd backend && npm start"
+echo "2. Redémarrer le serveur frontend: cd frontend && npm start"
+echo "3. Tester la mise à jour du profil"
+echo "4. Vérifier que la page gamification charge correctement"
+

@@ -55,7 +55,7 @@ router.get('/profile', verifyToken, async (req, res) => {
       nextLevelExp,
       progress,
       points: user.points,
-      badges: user.gamification?.badges || [],
+      badges: user.badges,
       streak: user.streak
     });
   } catch (error) {
@@ -75,7 +75,7 @@ router.get('/badges', verifyToken, async (req, res) => {
     
     const badgesWithStatus = badges.map(badge => ({
       ...badge.toObject(),
-      earned: (user.gamification?.badges || []).some(b => b.badgeId?.toString() === badge._id.toString())
+      earned: user.badges.includes(badge._id)
     }));
     
     res.status(200).json(badgesWithStatus);
@@ -247,31 +247,3 @@ router.post('/streak', verifyToken, async (req, res) => {
 });
 
 module.exports = router;
-
-// Route pour récupérer l'historique des activités
-router.get('/activities', verifyToken, async (req, res) => {
-  try {
-    const { page = 1, limit = 10 } = req.query;
-    const skip = (page - 1) * limit;
-    
-    const activities = await Activity.find({ userId: req.userId })
-      .sort({ timestamp: -1 })
-      .skip(skip)
-      .limit(parseInt(limit))
-      .populate('details.taskId', 'title')
-      .populate('details.clientId', 'name')
-      .populate('details.badgeId', 'name icon');
-    
-    const total = await Activity.countDocuments({ userId: req.userId });
-    
-    res.status(200).json({
-      activities,
-      total,
-      currentPage: parseInt(page),
-      totalPages: Math.ceil(total / limit)
-    });
-  } catch (error) {
-    console.error('Erreur lors de la récupération des activités:', error);
-    res.status(500).json({ message: 'Erreur lors de la récupération des activités' });
-  }
-});

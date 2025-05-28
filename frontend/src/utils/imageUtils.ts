@@ -20,35 +20,11 @@ const getApiBaseUrl = (): string => {
 };
 
 export const getLogoUrl = (logoPath?: string): string => {
-  if (!logoPath) return '';
-  
-  const baseUrl = getApiBaseUrl();
-  
-  if (logoPath.startsWith('/uploads/')) {
-    return `${baseUrl}${logoPath}`;
-  }
-  
-  if (logoPath.startsWith('http')) {
-    return logoPath;
-  }
-  
-  return `${baseUrl}/uploads/logos/${logoPath}`;
+  return getImageUrlFromApi(logoPath);
 };
 
 export const getAvatarUrl = (avatarPath?: string): string => {
-  if (!avatarPath) return '';
-  
-  const baseUrl = getApiBaseUrl();
-  
-  if (avatarPath.startsWith('/uploads/')) {
-    return `${baseUrl}${avatarPath}`;
-  }
-  
-  if (avatarPath.startsWith('http')) {
-    return avatarPath;
-  }
-  
-  return `${baseUrl}/uploads/logos/${avatarPath}`;
+  return getImageUrlFromApi(avatarPath);
 };
 
 export const getColorFromText = (text: string): string => {

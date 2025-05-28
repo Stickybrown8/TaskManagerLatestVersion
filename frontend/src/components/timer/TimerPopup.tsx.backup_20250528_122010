@@ -341,7 +341,22 @@ const TimerPopup: React.FC<TimerPopupProps> = () => {
             }
           }
 
-          await handleCompleteTask(selectedTaskId);
+          const response = await fetch(
+            `${API_URL}/api/tasks/${selectedTaskId}/complete`,
+            {
+              method: 'PUT',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                actualTime: Math.round(timerDuration / 60)
+              })
+            }
+          );
+
+          if (response.ok) {
+            const data = await response.json();
 
             if (timerDuration > 180) {
               const points = Math.floor(timerDuration / 60);
@@ -349,9 +364,9 @@ const TimerPopup: React.FC<TimerPopupProps> = () => {
               await addExperience(points * multiplier, `Timer: ${formatDuration(timerDuration)}`);
             }
 
-            if (false) {
+            if (data.rewards) {
               dispatch(addNotification({
-                message: `🎉 Tâche terminée! +${10} points, +${50} XP`,
+                message: `🎉 Tâche terminée! +${data.rewards.points} points, +${data.rewards.experience} XP`,
                 type: 'success'
               }));
             } else {
@@ -365,10 +380,12 @@ const TimerPopup: React.FC<TimerPopupProps> = () => {
             setSelectedTaskId('');
             setSelectedTask(null);
             setTimerDuration(0);
+            setTimerId(null);
             dispatch(setRunningTimer(null));
 
             refreshTasks();
             fetchClientsAndTasks();
+          }
         } catch (error) {
           console.error('Erreur fin tâche:', error);
           dispatch(addNotification({
@@ -1215,7 +1232,6 @@ const TimerPopup: React.FC<TimerPopupProps> = () => {
           </motion.div>
         )}
       </AnimatePresence>
-      <ConfettiEffect show={showConfetti} />
     </>
   );
 };
