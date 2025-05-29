@@ -79,6 +79,7 @@ const Tasks: React.FC = () => {
   const [selectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [showArchived, setShowArchived] = useState(false);
   const [clientsProfitability, setClientsProfitability] = useState<Record<string, any>>({});
+  const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
 
   // Charger toutes les données
   useEffect(() => {
@@ -214,8 +215,20 @@ const Tasks: React.FC = () => {
           : 0;
       });
 
-      // Trier par temps mensuel décroissant (les plus importantes en premier)
-      tasksWithMonthlyTime.sort((a, b) => b.monthlyTimeMinutes - a.monthlyTimeMinutes);
+      // Trier par statut puis par priorité
+      const statusOrder = { 'en cours': 0, 'à faire': 1, 'terminée': 2 };
+      const priorityOrder = { 'urgente': 0, 'haute': 1, 'moyenne': 2, 'basse': 3 };
+      
+      tasksWithMonthlyTime.sort((a, b) => {
+        const statusDiff = statusOrder[a.status] - statusOrder[b.status];
+        if (statusDiff !== 0) return statusDiff;
+        
+        if (a.status !== 'terminée') {
+          return priorityOrder[a.priority] - priorityOrder[b.priority];
+        }
+        
+        return b.monthlyTimeMinutes - a.monthlyTimeMinutes;
+      });
 
       // Métriques financières
       const hourlyRate = profitability?.revenue && profitability?.spentHours > 0 ? profitability.revenue / profitability.spentHours : (profitability?.hourlyRate || 100);
@@ -290,47 +303,95 @@ const Tasks: React.FC = () => {
 
 
   const formatMinutes = (minutes: number): string => {
-    if (!minutes) return '0min';
+    if (!minutes || minutes === 0) return '—';
     const hours = Math.floor(minutes / 60);
     const mins = Math.round(minutes % 60);
     if (hours === 0) return `${mins}min`;
-    return mins > 0 ? `${hours}h${mins}min` : `${hours}h`;
+    return mins > 0 ? `${hours}h ${mins}min` : `${hours}h`;
   };
 
   const formatHours = (hours: number): string => {
     return hours.toFixed(1) + 'h';
   };
 
+  // Fonction pour obtenir la couleur selon la priorité
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'urgente': return 'bg-red-100 text-red-700 border-red-300';
+      case 'haute': return 'bg-orange-100 text-orange-700 border-orange-300';
+      case 'moyenne': return 'bg-yellow-100 text-yellow-700 border-yellow-300';
+      case 'basse': return 'bg-gray-100 text-gray-700 border-gray-300';
+      default: return 'bg-gray-100 text-gray-700 border-gray-300';
+    }
+  };
+
+  // Fonction pour obtenir l'emoji du statut
+  const getStatusEmoji = (status: string) => {
+    switch (status) {
+      case 'terminée': return '✅';
+      case 'en cours': return '⚡';
+      case 'à faire': return '📋';
+      default: return '📋';
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header moderne */}
-      <div className="bg-white dark:bg-gray-800 shadow-sm sticky top-0 z-10">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      {/* Header amélioré */}
+      <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg shadow-sm sticky top-0 z-10 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                Vue Productivité - {new Date(selectedMonth + '-01').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-[#026aa1] to-[#0487d9] text-transparent bg-clip-text">
+                Tableau de Productivité
               </h1>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Focus sur la valeur créée et le principe 80/20
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 flex items-center gap-2">
+                <span className="inline-block w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                {new Date(selectedMonth + '-01').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
               </p>
             </div>
 
             <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2 text-sm">
+              <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+                <button
+                  onClick={() => setViewMode('cards')}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                    viewMode === 'cards' 
+                      ? 'bg-white dark:bg-gray-600 text-[#026aa1] shadow-sm' 
+                      : 'text-gray-600 dark:text-gray-400'
+                  }`}
+                >
+                  Cartes
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                    viewMode === 'list' 
+                      ? 'bg-white dark:bg-gray-600 text-[#026aa1] shadow-sm' 
+                      : 'text-gray-600 dark:text-gray-400'
+                  }`}
+                >
+                  Liste
+                </button>
+              </div>
+
+              <label className="flex items-center gap-2 text-sm bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded-lg cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
                 <input
                   type="checkbox"
                   checked={showArchived}
                   onChange={(e) => setShowArchived(e.target.checked)}
-                  className="rounded text-[#026aa1]"
+                  className="rounded text-[#026aa1] focus:ring-[#026aa1]"
                 />
-                <span>Afficher archivées</span>
+                <span>Archives</span>
               </label>
 
               <button
                 onClick={() => navigate('/tasks/new')}
-                className="bg-[#026aa1] hover:bg-[#0487d9] text-white px-6 py-2.5 rounded-xl font-medium"
+                className="bg-gradient-to-r from-[#026aa1] to-[#0487d9] hover:from-[#0487d9] hover:to-[#026aa1] text-white px-6 py-2.5 rounded-xl font-medium shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
               >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
                 Nouvelle tâche
               </button>
             </div>
@@ -339,26 +400,29 @@ const Tasks: React.FC = () => {
       </div>
 
       {/* Contenu principal */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {loading ? (
-          <div className="flex justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#026aa1]"></div>
+          <div className="flex flex-col items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-[#026aa1] border-t-transparent"></div>
+            <p className="mt-4 text-gray-600 dark:text-gray-400">Chargement en cours...</p>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-8">
             {Object.entries(clientMetrics).map(([clientId, metrics]) => {
               const isExpanded = expandedClients.has(clientId);
+              const activeTasksCount = metrics.tasks.filter(t => t.status !== 'terminée').length;
+              const urgentTasksCount = metrics.tasks.filter(t => t.priority === 'urgente' && t.status !== 'terminée').length;
 
               return (
                 <motion.div
                   key={clientId}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden"
+                  className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300 overflow-hidden"
                 >
-                  {/* Header du client avec métriques */}
+                  {/* Header du client amélioré */}
                   <div
-                    className="p-6 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-700 cursor-pointer"
+                    className="relative p-6 cursor-pointer group"
                     onClick={() => {
                       const newExpanded = new Set(expandedClients);
                       if (isExpanded) {
@@ -369,245 +433,389 @@ const Tasks: React.FC = () => {
                       setExpandedClients(newExpanded);
                     }}
                   >
-                    <div className="flex items-center justify-between">
+                    {/* Background gradient subtil */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-[#026aa1]/5 to-[#0487d9]/5 group-hover:from-[#026aa1]/10 group-hover:to-[#0487d9]/10 transition-all duration-300" />
+                    
+                    <div className="relative flex items-center justify-between">
                       <div className="flex items-center gap-4">
-                        <div className="w-16 h-16 bg-gradient-to-br from-[#026aa1] to-[#0487d9] rounded-xl flex items-center justify-center text-white font-bold text-xl">
-                          {metrics.client.name.charAt(0)}
-                        </div>
-                        <div>
-                          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                            {metrics.client.name}
-                          </h2>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                            {metrics.tasks.length} tâches actives
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Métriques clés */}
-                      <div className="grid grid-cols-4 gap-8 text-right">
-                        <div>
-                          <p className="text-sm text-gray-600">Temps ce mois</p>
-                          <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                            {formatHours(metrics.monthlyMinutes / 60)}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {Math.round(metrics.budgetConsumed)}% du budget
-                          </p>
-                        </div>
-
-                        <div>
-                          <p className="text-sm text-gray-600">Forfait mensuel</p>
-                          <p className="text-2xl font-bold text-emerald-600">
-                            {Math.round(metrics.monthlyRevenue)}€
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {Math.round(metrics.currentHourlyRate)}€/h
-                          </p>
-                        </div>
-
-                        <div>
-                          <p className="text-sm text-gray-600">Impact 80/20</p>
-                          <p className="text-2xl font-bold text-orange-600">
-                            {metrics.highImpactTasks}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {metrics.monthlyMinutes > 0 ? Math.round((metrics.highImpactMinutes / metrics.monthlyMinutes) * 100) : 0}% du temps
-                          </p>
-                        </div>
-
-                        <div>
-                          <p className="text-sm text-gray-600">Performance</p>
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                              <div
-                                className={`h-2 rounded-full transition-all ${metrics.performanceScore >= 80 ? 'bg-emerald-500' :
-                                    metrics.performanceScore >= 60 ? 'bg-amber-500' :
-                                      'bg-red-500'
-                                  }`}
-                                style={{ width: `${metrics.performanceScore}%` }}
-                              />
+                        <div className="relative">
+                          <div className="w-20 h-20 bg-gradient-to-br from-[#026aa1] to-[#0487d9] rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow-lg">
+                            {metrics.client.name.substring(0, 2).toUpperCase()}
+                          </div>
+                          {urgentTasksCount > 0 && (
+                            <div className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white text-xs font-bold animate-pulse">
+                              {urgentTasksCount}
                             </div>
-                            <span className="text-sm font-bold">
-                              {Math.round(metrics.performanceScore)}%
+                          )}
+                        </div>
+                        <div>
+                          <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                            {metrics.client.name}
+                            {metrics.performanceScore >= 80 && (
+                              <span className="text-2xl">🏆</span>
+                            )}
+                          </h2>
+                          <div className="flex items-center gap-4 mt-1">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">
+                              {activeTasksCount} tâches actives
                             </span>
+                            {metrics.tasks.filter(t => t.status === 'terminée').length > 0 && (
+                              <span className="text-sm text-green-600 dark:text-green-400">
+                                {metrics.tasks.filter(t => t.status === 'terminée').length} terminées
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
 
-                      <svg
-                        className={`w-6 h-6 text-gray-400 transform transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
+                      {/* Métriques visuelles */}
+                      <div className="flex items-center gap-8">
+                        {/* Temps mensuel avec cercle de progression */}
+                        <div className="text-center">
+                          <div className="relative w-20 h-20">
+                            <svg className="w-20 h-20 transform -rotate-90">
+                              <circle
+                                cx="40"
+                                cy="40"
+                                r="36"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                                fill="none"
+                                className="text-gray-200 dark:text-gray-700"
+                              />
+                              <circle
+                                cx="40"
+                                cy="40"
+                                r="36"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                                fill="none"
+                                strokeDasharray={`${2 * Math.PI * 36}`}
+                                strokeDashoffset={`${2 * Math.PI * 36 * (1 - Math.min(metrics.budgetConsumed, 100) / 100)}`}
+                                className={`transition-all duration-1000 ${
+                                  metrics.budgetConsumed > 100 ? 'text-red-500' :
+                                  metrics.budgetConsumed > 80 ? 'text-orange-500' :
+                                  'text-green-500'
+                                }`}
+                              />
+                            </svg>
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div>
+                                <p className="text-lg font-bold">{formatHours(metrics.monthlyMinutes / 60)}</p>
+                                <p className="text-xs text-gray-500">{Math.round(metrics.budgetConsumed)}%</p>
+                              </div>
+                            </div>
+                          </div>
+                          <p className="text-xs text-gray-600 mt-1">Temps utilisé</p>
+                        </div>
+
+                        {/* Revenue avec indicateur */}
+                        <div className="text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <span className="text-3xl">💰</span>
+                            <div>
+                              <p className="text-2xl font-bold text-emerald-600">
+                                {Math.round(metrics.monthlyRevenue)}€
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {Math.round(metrics.currentHourlyRate)}€/h
+                              </p>
+                            </div>
+                          </div>
+                          <p className="text-xs text-gray-600 mt-1">Forfait mensuel</p>
+                        </div>
+
+                        {/* Score de performance avec badge */}
+                        <div className="text-center">
+                          <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full ${
+                            metrics.performanceScore >= 80 ? 'bg-gradient-to-br from-emerald-400 to-emerald-600' :
+                            metrics.performanceScore >= 60 ? 'bg-gradient-to-br from-amber-400 to-amber-600' :
+                            'bg-gradient-to-br from-red-400 to-red-600'
+                          } text-white font-bold text-xl shadow-lg`}>
+                            {Math.round(metrics.performanceScore)}%
+                          </div>
+                          <p className="text-xs text-gray-600 mt-1">Performance</p>
+                        </div>
+
+                        <motion.svg
+                          className="w-6 h-6 text-gray-400"
+                          animate={{ rotate: isExpanded ? 180 : 0 }}
+                          transition={{ duration: 0.3 }}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </motion.svg>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Liste des tâches */}
+                  {/* Liste des tâches avec sections */}
                   <AnimatePresence>
                     {isExpanded && (
                       <motion.div
-                        initial={{ height: 0 }}
-                        animate={{ height: 'auto' }}
-                        exit={{ height: 0 }}
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.3 }}
                         className="border-t border-gray-100 dark:border-gray-700"
                       >
-                        <div className="p-6 space-y-4">
-                          {metrics.tasks.map((task) => {
-                            const taskId = getTaskId(task._id);
-                            const isCompleted = task.status === 'terminée';
+                        <div className="p-6">
+                          {/* Statistiques rapides */}
+                          <div className="grid grid-cols-4 gap-4 mb-6">
+                            <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl p-4">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="text-sm text-blue-600 dark:text-blue-400">En cours</p>
+                                  <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">
+                                    {metrics.tasks.filter(t => t.status === 'en cours').length}
+                                  </p>
+                                </div>
+                                <span className="text-3xl">⚡</span>
+                              </div>
+                            </div>
+                            
+                            <div className="bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900/20 dark:to-amber-800/20 rounded-xl p-4">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="text-sm text-amber-600 dark:text-amber-400">À faire</p>
+                                  <p className="text-2xl font-bold text-amber-700 dark:text-amber-300">
+                                    {metrics.tasks.filter(t => t.status === 'à faire').length}
+                                  </p>
+                                </div>
+                                <span className="text-3xl">📋</span>
+                              </div>
+                            </div>
+                            
+                            <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl p-4">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="text-sm text-green-600 dark:text-green-400">Terminées</p>
+                                  <p className="text-2xl font-bold text-green-700 dark:text-green-300">
+                                    {metrics.tasks.filter(t => t.status === 'terminée').length}
+                                  </p>
+                                </div>
+                                <span className="text-3xl">✅</span>
+                              </div>
+                            </div>
+                            
+                            <div className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 rounded-xl p-4">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="text-sm text-orange-600 dark:text-orange-400">High Impact</p>
+                                  <p className="text-2xl font-bold text-orange-700 dark:text-orange-300">
+                                    {metrics.highImpactTasks}
+                                  </p>
+                                </div>
+                                <span className="text-3xl">🎯</span>
+                              </div>
+                            </div>
+                          </div>
 
-                            return (
-                              <motion.div
-                                key={taskId}
-                                layout
-                                className={`border rounded-xl p-4 ${task.isHighImpact
-                                    ? 'border-orange-200 bg-orange-50/50 dark:border-orange-800 dark:bg-orange-900/20'
-                                    : 'border-gray-200 dark:border-gray-700'
-                                  }`}
-                              >
-                                <div className="flex items-start justify-between gap-4">
-                                  <div className="flex-1">
-                                    <div className="flex items-start gap-3">
-                                      <div className={`mt-1 text-2xl ${isCompleted ? 'opacity-50' : ''}`}>
-                                        {task.status === 'terminée' ? '✅' :
-                                          task.status === 'en cours' ? '🏃' : '📋'}
-                                      </div>
-                                      <div className="flex-1">
-                                        <div className="flex items-center gap-3">
-                                          <h3 className={`font-semibold text-lg ${isCompleted ? 'line-through opacity-60' : ''
-                                            }`}>
-                                            {task.title}
-                                          </h3>
-                                          {task.isHighImpact && (
-                                            <span className="px-3 py-1 bg-gradient-to-r from-orange-100 to-amber-100 text-orange-700 rounded-full text-sm font-medium">
-                                              �� Impact 80/20
-                                            </span>
-                                          )}
-                                        </div>
+                          {/* Tâches groupées par statut */}
+                          <div className="space-y-6">
+                            {['en cours', 'à faire', 'terminée'].map(status => {
+                              const statusTasks = metrics.tasks.filter(t => t.status === status);
+                              if (statusTasks.length === 0) return null;
 
-                                        {task.description && (
-                                          <p className="text-gray-600 dark:text-gray-400 mt-1">
-                                            {task.description}
-                                          </p>
-                                        )}
+                              return (
+                                <div key={status} className="space-y-3">
+                                  <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                                    <span className="text-lg">{getStatusEmoji(status)}</span>
+                                    {status === 'en cours' ? 'En cours' : status === 'à faire' ? 'À faire' : 'Terminées'}
+                                    <span className="text-xs bg-gray-200 dark:bg-gray-700 rounded-full px-2 py-1">
+                                      {statusTasks.length}
+                                    </span>
+                                  </h3>
 
-                                        {/* Métriques de temps */}
-                                        <div className="flex items-center gap-6 mt-3">
-                                          <div className="flex items-center gap-2">
-                                            <span className="text-sm text-gray-500">Ce mois:</span>
-                                            <span className="font-bold text-lg">
-                                              {formatMinutes(task.monthlyTimeMinutes)}
-                                            </span>
-                                            {task.percentageOfClientTime > 0 && (
-                                              <span className="text-sm text-gray-500">
-                                                ({Math.round(task.percentageOfClientTime)}%)
-                                              </span>
-                                            )}
-                                          </div>
+                                  <div className={viewMode === 'cards' ? 'grid grid-cols-2 gap-4' : 'space-y-3'}>
+                                    {statusTasks.map((task) => {
+                                      const taskId = getTaskId(task._id);
+                                      const isCompleted = task.status === 'terminée';
+                                      const progress = task.estimatedTime ? (task.totalTimeMinutes / task.estimatedTime) * 100 : 0;
 
-                                          <div className="flex items-center gap-2">
-                                            <span className="text-sm text-gray-500">Total:</span>
-                                            <span className="text-gray-700 dark:text-gray-300">
-                                              {formatMinutes(task.totalTimeMinutes)}
-                                            </span>
-                                          </div>
+                                      return (
+                                        <motion.div
+                                          key={taskId}
+                                          layout
+                                          whileHover={{ scale: viewMode === 'cards' ? 1.02 : 1 }}
+                                          className={`
+                                            ${viewMode === 'cards' ? 'p-5' : 'p-4'}
+                                            ${task.isHighImpact
+                                              ? 'bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 border-orange-200 dark:border-orange-800'
+                                              : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
+                                            }
+                                            border rounded-xl hover:shadow-md transition-all duration-200
+                                            ${isCompleted ? 'opacity-75' : ''}
+                                          `}
+                                        >
+                                          <div className={viewMode === 'cards' ? 'space-y-3' : 'flex items-start justify-between gap-4'}>
+                                            <div className={viewMode === 'cards' ? '' : 'flex-1'}>
+                                              {/* En-tête de la tâche */}
+                                              <div className="flex items-start justify-between gap-2 mb-2">
+                                                <h4 className={`font-semibold text-gray-900 dark:text-white ${
+                                                  isCompleted ? 'line-through opacity-60' : ''
+                                                }`}>
+                                                  {task.title}
+                                                </h4>
+                                                <span className={`text-xs px-2 py-1 rounded-full border ${getPriorityColor(task.priority)}`}>
+                                                  {task.priority}
+                                                </span>
+                                              </div>
 
-                                          {task.estimatedTime && (
-                                            <div className="flex items-center gap-2">
-                                              <span className="text-sm text-gray-500">Estimé:</span>
-                                              <span className="text-gray-700 dark:text-gray-300">
-                                                {formatMinutes(task.estimatedTime)}
-                                              </span>
+                                              {task.description && viewMode === 'cards' && (
+                                                <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-3">
+                                                  {task.description}
+                                                </p>
+                                              )}
+
+                                              {/* Badges et indicateurs */}
+                                              <div className="flex flex-wrap items-center gap-2 mb-3">
+                                                {task.isHighImpact && (
+                                                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-orange-100 to-amber-100 dark:from-orange-800/30 dark:to-amber-800/30 text-orange-700 dark:text-orange-300 rounded-full text-xs font-medium">
+                                                    <span>🎯</span> High Impact
+                                                  </span>
+                                                )}
+                                                {task.dueDate && (
+                                                  <span className="inline-flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400">
+                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                    </svg>
+                                                    {new Date(task.dueDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                                                  </span>
+                                                )}
+                                              </div>
+
+                                              {/* Temps et progression */}
+                                              <div className="space-y-2">
+                                                <div className="flex items-center justify-between text-sm">
+                                                  <span className="text-gray-600 dark:text-gray-400">
+                                                    Temps: {formatMinutes(task.monthlyTimeMinutes)} ce mois
+                                                  </span>
+                                                  {task.estimatedTime && (
+                                                    <span className={`font-medium ${
+                                                      progress > 100 ? 'text-red-600' : 'text-gray-700 dark:text-gray-300'
+                                                    }`}>
+                                                      {Math.round(progress)}%
+                                                    </span>
+                                                  )}
+                                                </div>
+                                                
+                                                {task.estimatedTime && (
+                                                  <div className="relative w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                                    <motion.div
+                                                      initial={{ width: 0 }}
+                                                      animate={{ width: `${Math.min(100, progress)}%` }}
+                                                      transition={{ duration: 1, ease: "easeOut" }}
+                                                      className={`absolute inset-y-0 left-0 ${
+                                                        progress > 100 ? 'bg-gradient-to-r from-red-500 to-red-600' :
+                                                        progress > 80 ? 'bg-gradient-to-r from-amber-500 to-orange-500' :
+                                                        'bg-gradient-to-r from-blue-500 to-blue-600'
+                                                      }`}
+                                                    />
+                                                  </div>
+                                                )}
+                                              </div>
                                             </div>
-                                          )}
-                                        </div>
 
-                                        {/* Barre de progression si temps estimé */}
-                                        {(task.estimatedTime || 0) > 0 && (
-                                          <div className="mt-3">
-                                            <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                                              <span>Progression</span>
-                                              <span>{Math.round((task.totalTimeMinutes / (task.estimatedTime || 1)) * 100)}%</span>
-                                            </div>
-                                            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                                              <div
-                                                className={`h-2 rounded-full transition-all ${task.totalTimeMinutes > (task.estimatedTime || 0)
-                                                    ? 'bg-red-500'
-                                                    : 'bg-blue-500'
-                                                  }`}
-                                                style={{
-                                                  width: `${Math.min(100, (task.totalTimeMinutes / (task.estimatedTime || 1)) * 100)}%`
+                                            {/* Actions */}
+                                            <div className={`flex ${viewMode === 'cards' ? 'justify-between' : 'items-start'} gap-2 mt-3`}>
+                                              <button
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  dispatch(setSelectedTaskId(taskId));
+                                                  dispatch(toggleTimerPopup(true));
                                                 }}
-                                              />
+                                                className="flex items-center gap-1 px-3 py-1.5 bg-[#026aa1] hover:bg-[#0487d9] text-white rounded-lg text-sm font-medium transition-colors"
+                                              >
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                                Timer
+                                              </button>
+
+                                              {!isCompleted ? (
+                                                <div className="flex gap-2">
+                                                  <button
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      handleComplete(taskId);
+                                                    }}
+                                                    className="flex items-center gap-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+                                                  >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                    </svg>
+                                                    Terminer
+                                                  </button>
+                                                  <button
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      navigate(`/tasks/${taskId}`);
+                                                    }}
+                                                    className="p-1.5 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                                                  >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                    </svg>
+                                                  </button>
+                                                </div>
+                                              ) : (
+                                                <div className="flex gap-2">
+                                                  <button
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      handleReactivateTask(taskId);
+                                                    }}
+                                                    className="flex items-center gap-1 px-3 py-1.5 border border-gray-300 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700 rounded-lg text-sm transition-colors"
+                                                  >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                    </svg>
+                                                    Réactiver
+                                                  </button>
+                                                  <button
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      handleArchiveTask(taskId);
+                                                    }}
+                                                    className="p-1.5 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                                                  >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                                                    </svg>
+                                                  </button>
+                                                </div>
+                                              )}
                                             </div>
                                           </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  {/* Actions */}
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      onClick={() => {
-                                        console.log("Tasks: Setting selectedTaskId to:", taskId);
-                                        dispatch(setSelectedTaskId(taskId));
-                                        dispatch(toggleTimerPopup(true));
-                                      }}
-                                      className="px-4 py-2 bg-[#026aa1] hover:bg-[#0487d9] text-white rounded-lg font-medium transition-colors"
-                                      title="Démarrer un timer"
-                                    >
-                                    {!isCompleted && (
-                                      <button
-                                        onClick={() => handleComplete(taskId)}
-                                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
-                                        title="Marquer comme terminée"
-                                      >
-                                        ✅ Terminer
-                                      </button>
-                                    )}
-                                      ⏱️ Timer
-                                    </button>
-
-                                    {isCompleted ? (
-                                      <>
-                                        <button
-                                          onClick={() => handleReactivateTask(taskId)}
-                                          className="px-4 py-2 border border-gray-300 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                                          title="Rouvrir la tâche"
-                                        >
-                                          🔄 Réactiver
-                                        </button>
-                                        <button
-                                          onClick={() => handleArchiveTask(taskId)}
-                                          className="px-4 py-2 border border-gray-300 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                                          title="Archiver"
-                                        >
-                                          📁 Archiver
-                                        </button>
-                                      </>
-                                    ) : (
-                                      <button
-                                        onClick={() => navigate(`/tasks/${taskId}`)}
-                                        className="px-4 py-2 border border-gray-300 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                                        title="Éditer"
-                                      >
-                                        ✏️ Éditer
-                                      </button>
-                                    )}
+                                        </motion.div>
+                                      );
+                                    })}
                                   </div>
                                 </div>
-                              </motion.div>
-                            );
-                          })}
+                              );
+                            })}
+                          </div>
 
                           {metrics.tasks.length === 0 && (
-                            <div className="text-center py-8 text-gray-500">
-                              Aucune tâche active pour ce client
+                            <div className="text-center py-12">
+                              <div className="inline-flex items-center justify-center w-20 h-20 bg-gray-100 dark:bg-gray-700 rounded-full mb-4">
+                                <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                </svg>
+                              </div>
+                              <p className="text-gray-500 dark:text-gray-400 mb-4">Aucune tâche pour ce client</p>
+                              <button
+                                onClick={() => navigate('/tasks/new')}
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-[#026aa1] hover:bg-[#0487d9] text-white rounded-lg font-medium transition-colors"
+                              >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                </svg>
+                                Créer une tâche
+                              </button>
                             </div>
                           )}
                         </div>
@@ -617,6 +825,31 @@ const Tasks: React.FC = () => {
                 </motion.div>
               );
             })}
+
+            {Object.keys(clientMetrics).length === 0 && (
+              <div className="text-center py-20">
+                <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-[#026aa1]/10 to-[#0487d9]/10 rounded-full mb-6">
+                  <svg className="w-12 h-12 text-[#026aa1]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                  Commencez votre journée productive
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-6">
+                  Créez votre première tâche pour démarrer
+                </p>
+                <button
+                  onClick={() => navigate('/tasks/new')}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#026aa1] to-[#0487d9] hover:from-[#0487d9] hover:to-[#026aa1] text-white rounded-xl font-medium shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Créer ma première tâche
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
