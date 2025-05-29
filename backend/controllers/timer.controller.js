@@ -194,6 +194,8 @@ const stopTimer = async (req, res) => {
         
         console.log(`Task ${task._id} mise à jour : +${minutesWorked} minutes (${previousTime} → ${task.timeSpent} minutes)`);
         
+        // DEBUG: Vérifier la tâche après mise à jour
+        const updatedTask = await Task.findById(task._id).session(session);
         // Logger l'activité
         mongoLogger.info('Timer arrêté et tâche mise à jour', {
           timerId: timer._id,

@@ -163,13 +163,10 @@ const Tasks: React.FC = () => {
         const taskId = getTaskId(task._id);
 
         // Temps des timers pour cette tâche ce mois-ci
-        console.log(`Timers pour task ${task._id}:`, timers.filter(t => t.taskId && getTaskId(t.taskId) === taskId).length, "total");
+        console.log(`Timers pour task ${task._id}:`, timers.filter(t => t.taskId === taskId).length, "total");
         const taskTimersThisMonth = timers.filter(timer => {
-          if (!timer.taskId) return false;
-          const taskIdFromTimer = getTaskId(timer.taskId);
-          const match = taskIdFromTimer === taskId;
-          if (match) console.log(`✅ Timer found for task ${task.title}: timer.taskId=${taskIdFromTimer}, taskId=${taskId}`);
-          if (!match) return false;
+          if (!timer.taskId || getTaskId(timer.taskId) !== taskId) return false;
+          console.log(`Comparing timer.taskId ${timer.taskId} with taskId ${taskId}`);
           const timerDate = new Date(timer.startTime);
           return timerDate >= startOfMonth && timerDate < endOfMonth;
         });
@@ -218,7 +215,7 @@ const Tasks: React.FC = () => {
       tasksWithMonthlyTime.sort((a, b) => b.monthlyTimeMinutes - a.monthlyTimeMinutes);
 
       // Métriques financières
-      const hourlyRate = profitability?.revenue && profitability?.spentHours > 0 ? profitability.revenue / profitability.spentHours : (profitability?.hourlyRate || 100);
+      const hourlyRate = profitability?.hourlyRate || 100;
       const targetHours = profitability?.targetHours || 40;
       const revenue = profitability?.revenue || 0;
       const monthlyHours = totalMonthlyMinutes / 60;

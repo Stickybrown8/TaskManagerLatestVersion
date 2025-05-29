@@ -105,11 +105,9 @@ const Tasks: React.FC = () => {
         }
       });
       setClientsProfitability(profMap);
-      console.log("Profitability mapping:", Object.keys(profMap), profMap);
 
       // Charger tous les timers
       const timersData = await timerService.getAllTimers();
-      console.log("Premier timer:", timersData[0]);
       setTimers(timersData);
 
       console.log("Tâches rechargées:", tasks);
@@ -155,21 +153,15 @@ const Tasks: React.FC = () => {
       const client = clients.find(c => c._id === clientId);
       if (!client) return;
 
-      const profitability = clientsProfitability[getClientId(clientId)];
-      console.log(`Client ${client.name}: profitability =`, profitability, "hourlyRate:", profitability?.hourlyRate);
+      const profitability = clientsProfitability[clientId];
 
       // Enrichir chaque tâche avec son temps mensuel
       const tasksWithMonthlyTime: TaskWithMonthlyTime[] = clientTasks.map(task => {
         const taskId = getTaskId(task._id);
 
         // Temps des timers pour cette tâche ce mois-ci
-        console.log(`Timers pour task ${task._id}:`, timers.filter(t => t.taskId && getTaskId(t.taskId) === taskId).length, "total");
         const taskTimersThisMonth = timers.filter(timer => {
-          if (!timer.taskId) return false;
-          const taskIdFromTimer = getTaskId(timer.taskId);
-          const match = taskIdFromTimer === taskId;
-          if (match) console.log(`✅ Timer found for task ${task.title}: timer.taskId=${taskIdFromTimer}, taskId=${taskId}`);
-          if (!match) return false;
+          if (timer.taskId !== taskId) return false;
           const timerDate = new Date(timer.startTime);
           return timerDate >= startOfMonth && timerDate < endOfMonth;
         });
@@ -186,7 +178,6 @@ const Tasks: React.FC = () => {
         }
 
         // Ajouter le temps des timers
-        console.log(`Task ${task.title}: ${taskTimersThisMonth.length} timers ce mois, durées:`, taskTimersThisMonth.map(t => t.duration));
         const timerMinutes = taskTimersThisMonth.reduce((sum, timer) => {
           return sum + ((timer.duration || 0) / 60);
         }, 0);
@@ -218,7 +209,7 @@ const Tasks: React.FC = () => {
       tasksWithMonthlyTime.sort((a, b) => b.monthlyTimeMinutes - a.monthlyTimeMinutes);
 
       // Métriques financières
-      const hourlyRate = profitability?.revenue && profitability?.spentHours > 0 ? profitability.revenue / profitability.spentHours : (profitability?.hourlyRate || 100);
+      const hourlyRate = profitability?.hourlyRate || 100;
       const targetHours = profitability?.targetHours || 40;
       const revenue = profitability?.revenue || 0;
       const monthlyHours = totalMonthlyMinutes / 60;
@@ -280,7 +271,6 @@ const Tasks: React.FC = () => {
       console.error('Erreur:', error);
     }
   };
-
 
 
   const formatMinutes = (minutes: number): string => {
@@ -612,4 +602,3 @@ const Tasks: React.FC = () => {
 };
 
 export default Tasks;
-

@@ -454,7 +454,9 @@ const TimerPopup: React.FC<TimerPopupProps> = () => {
         const token = localStorage.getItem('token');
 
         // Arrêter le timer avec la durée actuelle
-        await timerService.stopTimer(timerId);
+        refreshTasks();
+        await timerService.stopTimer(timerId, timerDuration);
+        refreshTasks();
 
         if (selectedTaskId && timerDuration > 0) {
           const taskRes = await fetch(`${API_URL}/api/tasks/${selectedTaskId}`, {
@@ -513,7 +515,6 @@ const TimerPopup: React.FC<TimerPopupProps> = () => {
         }));
       } finally {
         setLoading(false);
-        setIsRunning(false); // S'assurer que le timer est arrêté
       }
     });
   };

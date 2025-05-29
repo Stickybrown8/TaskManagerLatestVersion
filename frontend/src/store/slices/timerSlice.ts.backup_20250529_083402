@@ -21,8 +21,8 @@ export interface Timer {
 }
 
 interface TimerState {
-  clientTimers: Record<string, Timer>;
-  taskTimers: Record<string, Timer>;
+  clientTimers: Record<string, Timer[]>;
+  taskTimers: Record<string, Timer[]>;
   currentTimer: Timer | null;
   runningTimer: Timer | null;
   showTimerPopup: boolean; // Assurez-vous que cette ligne existe

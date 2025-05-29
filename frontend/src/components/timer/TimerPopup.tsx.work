@@ -37,7 +37,7 @@ interface TimerPopupProps { }
 
 const TimerPopup: React.FC<TimerPopupProps> = () => {
   const dispatch = useAppDispatch();
-  const { showTimerPopup, selectedTaskId: reduxSelectedTaskId } = useAppSelector(state => state.timer);
+  const { showTimerPopup } = useAppSelector(state => state.timer);
   const { addExperience, checkAchievement, showReward } = useGamification();
   const { refreshTasks } = useTasks();
   const { handleCompleteTask, showConfetti } = useTaskCompletion();
@@ -104,7 +104,6 @@ const TimerPopup: React.FC<TimerPopupProps> = () => {
 
   // Charger les données initiales
   useEffect(() => {
-    console.log("TimerPopup useEffect triggered, reduxSelectedTaskId:", reduxSelectedTaskId, "showTimerPopup:", showTimerPopup);
     if (showTimerPopup) {
       fetchClientsAndTasks();
       checkRunningTimer();
@@ -113,7 +112,6 @@ const TimerPopup: React.FC<TimerPopupProps> = () => {
 
   // Timer interval avec mise à jour du taux horaire
   useEffect(() => {
-    console.log("TimerPopup useEffect triggered, reduxSelectedTaskId:", reduxSelectedTaskId, "showTimerPopup:", showTimerPopup);
     if (isRunning) {
       const interval = setInterval(() => {
         setTimerDuration(prev => {
@@ -137,65 +135,6 @@ const TimerPopup: React.FC<TimerPopupProps> = () => {
     }
   }, [isRunning, profitability]);
 
-  // Pré-sélection de la tâche depuis Redux
-  useEffect(() => {
-    console.log("TimerPopup useEffect triggered, reduxSelectedTaskId:", reduxSelectedTaskId, "showTimerPopup:", showTimerPopup);
-    const loadTaskFromRedux = async () => {
-      console.log("Redux selectedTaskId:", reduxSelectedTaskId);
-      if (reduxSelectedTaskId && showTimerPopup && !selectedTaskId) {
-        try {
-          const token = localStorage.getItem('token');
-          if (!token) return;
-          
-          // Charger la tâche
-          const taskRes = await fetch(`${API_URL}/api/tasks/${reduxSelectedTaskId}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          
-          if (taskRes.ok) {
-            const task = await taskRes.json();
-            console.log("Tâche chargée depuis API:", task);
-            setSelectedTaskId(reduxSelectedTaskId);
-            console.log("Setting local selectedTaskId to:", reduxSelectedTaskId);
-            setSelectedTask(task);
-            
-            // Charger le client si nécessaire
-            if (task.clientId) {
-              const clientId = task.clientId._id || task.clientId;
-              setSelectedClientId(clientId);
-              
-              // Appeler fetchClientDetails qui chargera aussi les tâches
-              fetchClientDetails(clientId);
-              
-              // Si la tâche est terminée, l'ajouter temporairement à la liste
-              if (task.status === 'terminée') {
-                setTasks(prevTasks => {
-                  const taskExists = prevTasks.some(t => t._id === task._id);
-                  if (!taskExists) {
-                    return [...prevTasks, task];
-                  }
-                  return prevTasks;
-                });
-              }
-            }
-            
-            // Note: Ne pas démarrer automatiquement le timer pour les tâches terminées
-            if (task.status !== 'terminée') {
-              // Attendre un peu pour que tout soit chargé
-              setTimeout(() => {
-                // setIsRunning(true); // Désactivé - l'utilisateur doit cliquer sur Démarrer
-              }, 500);
-            }
-          }
-        } catch (error) {
-          console.error('Erreur lors du chargement de la tâche:', error);
-        }
-      }
-    };
-    
-    loadTaskFromRedux();
-  }, [reduxSelectedTaskId, showTimerPopup]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const fetchClientsAndTasks = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -212,7 +151,6 @@ const TimerPopup: React.FC<TimerPopupProps> = () => {
 
       setClients(clientsRes);
       setTasks(tasksRes);
-      console.log("Toutes les tâches chargées:", tasksRes);
     } catch (error) {
       console.error('Erreur chargement données:', error);
     }
@@ -372,7 +310,6 @@ const TimerPopup: React.FC<TimerPopupProps> = () => {
 
           if (isRunning && timerId) {
             await timerService.stopTimer(timerId);
-        refreshTasks();
 
             if (timerDuration > 0) {
               const taskRes = await fetch(`${API_URL}/api/tasks/${selectedTaskId}`, {
@@ -454,7 +391,7 @@ const TimerPopup: React.FC<TimerPopupProps> = () => {
         const token = localStorage.getItem('token');
 
         // Arrêter le timer avec la durée actuelle
-        await timerService.stopTimer(timerId);
+        await timerService.stopTimer(timerId, timerDuration);
 
         if (selectedTaskId && timerDuration > 0) {
           const taskRes = await fetch(`${API_URL}/api/tasks/${selectedTaskId}`, {
@@ -513,7 +450,6 @@ const TimerPopup: React.FC<TimerPopupProps> = () => {
         }));
       } finally {
         setLoading(false);
-        setIsRunning(false); // S'assurer que le timer est arrêté
       }
     });
   };

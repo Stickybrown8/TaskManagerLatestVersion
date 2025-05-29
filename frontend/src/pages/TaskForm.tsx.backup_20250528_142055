@@ -1,5 +1,4 @@
 // === Ce fichier crée le formulaire de création d'une nouvelle tâche dans l'application === /workspaces/TaskManagerLatestVersion/frontend/src/pages/TaskForm.tsx
-
 // Explication simple : C'est comme une fiche à remplir pour ajouter une nouvelle tâche, avec différents champs comme le titre, la description, la date limite, etc.
 // Explication technique : Composant React fonctionnel qui gère le formulaire de création de tâche avec validation des entrées, communication API, et gestion d'état Redux.
 // Utilisé dans : Le routeur principal de l'application, accessible via la route /tasks/new ou un bouton "Nouvelle tâche" depuis la liste des tâches
@@ -15,22 +14,10 @@ import { clientsService } from '../services/api';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 
-// Détection automatique de l'URL pour GitHub Codespaces
-const getApiUrl = () => {
-  if (window.location.hostname === 'localhost') {
-    return 'http://localhost:5000';
-  }
-  if (window.location.hostname.includes('github.dev')) {
-    return window.location.origin.replace('-3000.', '-5000.');
-  }
-  return process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com';
-};
-
-
 // === Début : Configuration de l'URL de l'API ===
 // Explication simple : On définit l'adresse du serveur avec lequel notre application va communiquer.
 // Explication technique : Constante qui stocke l'URL de base de l'API, récupérée depuis les variables d'environnement ou utilisant une valeur par défaut si non définie.
-const API_URL = getApiUrl();
+const API_URL = process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com';
 // === Fin : Configuration de l'URL de l'API ===
 
 // === Début : Composant principal TaskForm ===
