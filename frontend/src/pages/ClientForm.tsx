@@ -56,18 +56,9 @@ const API_URL = process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.
 // Explication simple : C'est le grand chef d'orchestre qui va organiser toute la page de création de client, comme le chef d'une cuisine qui supervise la préparation d'un plat.
 // Explication technique : Définition du composant fonctionnel React avec typage explicite, qui encapsule toute la logique et l'interface utilisateur du formulaire multi-étapes.
 const ClientForm: React.FC = () => {
-// === Fin : Composant principal ClientForm ===
-
-  // === Début : Initialisation des hooks et récupération des états de navigation ===
-  // Explication simple : On prépare des outils pour parler avec le "cerveau" de l'application et pour pouvoir changer de page quand on a fini.
-  // Explication technique : Configuration du dispatcher Redux pour les actions et du hook de navigation pour les redirections après soumission.
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  // === Fin : Initialisation des hooks et récupération des états de navigation ===
 
-  // === Début : Configuration des états du formulaire - informations générales ===
-  // Explication simple : On crée une grande boîte pour stocker toutes les informations sur le client, comme une fiche avec différentes sections à remplir.
-  // Explication technique : Initialisation de l'état local avec useState pour stocker les données du formulaire, avec structure complète et valeurs par défaut.
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -85,54 +76,77 @@ const ClientForm: React.FC = () => {
     tags: [] as string[],
     logo: '',
   });
-  // === Fin : Configuration des états du formulaire - informations générales ===
 
-  // === Début : États pour la gestion du logo ===
-  // Explication simple : On prépare un espace spécial pour l'image du logo du client, comme quand tu gardes un cadre photo prêt pour y mettre une nouvelle photo.
-  // Explication technique : Initialisation des états locaux pour gérer le fichier du logo et son aperçu, avec typage explicite pour le fichier.
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string>('');
-  // === Fin : États pour la gestion du logo ===
-
-  // === Début : Configuration des états de rentabilité ===
-  // Explication simple : On crée une boîte spéciale pour les informations sur l'argent que le client va rapporter, comme quand tu notes combien coûtent les choses dans ton tirelire.
-  // Explication technique : Initialisation de l'état local pour les données de rentabilité avec structure et valeurs par défaut pour les calculs dynamiques.
   const [profitabilityData, setProfitabilityData] = useState({
     hourlyRate: 100,
     targetHours: 0,
     monthlyBudget: 0,
   });
-  // === Fin : Configuration des états de rentabilité ===
 
-  // === Début : États de l'interface utilisateur ===
-  // Explication simple : On prépare des indicateurs pour savoir si le formulaire est en train d'envoyer des données et à quelle étape on se trouve, comme des panneaux indicateurs sur un chemin.
-  // Explication technique : Initialisation des états locaux pour le statut de chargement et l'étape courante du formulaire multi-étapes.
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState(1);
-  // === Fin : États de l'interface utilisateur ===
+  const [activeSection, setActiveSection] = useState<'info' | 'profitability'>('info');
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // === Début : Gestion des champs du formulaire général ===
-  // Explication simple : Cette fonction s'occupe de mettre à jour les informations quand tu écris quelque chose dans un champ du formulaire, comme quand tu remplis une case sur un dessin "relier les points".
-  // Explication technique : Fonction de gestion des événements onChange pour les champs de formulaire génériques, mettant à jour l'état formData de manière immutable.
+  // Validation en temps réel
+  const validateField = (name: string, value: any) => {
+    const newErrors = { ...errors };
+    
+    switch (name) {
+      case 'name':
+        if (!value.trim()) {
+          newErrors.name = 'Le nom est obligatoire';
+        } else {
+          delete newErrors.name;
+        }
+        break;
+      case 'email':
+        if (value && !/\S+@\S+\.\S+/.test(value)) {
+          newErrors.email = 'Email invalide';
+        } else {
+          delete newErrors.email;
+        }
+        break;
+    }
+    
+    setErrors(newErrors);
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    validateField(name, value);
   };
-  // === Fin : Gestion des champs du formulaire général ===
 
-  // === Début : Gestion du logo ===
-  // Explication simple : Cette fonction s'occupe de sauvegarder l'image du logo quand tu en choisis une, comme quand tu colles une photo dans un album.
-  // Explication technique : Fonction callback pour gérer la mise à jour du logo via le composant LogoUploader, stockant à la fois le fichier et l'aperçu.
-  const handleLogoChange = (logo: string, file?: File) => {
-    setLogoFile(file || null);
-    setFormData((prev) => ({ ...prev, logo }));
-    setLogoPreview(logo);
+  // Gestion améliorée du drag & drop pour le logo
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+      processLogoFile(file);
+    }
   };
-  // === Fin : Gestion du logo ===
 
-  // === Début : Gestion des contacts ===
-  // Explication simple : Ces fonctions permettent d'ajouter, modifier ou supprimer des contacts pour le client, comme quand tu ajoutes ou enlèves des personnes dans ta liste d'amis.
-  // Explication technique : Collection de fonctions pour manipuler le tableau de contacts dans l'état formData, avec mise à jour immutable de l'état et gestion des index.
+  const processLogoFile = (file: File) => {
+    if (file.size > 2 * 1024 * 1024) {
+      dispatch(addNotification({
+        message: 'Le logo ne doit pas dépasser 2MB',
+        type: 'error'
+      }));
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setLogoFile(file);
+      setFormData(prev => ({ ...prev, logo: reader.result as string }));
+      setLogoPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Gestion des contacts
   const handleContactChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     const updatedContacts = [...formData.contacts];
@@ -155,74 +169,44 @@ const ClientForm: React.FC = () => {
     updatedContacts.splice(index, 1);
     setFormData((prev) => ({ ...prev, contacts: updatedContacts }));
   };
-  // === Fin : Gestion des contacts ===
 
-  // === Début : Gestion des champs de rentabilité ===
-  // Explication simple : Cette fonction fait des calculs automatiques quand tu changes un nombre dans la partie rentabilité, comme une calculatrice magique qui remplit les autres cases toute seule.
-  // Explication technique : Fonction de gestion des événements onChange pour les champs de rentabilité, incluant des calculs interdépendants entre taux horaire, heures cibles et budget mensuel.
+  // Gestion des champs de rentabilité
   const handleProfitabilityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    const numValue = parseFloat(value);
+    const numValue = parseFloat(value) || 0;
 
-    if (name === 'monthlyBudget' && numValue > 0) {
-      const targetHours = Math.round((numValue / profitabilityData.hourlyRate) * 10) / 10;
-      setProfitabilityData((prev) => ({
-        ...prev,
-        [name]: numValue,
+    // Logique corrigée : monthlyBudget est défini par le client
+    // targetHours est calculé automatiquement
+    if (name === 'monthlyBudget') {
+      const targetHours = profitabilityData.hourlyRate > 0 
+        ? Math.round((numValue / profitabilityData.hourlyRate) * 10) / 10
+        : 0;
+      setProfitabilityData({
+        ...profitabilityData,
+        monthlyBudget: numValue,
         targetHours: targetHours,
-      }));
-    } else if (name === 'hourlyRate' && numValue > 0) {
-      const targetHours =
-        profitabilityData.monthlyBudget > 0
-          ? Math.round((profitabilityData.monthlyBudget / numValue) * 10) / 10
-          : profitabilityData.targetHours;
-      setProfitabilityData((prev) => ({
-        ...prev,
-        [name]: numValue,
+      });
+    } else if (name === 'hourlyRate') {
+      const targetHours = profitabilityData.monthlyBudget > 0 && numValue > 0
+        ? Math.round((profitabilityData.monthlyBudget / numValue) * 10) / 10
+        : 0;
+      setProfitabilityData({
+        ...profitabilityData,
+        hourlyRate: numValue,
         targetHours: targetHours,
-      }));
-    } else if (name === 'targetHours' && numValue >= 0) {
-      const monthlyBudget = Math.round(numValue * profitabilityData.hourlyRate);
-      setProfitabilityData((prev) => ({
-        ...prev,
-        [name]: numValue,
-        monthlyBudget: monthlyBudget,
-      }));
-    } else {
-      setProfitabilityData((prev) => ({
-        ...prev,
-        [name]: numValue,
-      }));
+      });
     }
   };
-  // === Fin : Gestion des champs de rentabilité ===
 
-  // === Début : Navigation entre les étapes ===
-  // Explication simple : Ces fonctions te permettent d'avancer à l'étape suivante ou de revenir en arrière dans le formulaire, comme tourner les pages d'un livre d'images.
-  // Explication technique : Fonctions pour la navigation entre les étapes du formulaire multi-étapes, avec validation basique pour l'étape 1 et notification d'erreur si nécessaire.
-  const nextStep = () => {
-    if (formData.name.trim() === '') {
-      dispatch(
-        addNotification({
-          message: 'Le nom du client est obligatoire',
-          type: 'error',
-        }),
-      );
-      return;
-    }
-    setStep(2);
-  };
-
-  const prevStep = () => {
-    setStep(1);
-  };
-  // === Fin : Navigation entre les étapes ===
-
-  // === Début : Soumission du formulaire ===
-  // Explication simple : Cette fonction envoie toutes les informations remplies au serveur quand tu as fini de compléter le formulaire, comme poster une lettre dans une boîte aux lettres.
-  // Explication technique : Fonction asynchrone de gestion de la soumission du formulaire, avec validation, combinaison des données, appel à l'API via axios, gestion des états de chargement et des erreurs via Redux, et redirection après succès.
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validation complète
+    if (!formData.name.trim()) {
+      setErrors({ name: 'Le nom est obligatoire' });
+      setActiveSection('info');
+      return;
+    }
 
     if (
       !profitabilityData.hourlyRate ||
@@ -300,409 +284,474 @@ const ClientForm: React.FC = () => {
       setLoading(false);
     }
   };
-  // === Fin : Soumission du formulaire ===
 
-  // === Début : Rendu de l'interface utilisateur ===
-  // Explication simple : C'est la partie qui dessine tout le formulaire sur l'écran, comme quand tu assembles toutes les pièces d'un puzzle pour voir l'image complète.
-  // Explication technique : Retour du JSX principal qui structure l'interface utilisateur complète du formulaire, avec animations via framer-motion et rendu conditionnel des différentes étapes.
   return (
-    <div className="container mx-auto">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {step === 1 ? 'Nouveau Client - Informations' : 'Nouveau Client - Rentabilité'}
-          </h1>
-          <button
-            onClick={() => navigate('/clients')}
-            className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors"
-          >
-            Annuler
-          </button>
-        </div>
-
-        {/* === Début : Indicateur d'étape === */}
-        {/* Explication simple : Cette partie montre où tu en es dans le formulaire, comme une barre de progression qui te dit combien d'étapes il reste. */}
-        {/* Explication technique : Composant visuel qui indique la progression à travers les étapes du formulaire, avec coloration conditionnelle basée sur l'étape actuelle. */}
-        <div className="mb-6">
-          <div className="flex items-center">
-            <div
-              className={`w-10 h-10 flex items-center justify-center rounded-full ${
-                step >= 1 ? 'bg-primary-600 text-white' : 'bg-gray-300 text-gray-600'
-              }`}
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      <div className="container mx-auto px-4 py-8 max-w-5xl">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          {/* Header moderne */}
+          <div className="mb-8">
+            <button
+              onClick={() => navigate('/clients')}
+              className="mb-4 inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 transition-colors"
             >
-              1
-            </div>
-            <div
-              className={`flex-1 h-1 mx-2 ${
-                step >= 2 ? 'bg-primary-600' : 'bg-gray-300'
-              }`}
-            ></div>
-            <div
-              className={`w-10 h-10 flex items-center justify-center rounded-full ${
-                step >= 2 ? 'bg-primary-600 text-white' : 'bg-gray-300 text-gray-600'
-              }`}
-            >
-              2
-            </div>
-          </div>
-          <div className="flex mt-2">
-            <div className="flex-1 text-center text-sm">Informations</div>
-            <div className="flex-1 text-center text-sm">Rentabilité</div>
-          </div>
-        </div>
-        {/* === Fin : Indicateur d'étape === */}
-
-        {/* === Début : Étape 1 - Informations du client === */}
-        {/* Explication simple : Cette section contient tous les champs pour les informations générales du client comme son nom, son logo et ses contacts, comme une carte d'identité que tu remplis. */}
-        {/* Explication technique : Rendu conditionnel de la première étape du formulaire, avec champs pour les informations de base du client, téléchargement de logo et gestion des contacts, organisé en sections distinctes. */}
-        {step === 1 && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 space-y-4">
-            <div>
-              <label
-                htmlFor="name"
-                className="block text-gray-700 dark:text-gray-300 font-medium mb-2"
-              >
-                Nom du client *
-              </label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
-                required
-              />
-            </div>
-
-            {/* Logo */}
-            <LogoUploader 
-              currentLogo={logoPreview} 
-              onLogoChange={handleLogoChange}
-              className="mb-4"
-            />
-
-            <div>
-              <label
-                htmlFor="description"
-                className="block text-gray-700 dark:text-gray-300 font-medium mb-2"
-              >
-                Description
-              </label>
-              <textarea
-                id="description"
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
-                rows={4}
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="status"
-                className="block text-gray-700 dark:text-gray-300 font-medium mb-2"
-              >
-                Statut
-              </label>
-              <select
-                id="status"
-                name="status"
-                value={formData.status}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
-              >
-                <option value="actif">Actif</option>
-                <option value="inactif">Inactif</option>
-                <option value="archivé">Archivé</option>
-              </select>
-            </div>
-
-            {/* Contacts */}
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <label className="block text-gray-700 dark:text-gray-300 font-medium">
-                  Contacts
-                </label>
-                <button
-                  type="button"
-                  onClick={addContact}
-                  className="px-2 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors text-sm"
-                >
-                  + Ajouter un contact
-                </button>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              Retour aux clients
+            </button>
+            
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-[#026aa1] to-[#0487d9] text-transparent bg-clip-text mb-2">
+                  Créer un nouveau client
+                </h1>
+                <p className="text-gray-600 dark:text-gray-400">
+                  Ajoutez un client et configurez sa rentabilité en quelques clics
+                </p>
               </div>
-              {formData.contacts.map((contact, index) => (
-                <div
-                  key={index}
-                  className="bg-gray-50 dark:bg-gray-700 p-4 rounded-md mb-3"
-                >
-                  <div className="flex justify-between items-center mb-2">
-                    <h4 className="font-medium text-gray-700 dark:text-gray-300">
-                      {contact.isMain ? 'Contact principal' : `Contact ${index + 1}`}
-                    </h4>
-                    {index > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => removeContact(index)}
-                        className="text-red-500 hover:text-red-700"
+              
+              {/* Indicateur de progression visuel */}
+              <div className="hidden md:flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white
+                    ${activeSection === 'info' ? 'bg-gradient-to-br from-[#026aa1] to-[#0487d9] shadow-lg' : 'bg-gray-300'}`}>
+                    1
+                  </div>
+                  <span className={`font-medium ${activeSection === 'info' ? 'text-gray-900 dark:text-white' : 'text-gray-400'}`}>
+                    Informations
+                  </span>
+                </div>
+                <div className="w-16 h-0.5 bg-gray-300" />
+                <div className="flex items-center gap-2">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white
+                    ${activeSection === 'profitability' ? 'bg-gradient-to-br from-[#026aa1] to-[#0487d9] shadow-lg' : 'bg-gray-300'}`}>
+                    2
+                  </div>
+                  <span className={`font-medium ${activeSection === 'profitability' ? 'text-gray-900 dark:text-white' : 'text-gray-400'}`}>
+                    Rentabilité
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Onglets pour mobile */}
+            <div className="md:hidden flex bg-gray-100 dark:bg-gray-800 rounded-xl p-1 mb-6">
+              <button
+                type="button"
+                onClick={() => setActiveSection('info')}
+                className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${
+                  activeSection === 'info'
+                    ? 'bg-white dark:bg-gray-700 text-[#026aa1] shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400'
+                }`}
+              >
+                Informations
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveSection('profitability')}
+                className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${
+                  activeSection === 'profitability'
+                    ? 'bg-white dark:bg-gray-700 text-[#026aa1] shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400'
+                }`}
+              >
+                Rentabilité
+              </button>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Section Informations */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className={`${activeSection === 'profitability' ? 'hidden md:block' : ''}`}
+              >
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 space-y-6">
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <span className="w-8 h-8 bg-gradient-to-br from-[#026aa1] to-[#0487d9] rounded-lg flex items-center justify-center text-white text-sm">
+                      1
+                    </span>
+                    Informations générales
+                  </h2>
+
+                  {/* Logo avec drag & drop amélioré */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Logo du client
+                    </label>
+                    <div
+                      onDrop={handleDrop}
+                      onDragOver={(e) => e.preventDefault()}
+                      className="relative border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-6 text-center hover:border-[#026aa1] transition-colors cursor-pointer group"
+                    >
+                      {logoPreview ? (
+                        <div className="relative">
+                          <img src={logoPreview} alt="Logo" className="w-32 h-32 mx-auto object-contain rounded-xl" />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setLogoFile(null);
+                              setLogoPreview('');
+                              setFormData(prev => ({ ...prev, logo: '' }));
+                            }}
+                            className="absolute top-0 right-0 transform translate-x-1/2 -translate-y-1/2 bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 transition-colors shadow-lg"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="w-16 h-16 mx-auto bg-gray-100 dark:bg-gray-700 rounded-xl flex items-center justify-center group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20 transition-colors">
+                            <svg className="w-8 h-8 text-gray-400 group-hover:text-[#026aa1]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            Glissez une image ici ou
+                          </p>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => e.target.files?.[0] && processLogoFile(e.target.files[0])}
+                            className="hidden"
+                            id="logo-upload"
+                          />
+                          <label
+                            htmlFor="logo-upload"
+                            className="inline-block px-4 py-2 bg-[#026aa1] text-white rounded-lg hover:bg-[#0487d9] transition-colors cursor-pointer"
+                          >
+                            Parcourir
+                          </label>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Nom du client */}
+                  <div>
+                    <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Nom du client *
+                    </label>
+                    <input
+                      type="text"
+                      id="name"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleChange}
+                      className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#026aa1] focus:border-transparent dark:bg-gray-700 dark:text-white transition-all ${
+                        errors.name ? 'border-red-300 dark:border-red-600' : 'border-gray-200 dark:border-gray-600'
+                      }`}
+                      placeholder="Ex: Entreprise ABC"
+                    />
+                    {errors.name && (
+                      <motion.p
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mt-1 text-sm text-red-600 dark:text-red-400"
                       >
-                        Supprimer
-                      </button>
+                        {errors.name}
+                      </motion.p>
                     )}
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">
-                        Nom
-                      </label>
+
+                  {/* Description */}
+                  <div>
+                    <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Description
+                    </label>
+                    <textarea
+                      id="description"
+                      name="description"
+                      value={formData.description}
+                      onChange={handleChange}
+                      rows={3}
+                      className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#026aa1] focus:border-transparent dark:bg-gray-700 dark:text-white transition-all resize-none"
+                      placeholder="Quelques mots sur ce client..."
+                    />
+                  </div>
+
+                  {/* Statut avec icônes */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Statut
+                    </label>
+                    <div className="grid grid-cols-3 gap-3">
+                      {[
+                        { value: 'actif', label: 'Actif', icon: '✅', color: 'green' },
+                        { value: 'inactif', label: 'Inactif', icon: '⏸️', color: 'yellow' },
+                        { value: 'archivé', label: 'Archivé', icon: '📁', color: 'gray' }
+                      ].map((status) => (
+                        <button
+                          key={status.value}
+                          type="button"
+                          onClick={() => setFormData(prev => ({ ...prev, status: status.value }))}
+                          className={`p-3 rounded-xl border-2 transition-all ${
+                            formData.status === status.value
+                              ? `border-${status.color}-500 bg-${status.color}-50 dark:bg-${status.color}-900/20`
+                              : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="flex flex-col items-center gap-1">
+                            <span className="text-2xl">{status.icon}</span>
+                            <span className={`text-sm font-medium ${
+                              formData.status === status.value ? `text-${status.color}-700 dark:text-${status.color}-300` : 'text-gray-600 dark:text-gray-400'
+                            }`}>
+                              {status.label}
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Contact principal simplifié */}
+                  <div className="space-y-4">
+                    <h3 className="font-medium text-gray-900 dark:text-white flex items-center gap-2">
+                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      Contact principal
+                    </h3>
+                    <div className="grid grid-cols-2 gap-3">
                       <input
                         type="text"
                         name="name"
-                        value={contact.name}
-                        onChange={(e) => handleContactChange(index, e)}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
+                        value={formData.contacts[0].name}
+                        onChange={(e) => handleContactChange(0, e)}
+                        placeholder="Nom"
+                        className="px-4 py-2 border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#026aa1] focus:border-transparent dark:bg-gray-700 dark:text-white"
                       />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">
-                        Rôle/Fonction
-                      </label>
-                      <input
-                        type="text"
-                        name="role"
-                        value={contact.role}
-                        onChange={(e) => handleContactChange(index, e)}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">
-                        Email
-                      </label>
                       <input
                         type="email"
                         name="email"
-                        value={contact.email}
-                        onChange={(e) => handleContactChange(index, e)}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
+                        value={formData.contacts[0].email}
+                        onChange={(e) => handleContactChange(0, e)}
+                        placeholder="Email"
+                        className="px-4 py-2 border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#026aa1] focus:border-transparent dark:bg-gray-700 dark:text-white"
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">
-                        Téléphone
-                      </label>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Section Rentabilité */}
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className={`${activeSection === 'info' ? 'hidden md:block' : ''}`}
+              >
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 space-y-6">
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <span className="w-8 h-8 bg-gradient-to-br from-[#026aa1] to-[#0487d9] rounded-lg flex items-center justify-center text-white text-sm">
+                      2
+                    </span>
+                    Configuration de la rentabilité
+                  </h2>
+
+                  {/* Alerte informative */}
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
+                    <div className="flex items-start gap-3">
+                      <span className="text-2xl">💡</span>
+                      <div>
+                        <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-1">
+                          Optimisez votre rentabilité
+                        </h4>
+                        <p className="text-sm text-blue-700 dark:text-blue-300">
+                          Définissez vos objectifs financiers pour ce client. Les calculs se font automatiquement!
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Taux horaire avec slider visuel */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Taux horaire souhaité
+                    </label>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-4">
+                        <input
+                          type="range"
+                          min="50"
+                          max="200"
+                          step="5"
+                          value={profitabilityData.hourlyRate}
+                          onChange={(e) => handleProfitabilityChange({ 
+                            target: { name: 'hourlyRate', value: e.target.value }
+                          } as any)}
+                          className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                        />
+                        <div className="w-24 text-right">
+                          <input
+                            type="number"
+                            name="hourlyRate"
+                            value={profitabilityData.hourlyRate}
+                            onChange={handleProfitabilityChange}
+                            className="w-20 px-2 py-1 text-right border-2 border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#026aa1] dark:bg-gray-700 dark:text-white font-bold text-lg"
+                          />
+                          <span className="text-sm text-gray-500 ml-1">/h</span>
+                        </div>
+                      </div>
+                      
+                      {/* Indicateur de performance */}
+                      <div className={`text-sm font-medium ${
+                        profitabilityData.hourlyRate >= 150 ? 'text-green-600' :
+                        profitabilityData.hourlyRate >= 100 ? 'text-yellow-600' :
+                        'text-red-600'
+                      }`}>
+                        {profitabilityData.hourlyRate >= 150 ? '🚀 Excellent taux! Vous valorisez bien votre expertise' :
+                         profitabilityData.hourlyRate >= 100 ? '👍 Bon taux, dans la moyenne du marché' :
+                         '⚠️ Attention, ce taux pourrait impacter votre rentabilité'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Budget mensuel du client */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Budget mensuel du client
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-3 text-gray-500">€</span>
                       <input
-                        type="tel"
-                        name="phone"
-                        value={contact.phone}
-                        onChange={(e) => handleContactChange(index, e)}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
+                        type="number"
+                        name="monthlyBudget"
+                        value={profitabilityData.monthlyBudget}
+                        onChange={handleProfitabilityChange}
+                        placeholder="Combien le client paye par mois"
+                        className="w-full pl-8 pr-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#026aa1] focus:border-transparent dark:bg-gray-700 dark:text-white font-bold text-lg"
                       />
+                    </div>
+                    <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                      Montant que le client vous verse chaque mois
+                    </p>
+                  </div>
+
+                  {/* Heures calculées automatiquement */}
+                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4">
+                    <label className="block text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
+                      Heures à effectuer par mois
+                    </label>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-bold text-blue-700 dark:text-blue-300">
+                        {profitabilityData.targetHours}
+                      </span>
+                      <span className="text-lg text-blue-600 dark:text-blue-400">heures</span>
+                    </div>
+                    {profitabilityData.monthlyBudget > 0 && profitabilityData.hourlyRate > 0 && (
+                      <p className="mt-2 text-sm text-blue-700 dark:text-blue-300">
+                        Soit environ {Math.round(profitabilityData.targetHours / 8 * 10) / 10} jours de travail
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Visualisation de la rentabilité améliorée */}
+                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl p-6">
+                    <h4 className="font-medium text-green-900 dark:text-green-100 mb-4">
+                      Analyse de rentabilité
+                    </h4>
+                    
+                    <div className="space-y-4">
+                      {profitabilityData.monthlyBudget > 0 && profitabilityData.hourlyRate > 0 ? (
+                        <>
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-600 dark:text-gray-400">Heures par semaine</span>
+                            <span className="font-bold text-gray-900 dark:text-white">
+                              {Math.round(profitabilityData.targetHours / 4.33 * 10) / 10}h
+                            </span>
+                          </div>
+                          
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-600 dark:text-gray-400">Temps consacré</span>
+                            <span className={`font-bold ${
+                              profitabilityData.targetHours > 80 ? 'text-red-600' :
+                              profitabilityData.targetHours > 60 ? 'text-yellow-600' :
+                              'text-green-600'
+                            }`}>
+                              {Math.round(profitabilityData.targetHours / 160 * 100)}% du temps
+                            </span>
+                          </div>
+                          
+                          <div className="pt-3 border-t border-green-200 dark:border-green-800">
+                            <div className="flex items-center justify-between">
+                              <span className="text-lg font-medium text-gray-900 dark:text-white">
+                                Revenu annuel
+                              </span>
+                              <span className="text-2xl font-bold text-green-600 dark:text-green-400">
+                                {(profitabilityData.monthlyBudget * 12).toLocaleString()}€
+                              </span>
+                            </div>
+                          </div>
+
+                          {profitabilityData.targetHours > 80 && (
+                            <div className="mt-4 p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                              <p className="text-sm text-red-700 dark:text-red-300">
+                                ⚠️ Attention: Ce client demande beaucoup de temps. Considérez d'augmenter votre taux horaire.
+                              </p>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <p className="text-gray-500 dark:text-gray-400 text-center py-4">
+                          Remplissez le budget mensuel et votre taux horaire pour voir l'analyse
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
-              ))}
+              </motion.div>
             </div>
 
-            <div>
-              <label
-                htmlFor="notes"
-                className="block text-gray-700 dark:text-gray-300 font-medium mb-2"
-              >
-                Notes
-              </label>
-              <textarea
-                id="notes"
-                name="notes"
-                value={formData.notes}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
-                rows={3}
-              />
-            </div>
-
-            <div className="flex justify-end mt-6">
+            {/* Actions */}
+            <div className="flex justify-between items-center pt-6">
               <button
                 type="button"
-                onClick={nextStep}
-                className="ml-auto px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
+                onClick={() => navigate('/clients')}
+                className="px-6 py-3 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
               >
-                Suivant
+                Annuler
               </button>
-            </div>
-          </div>
-        )}
-        {/* === Fin : Étape 1 - Informations du client === */}
-
-        {/* === Début : Étape 2 - Configuration de la rentabilité === */}
-        {/* Explication simple : Cette section contient les champs pour définir combien le client va te payer et combien de temps tu vas travailler pour lui, comme quand tu établis un budget pour tes dépenses. */}
-        {/* Explication technique : Rendu conditionnel de la deuxième étape du formulaire, avec champs interconnectés pour la rentabilité, calculs dynamiques, analyse conditionnelle, et boutons de navigation et de soumission. */}
-        {step === 2 && (
-          <form
-            onSubmit={handleSubmit}
-            className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 space-y-6"
-          >
-            <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg mb-4">
-              <h3 className="text-blue-800 dark:text-blue-300 font-medium mb-2">
-                Configuration de la rentabilité
-              </h3>
-              <p className="text-blue-700 dark:text-blue-400 text-sm">
-                Ces informations vous aideront à suivre la rentabilité du client et à déterminer si vous respectez vos objectifs financiers.
-              </p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label htmlFor="hourlyRate" className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                  Taux horaire (€/h) *
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    id="hourlyRate"
-                    name="hourlyRate"
-                    min="0"
-                    step="0.1"
-                    value={profitabilityData.hourlyRate}
-                    onChange={handleProfitabilityChange}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
-                    required
-                  />
-                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                    <span className="text-gray-500">€/h</span>
-                  </div>
-                </div>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  Le taux horaire que vous souhaitez facturer pour ce client.
-                </p>
-              </div>
-
-              <div>
-                <label htmlFor="monthlyBudget" className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                  Budget mensuel (€)
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    id="monthlyBudget"
-                    name="monthlyBudget"
-                    min="0"
-                    step="100"
-                    value={profitabilityData.monthlyBudget}
-                    onChange={handleProfitabilityChange}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
-                  />
-                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                    <span className="text-gray-500">€</span>
-                  </div>
-                </div>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  Le montant mensuel facturé ou budgété pour ce client.
-                </p>
-              </div>
-
-              <div>
-                <label htmlFor="targetHours" className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                  Heures cibles par mois
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    id="targetHours"
-                    name="targetHours"
-                    min="0"
-                    step="0.5"
-                    value={profitabilityData.targetHours}
-                    onChange={handleProfitabilityChange}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
-                  />
-                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                    <span className="text-gray-500">h</span>
-                  </div>
-                </div>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  {profitabilityData.monthlyBudget > 0
-                    ? `Pour maintenir votre taux horaire de ${profitabilityData.hourlyRate}€/h avec un budget de ${profitabilityData.monthlyBudget}€, vous devez travailler ${profitabilityData.targetHours} heures par mois.`
-                    : "Nombre d'heures que vous prévoyez de consacrer à ce client par mois."}
-                </p>
-              </div>
-
-              <div className="flex items-end mb-4">
-                <div
-                  className={`w-full p-4 rounded-lg ${
-                    profitabilityData.hourlyRate >= 100
-                      ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
-                      : profitabilityData.hourlyRate >= 75
-                      ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300'
-                      : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'
-                  }`}
-                >
-                  <h4 className="font-medium mb-1">Analyse de rentabilité</h4>
-                  <p className="text-sm">
-                    {profitabilityData.hourlyRate >= 100
-                      ? 'Excellent taux horaire ! Vous êtes dans une très bonne fourchette de rentabilité.'
-                      : profitabilityData.hourlyRate >= 75
-                      ? 'Taux horaire acceptable. Vous pourriez envisager d\'augmenter légèrement vos tarifs.'
-                      : 'Attention : taux horaire bas. Essayez d\'augmenter vos tarifs ou de réduire le temps passé sur ce client.'}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-between mt-6">
-              <button
-                type="button"
-                onClick={prevStep}
-                className="px-6 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors"
-              >
-                Précédent
-              </button>
+              
               <button
                 type="submit"
-                disabled={loading}
-                className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors disabled:opacity-50"
+                disabled={loading || !!Object.keys(errors).length}
+                className="px-8 py-3 bg-gradient-to-r from-[#026aa1] to-[#0487d9] text-white rounded-xl font-medium 
+                  hover:from-[#0487d9] hover:to-[#026aa1] disabled:opacity-50 disabled:cursor-not-allowed
+                  transform hover:scale-105 transition-all duration-200 shadow-lg flex items-center gap-2"
               >
                 {loading ? (
-                  <div className="flex items-center">
-                    <svg
-                      className="animate-spin h-5 w-5 mr-2 text-white"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
+                  <>
+                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                     </svg>
                     Création en cours...
-                  </div>
+                  </>
                 ) : (
-                  'Créer le client'
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Créer le client
+                  </>
                 )}
               </button>
             </div>
           </form>
-        )}
-        {/* === Fin : Étape 2 - Configuration de la rentabilité === */}
-      </motion.div>
+        </motion.div>
+      </div>
     </div>
   );
-  // === Fin : Rendu de l'interface utilisateur ===
 };
 
 // === Début : Export du composant ===

@@ -27,6 +27,7 @@ import ClientStatistics from './pages/ClientStatistics';
 import ConfettiEffect from './components/gamification/ConfettiEffect';
 import { initializeAuth } from './services/api';
 import { loginSuccess } from './store/slices/authSlice';
+import ClientEdit from './pages/ClientEdit';
 
 const App: React.FC = () => {
   const dispatch = useDispatch();
@@ -128,6 +129,7 @@ const App: React.FC = () => {
             <Route path="/clients" element={<Clients />} />
             <Route path="/clients/new" element={<ClientForm />} />
             <Route path="/clients/:id" element={<ClientDetail />} />
+            <Route path="/clients/:id/edit" element={<ClientEdit />} />
             <Route path="/clients/:id/profitability" element={<ClientProfitability />} />
             <Route path="/tasks" element={<Tasks />} />
             <Route path="/tasks/new" element={<TaskForm />} />

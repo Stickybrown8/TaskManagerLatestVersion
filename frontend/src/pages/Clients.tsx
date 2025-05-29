@@ -8,367 +8,652 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../hooks';
 import { fetchClientsStart, fetchClientsSuccess, fetchClientsFailure } from '../store/slices/clientsSlice';
-import { clientsService } from '../services/api';
+import { clientsService, profitabilityService, timerService } from '../services/api';
 import { addNotification } from '../store/slices/uiSlice';
-import { motion } from 'framer-motion';
-import ClientLogo from '../components/Clients/ClientLogo';
+import { motion, AnimatePresence } from 'framer-motion';
+import axios from 'axios';
 
-// Les logs ou tout autre code doivent venir APRÈS les imports
-console.log('fetchClientsSuccess importé de', import.meta.url || "pas d'info require");
+// Configuration API
+const getApiUrl = () => {
+  if (window.location.hostname === 'localhost') return 'http://localhost:5000';
+  if (window.location.hostname.includes('github.dev')) {
+    return window.location.origin.replace('-3000.', '-5000.');
+  }
+  return process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com';
+};
 
-// === Début : Composant principal Clients ===
-// Explication simple : C'est le gros container qui contient toute la page des clients, comme une boîte qui contient tout.
-// Explication technique : Composant React fonctionnel principal qui encapsule toute la logique et l'interface utilisateur pour la gestion des clients.
+const API_URL = getApiUrl();
+
+interface ClientWithMetrics {
+  _id: string;
+  name: string;
+  description?: string;
+  logo?: string;
+  status: string;
+  hourlyRate?: number;
+  monthlyHours?: number;
+  monthlyRevenue?: number;
+  monthlyBudget?: number; // Ajout du budget mensuel
+  targetHours?: number;
+  tasksCount?: number;
+  completedTasks?: number;
+  activeTasks?: number;
+}
+
 const Clients: React.FC = () => {
-  // === Début : Hooks et état du composant ===
-  // Explication simple : Ce sont les outils dont la page a besoin pour fonctionner, comme une boîte à outils.
-  // Explication technique : Initialisation des hooks Redux (dispatch, selector) et des états locaux (useState) pour gérer la recherche et le filtrage.
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const { clients, loading, error } = useAppSelector(state => state.clients);
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('tous');
-  const [showCreateForm, setShowCreateForm] = useState(false); // AJOUTER
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false); // AJOUTER
-  const [clientToDelete, setClientToDelete] = useState<any>(null); // AJOUTER
-  // === Fin : Hooks et état du composant ===
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [clientsWithMetrics, setClientsWithMetrics] = useState<ClientWithMetrics[]>([]);
+  const [loadingMetrics, setLoadingMetrics] = useState(true);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  
+  // États pour le formulaire
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    status: 'actif',
+    logo: '',
+    website: '',
+    contactEmail: ''
+  });
+  const [formLoading, setFormLoading] = useState(false);
 
-  // === Début : Exposition Redux pour débogage ===
-  // Explication simple : On met des outils dans la fenêtre pour pouvoir regarder ce qui se passe quand il y a un problème.
-  // Explication technique : Exposition des fonctions Redux sur l'objet window global pour faciliter le débogage via la console du navigateur.
-  // @ts-ignore
-  console.log('window.dispatch avant assignation :', window.dispatch);
-  // @ts-ignore
-  window.dispatch = dispatch;
-  // @ts-ignore
-  window.fetchClientsSuccess = fetchClientsSuccess;
-  // @ts-ignore
-  console.log('window.dispatch après assignation :', window.dispatch);
-  // === Fin : Exposition Redux pour débogage ===
-
-  // === Début : Chargement des clients au montage ===
-  // Explication simple : Quand la page s'ouvre, on va chercher tous les clients pour les afficher.
-  // Explication technique : Hook useEffect qui déclenche une requête API asynchrone au montage du composant, avec gestion des états de chargement et d'erreur via Redux.
+  // Charger les clients et leurs métriques
   useEffect(() => {
-    const loadClients = async () => {
-      try {
-        console.log('→ fetch clients ...');
-        dispatch(fetchClientsStart());
-        const data = await clientsService.getClients();
-        console.log('→ données reçues de l’API :', data);
-        dispatch(fetchClientsSuccess(data));
-        // Ajoute CES DEUX LIGNES juste ici :
-        // @ts-ignore
-        window.dispatch = dispatch;
-        // @ts-ignore
-        window.fetchClientsSuccess = fetchClientsSuccess;
-      } catch (error: any) {
-        console.error('→ Erreur lors du fetch clients :', error);
-        dispatch(fetchClientsFailure(error.message));
-        dispatch(addNotification({
-          message: 'Erreur lors du chargement des clients',
-          type: 'error'
-        }));
-      }
+    loadClientsWithMetrics();
+  }, []);
+
+  const loadClientsWithMetrics = async () => {
+    try {
+      dispatch(fetchClientsStart());
+      
+      // Charger clients
+      const clientsData = await clientsService.getClients();
+      dispatch(fetchClientsSuccess(clientsData));
+      
+      // Charger profitabilité et timers pour calculer les métriques
+      const [profitabilityData, timersData] = await Promise.all([
+        profitabilityService.getAllProfitability(),
+        timerService.getAllTimers()
+      ]);
+      
+      // Calculer les métriques pour chaque client
+      const currentMonth = new Date().toISOString().slice(0, 7);
+      const enrichedClients = clientsData.map((client: any) => {
+        // Trouver la profitabilité du client ou utiliser celle stockée dans le client
+        const clientProf = profitabilityData.find((p: any) => p.clientId?._id === client._id) || client.profitability;
+        
+        // Calculer les heures du mois
+        const monthlyTimers = timersData.filter((timer: any) => {
+          return timer.clientId === client._id && 
+                 timer.startTime?.startsWith(currentMonth);
+        });
+        
+        const monthlySeconds = monthlyTimers.reduce((sum: number, timer: any) => {
+          return sum + (timer.duration || 0);
+        }, 0);
+        
+        const monthlyHours = monthlySeconds / 3600;
+        const hourlyRate = clientProf?.hourlyRate || client.profitability?.hourlyRate || 100;
+        const monthlyBudget = clientProf?.monthlyBudget || client.profitability?.monthlyBudget || 0;
+        const targetHours = clientProf?.targetHours || client.profitability?.targetHours || 40;
+        
+        return {
+          ...client,
+          hourlyRate,
+          monthlyBudget,
+          monthlyHours: Math.round(monthlyHours * 10) / 10,
+          monthlyRevenue: Math.round(monthlyHours * hourlyRate),
+          targetHours,
+          tasksCount: 0,
+          completedTasks: 0,
+          activeTasks: 0
+        };
+      });
+      
+      setClientsWithMetrics(enrichedClients);
+      setLoadingMetrics(false);
+    } catch (error: any) {
+      console.error('Erreur chargement:', error);
+      dispatch(fetchClientsFailure(error.message));
+      setLoadingMetrics(false);
+    }
+  };
+
+  // Gestion du formulaire
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Vérifier la taille (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      dispatch(addNotification({
+        message: 'Le logo ne doit pas dépasser 2MB',
+        type: 'error'
+      }));
+      return;
+    }
+
+    // Convertir en base64
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setFormData(prev => ({ ...prev, logo: reader.result as string }));
     };
+    reader.readAsDataURL(file);
+  };
 
-    loadClients();
-  }, [dispatch]);
-  // === Fin : Chargement des clients au montage ===
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.name.trim()) {
+      dispatch(addNotification({
+        message: 'Le nom du client est obligatoire',
+        type: 'error'
+      }));
+      return;
+    }
 
-  // === Début : Filtrage des clients ===
-  // Explication simple : On trie les clients selon ce que tu as tapé dans la recherche ou le statut que tu as choisi.
-  // Explication technique : Fonction qui filtre la liste des clients en fonction des critères de recherche textuelle et du filtre de statut sélectionné.
-  const filteredClients = clients.filter(client => {
-    const search = searchTerm.trim().toLowerCase();
-    const clientName = (client.name || '').trim().toLowerCase();
-    const clientDescription = (client.description || '').trim().toLowerCase();
-    const matchesSearch = clientName.includes(search) || clientDescription.includes(search);
+    try {
+      setFormLoading(true);
+      const token = localStorage.getItem('token');
+      
+      const response = await axios({
+        method: 'post',
+        url: `${API_URL}/api/clients`,
+        data: formData,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : ''
+        }
+      });
 
-    const matchesStatus =
-      statusFilter === 'tous' ||
-      (client.status || '').trim().toLowerCase() === statusFilter.trim().toLowerCase();
+      dispatch(addNotification({
+        message: '✅ Client créé avec succès!',
+        type: 'success'
+      }));
 
+      setShowCreateModal(false);
+      setFormData({
+        name: '',
+        description: '',
+        status: 'actif',
+        logo: '',
+        website: '',
+        contactEmail: ''
+      });
+      
+      // Recharger les clients
+      loadClientsWithMetrics();
+    } catch (error: any) {
+      dispatch(addNotification({
+        message: error.response?.data?.message || 'Erreur lors de la création',
+        type: 'error'
+      }));
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  // Filtrage
+  const filteredClients = clientsWithMetrics.filter(client => {
+    const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (client.description || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'tous' || client.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
-  // === Fin : Filtrage des clients ===
 
-  // === Début : Logs de débogage ===
-  // Explication simple : On regarde dans la console pour vérifier que nos clients sont bien là.
-  // Explication technique : Affichage dans la console des clients récupérés et filtrés pour faciliter le débogage pendant le développement.
-  console.log('clients du store :', clients);
-  console.log('filteredClients :', filteredClients);
-  console.log("filteredClients à afficher :", filteredClients);
-  if (filteredClients.length > 0) {
-    console.log("Premier client :", filteredClients[0]);
-  }
-  // === Fin : Logs de débogage ===
+  // Calcul des totaux
+  const totals = filteredClients.reduce((acc, client) => ({
+    clients: acc.clients + 1,
+    monthlyHours: acc.monthlyHours + (client.monthlyHours || 0),
+    monthlyRevenue: acc.monthlyRevenue + (client.monthlyRevenue || 0),
+    activeClients: acc.activeClients + (client.status === 'actif' ? 1 : 0)
+  }), { clients: 0, monthlyHours: 0, monthlyRevenue: 0, activeClients: 0 });
 
-  // === Début : Fonctions de navigation ===
-  // Explication simple : Ces boutons te permettent d'aller voir un client en détail ou d'en créer un nouveau.
-  // Explication technique : Fonctions de gestion des événements qui déclenchent la navigation vers d'autres routes via React Router.
-  const handleClientClick = (clientId: string) => {
-    navigate(`/clients/${clientId}`);
-  };
-
-  const handleCreateClient = () => {
-    navigate('/clients/new');
-  };
-  // === Fin : Fonctions de navigation ===
-
-  const openDeleteConfirmation = (client: any) => {
-    setClientToDelete(client);
-    setDeleteConfirmOpen(true);
-  };
-
-  const closeDeleteConfirmation = () => {
-    setDeleteConfirmOpen(false);
-    setClientToDelete(null);
-  };
-
-  console.log("Clients.tsx monté !");
-
-  // === Début : Rendu de l'interface ===
-  // Explication simple : C'est tout ce qu'on va voir à l'écran - l'apparence de la page.
-  // Explication technique : Fonction de rendu JSX qui affiche l'interface utilisateur avec gestion conditionnelle des états (chargement, erreur, résultats vides) et utilisation de Tailwind CSS pour le style.
   return (
-    <div className="container mx-auto">
-      {/* === Début : En-tête et bouton d'ajout === */}
-      {/* Explication simple : Le titre de la page avec un bouton pour ajouter un nouveau client. */}
-      {/* Explication technique : Section d'en-tête responsive avec titre et bouton d'action principal. */}
-      <div className="bg-gradient-to-br from-[#065985] via-[#0891b2] to-[#06b6d4] rounded-xl shadow-xl p-8 mb-8">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-          <div>
-            <h1 className="text-3xl font-bold text-white mb-2">
-              Gestion des Clients
-            </h1>
-            <p className="text-blue-100 text-lg">
-              {filteredClients.length} client{filteredClients.length > 1 ? 's' : ''} 
-              {searchTerm || statusFilter !== 'tous' ? ' trouvé(s)' : ' au total'}
-            </p>
-          </div>
-          
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setShowCreateForm(true)}
-            className="inline-flex items-center px-6 py-3 bg-white text-[#065985] font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:bg-gray-50"
-          >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Nouveau Client
-          </motion.button>
-        </div>
-      </div>
-      {/* === Fin : En-tête et bouton d'ajout === */}
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        {/* Header avec statistiques */}
+        <div className="bg-gradient-to-br from-[#026aa1] via-[#0487d9] to-[#06b6d4] rounded-2xl shadow-xl p-8 mb-8 text-white">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white/10 backdrop-blur-sm rounded-xl p-6"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-100 text-sm">Clients actifs</p>
+                  <p className="text-3xl font-bold">{totals.activeClients}</p>
+                </div>
+                <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                </div>
+              </div>
+            </motion.div>
 
-      {/* === Début : Filtres de recherche === */}
-      {/* Explication simple : Des champs pour chercher un client par son nom ou filtrer par statut. */}
-      {/* Explication technique : Formulaire de recherche et de filtrage avec inputs contrôlés reliés aux états locaux du composant. */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1">
-            <label htmlFor="search" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Rechercher
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="bg-white/10 backdrop-blur-sm rounded-xl p-6"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-100 text-sm">Heures ce mois</p>
+                  <p className="text-3xl font-bold">{totals.monthlyHours.toFixed(1)}h</p>
+                </div>
+                <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="bg-white/10 backdrop-blur-sm rounded-xl p-6"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-100 text-sm">Revenus du mois</p>
+                  <p className="text-3xl font-bold">{totals.monthlyRevenue.toLocaleString()}€</p>
+                </div>
+                <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="bg-white/10 backdrop-blur-sm rounded-xl p-6"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-100 text-sm">Taux horaire moyen</p>
+                  <p className="text-3xl font-bold">
+                    {totals.monthlyHours > 0 ? Math.round(totals.monthlyRevenue / totals.monthlyHours) : 0}€
+                  </p>
+                </div>
+                <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <h1 className="text-4xl font-bold mb-2">Gestion des Clients</h1>
+              <p className="text-blue-100">
+                Gérez vos clients et suivez leur rentabilité
+              </p>
+            </div>
+            
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => navigate('/clients/new')}
+              className="bg-white text-[#026aa1] px-6 py-3 rounded-xl font-medium shadow-lg hover:shadow-xl transform transition-all duration-200 flex items-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Nouveau Client
+            </motion.button>
+          </div>
+        </div>
+
+        {/* Barre de recherche et filtres */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Rechercher un client..."
+                  className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#026aa1] focus:border-transparent dark:bg-gray-700 dark:text-white transition-all"
+                />
+                <svg className="absolute left-3 top-3.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </div>
-              <input
-                id="search"
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
-                placeholder="Rechercher un client..."
-              />
             </div>
-          </div>
-          <div className="md:w-48">
-            <label htmlFor="status" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Statut
-            </label>
+
             <select
-              id="status"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white appearance-none bg-no-repeat bg-right"
-              style={{ 
-                backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236B7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E\")",
-                backgroundSize: "1.25rem",
-                paddingRight: "2.5rem"
-              }}
+              className="px-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#026aa1] focus:border-transparent dark:bg-gray-700 dark:text-white"
             >
-              <option value="tous">Tous</option>
-              <option value="actif">Actif</option>
-              <option value="inactif">Inactif</option>
-              <option value="archivé">Archivé</option>
+              <option value="tous">Tous les statuts</option>
+              <option value="actif">Actifs</option>
+              <option value="inactif">Inactifs</option>
+              <option value="archivé">Archivés</option>
             </select>
-          </div>
-        </div>
-      </div>
-      {/* === Fin : Filtres de recherche === */}
 
-      {/* === Début : Affichage conditionnel des clients === */}
-      {/* Explication simple : On montre soit un chargement, soit une erreur, soit "aucun client", soit la liste des clients selon la situation. */}
-      {/* Explication technique : Rendu conditionnel basé sur les états de chargement, d'erreur et la présence de résultats filtered. */}
-      {loading ? (
-        <div className="flex justify-center items-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
-        </div>
-      ) : error ? (
-        <div className="bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200 p-4 rounded-md">
-          {error}
-        </div>
-      ) : filteredClients.length === 0 ? (
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5 }}
-          className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-12 text-center"
-        >
-          <div className="bg-gray-100 dark:bg-gray-700 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6">
-            <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 1 8 0z" />
-            </svg>
+            <div className="flex bg-gray-100 dark:bg-gray-700 rounded-xl p-1">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`px-4 py-2 rounded-lg transition-all ${
+                  viewMode === 'grid' 
+                    ? 'bg-white dark:bg-gray-600 shadow-sm text-[#026aa1]' 
+                    : 'text-gray-600 dark:text-gray-400'
+                }`}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 002-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 002-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`px-4 py-2 rounded-lg transition-all ${
+                  viewMode === 'list' 
+                    ? 'bg-white dark:bg-gray-600 shadow-sm text-[#026aa1]' 
+                    : 'text-gray-600 dark:text-gray-400'
+                }`}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+            </div>
           </div>
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Aucun client trouvé</h3>
-          <p className="text-gray-600 dark:text-gray-300 mb-6">
-            {searchTerm || statusFilter !== 'tous' 
-              ? "Aucun client ne correspond à vos critères de recherche." 
-              : "Vous n'avez pas encore ajouté de clients."}
-          </p>
-          <button
-            onClick={handleCreateClient}
-            className="px-6 py-3 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors inline-flex items-center shadow-md"
+        </div>
+
+        {/* Liste des clients */}
+        {loading || loadingMetrics ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-[#026aa1] border-t-transparent"></div>
+            <p className="mt-4 text-gray-600 dark:text-gray-400">Chargement des clients...</p>
+          </div>
+        ) : filteredClients.length === 0 ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-12 text-center"
           >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            Ajouter un client
-          </button>
-        </motion.div>
-      ) : (
-        // === Début : Grille des cartes clients ===
-        // Explication simple : Une grille avec une carte pour chaque client qui montre ses informations.
-        // Explication technique : Grid responsive de cartes clients avec animations Framer Motion et gestion robuste des erreurs de rendu.
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredClients.map((client, index) => {
-            try {
-              return (
-                <motion.div
-                  key={client._id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.1 }}
-                  className="group bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 dark:border-gray-700 hover:border-[#065985] dark:hover:border-[#0891b2]"
-                >
-                  <div className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-16 h-16 bg-gradient-to-br from-[#065985] to-[#0891b2] rounded-xl flex items-center justify-center text-white text-xl font-bold shadow-lg">
-                          {client.logo ? (
-                            <img src={client.logo} alt={client.name} className="w-full h-full object-cover rounded-xl" />
-                          ) : (
-                            client.name.charAt(0).toUpperCase()
-                          )}
-                        </div>
-                        <div>
-                          <h3 className="text-xl font-bold text-gray-900 dark:text-white group-hover:text-[#065985] dark:group-hover:text-[#0891b2] transition-colors">
-                            {client.name}
-                          </h3>
-                          <p className="text-gray-600 dark:text-gray-400 text-sm">
-                            {client.description || 'Aucune description'}
-                          </p>
-                        </div>
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-gray-100 dark:bg-gray-700 rounded-full mb-6">
+              <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+              {searchTerm || statusFilter !== 'tous' 
+                ? 'Aucun client trouvé' 
+                : 'Commencez par ajouter un client'}
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              {searchTerm || statusFilter !== 'tous'
+                ? 'Essayez de modifier vos critères de recherche'
+                : 'Créez votre premier client pour démarrer'}
+            </p>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#026aa1] to-[#0487d9] text-white rounded-xl font-medium shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Ajouter un client
+            </button>
+          </motion.div>
+        ) : viewMode === 'grid' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredClients.map((client, index) => (
+              <motion.div
+                key={client._id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className="group bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden"
+              >
+                <div className="p-6">
+                  <div className="flex items-start justify-between mb-6">
+                    <div className="flex items-center gap-4">
+                      <div className="relative">
+                        {client.logo ? (
+                          <img 
+                            src={client.logo} 
+                            alt={client.name}
+                            className="w-16 h-16 rounded-xl object-cover shadow-md"
+                          />
+                        ) : (
+                          <div className="w-16 h-16 bg-gradient-to-br from-[#026aa1] to-[#0487d9] rounded-xl flex items-center justify-center text-white text-xl font-bold shadow-md">
+                            {client.name.substring(0, 2).toUpperCase()}
+                          </div>
+                        )}
+                        <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${
+                          client.status === 'actif' ? 'bg-green-500' : 
+                          client.status === 'inactif' ? 'bg-yellow-500' : 'bg-gray-500'
+                        }`} />
                       </div>
-                      
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold shadow-sm ${
-                        client.status === 'actif' 
-                          ? 'bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 dark:from-green-900 dark:to-emerald-900 dark:text-green-200' 
-                          : client.status === 'inactif' 
-                          ? 'bg-gradient-to-r from-yellow-100 to-amber-100 text-yellow-800 dark:from-yellow-900 dark:to-amber-900 dark:text-yellow-200'
-                          : 'bg-gradient-to-r from-gray-100 to-slate-100 text-gray-800 dark:from-gray-800 dark:to-slate-800 dark:text-gray-200'
-                      }`}>
-                        {client.status.charAt(0).toUpperCase() + client.status.slice(1)}
-                      </span>
-                    </div>
-                    
-                    <div className="grid grid-cols-3 gap-4 mb-6">
-                      <div className="text-center p-3 bg-gradient-to-br from-blue-50 to-[#065985]/10 dark:from-blue-900/20 dark:to-[#065985]/20 rounded-lg">
-                        <div className="text-2xl font-bold text-[#065985] dark:text-[#0891b2]">
-                          {client.metrics?.tasksCompleted || 0}
-                        </div>
-                        <div className="text-xs text-gray-600 dark:text-gray-400 font-medium">Terminées</div>
-                      </div>
-                      
-                      <div className="text-center p-3 bg-gradient-to-br from-orange-50 to-orange-100/50 dark:from-orange-900/20 dark:to-orange-800/20 rounded-lg">
-                        <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-                          {client.metrics?.tasksInProgress || 0}
-                        </div>
-                        <div className="text-xs text-gray-600 dark:text-gray-400 font-medium">En cours</div>
-                      </div>
-                      
-                      <div className="text-center p-3 bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-900/20 dark:to-purple-800/20 rounded-lg">
-                        <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                          {client.metrics?.tasksPending || 0}
-                        </div>
-                        <div className="text-xs text-gray-600 dark:text-gray-400 font-medium">À faire</div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-gray-700">
-                      <div className="flex items-center space-x-4">
-                        <button
-                          onClick={() => navigate(`/clients/${client._id}`)}
-                          className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-[#065985] to-[#0891b2] text-white font-medium rounded-lg hover:from-[#054a73] hover:to-[#0782a1] transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105"
-                        >
-                          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                          Modifier
-                        </button>
-                        
-                        <button
-                          onClick={() => openDeleteConfirmation(client)}
-                          className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white font-medium rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105"
-                        >
-                          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                          Supprimer
-                        </button>
-                      </div>
-                      
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
-                        {client.metrics?.lastActivity 
-                          ? new Date(client.metrics.lastActivity).toLocaleDateString()
-                          : 'Aucune activité'
-                        }
+                      <div>
+                        <h3 className="font-bold text-lg text-gray-900 dark:text-white group-hover:text-[#026aa1] transition-colors">
+                          {client.name}
+                        </h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-1">
+                          {client.description || 'Pas de description'}
+                        </p>
                       </div>
                     </div>
                   </div>
-                </motion.div>
-              );
-            } catch (e) {
-              console.error("Erreur lors du rendu d'un client :", client, e, JSON.stringify(client));
-              if (e instanceof Error) {
-                alert("Erreur JS : " + e.message);
-              }
-              return <div key={client._id} style={{ color: 'red' }}>Erreur de rendu client</div>;
-            }
-          })}
-        </div>
-        // === Fin : Grille des cartes clients ===
-      )}
-      {/* === Fin : Affichage conditionnel des clients === */}
+
+                  {/* Métriques financières améliorées */}
+                  <div className="space-y-4 mb-6">
+                    <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl">💰</span>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">Taux horaire cible</span>
+                      </div>
+                      <span className="font-bold text-lg text-blue-700 dark:text-blue-300">
+                        {client.hourlyRate || 100}€/h
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl">📅</span>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">Budget mensuel</span>
+                      </div>
+                      <span className="font-bold text-lg text-green-700 dark:text-green-300">
+                        {(client.monthlyBudget || 0).toLocaleString()}€
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl">⏱️</span>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">Heures effectuées</span>
+                      </div>
+                      <span className="font-bold text-lg text-purple-700 dark:text-purple-300">
+                        {client.monthlyHours || 0}h / {client.targetHours || 0}h
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Barre de progression du budget avec plus d'infos */}
+                  <div className="mb-6">
+                    <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
+                      <span>Heures consommées</span>
+                      <span>{client.monthlyHours || 0}h sur {client.targetHours || 0}h max</span>
+                    </div>
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-2">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${Math.min(100, (client.monthlyHours || 0) / (client.targetHours || 1) * 100)}%` }}
+                        transition={{ duration: 1, ease: "easeOut" }}
+                        className={`h-2 rounded-full ${
+                          (client.monthlyHours || 0) / (client.targetHours || 1) > 0.9 
+                            ? 'bg-gradient-to-r from-red-500 to-red-600' 
+                            : (client.monthlyHours || 0) / (client.targetHours || 1) > 0.7
+                            ? 'bg-gradient-to-r from-yellow-500 to-yellow-600'
+                            : 'bg-gradient-to-r from-green-500 to-green-600'
+                        }`}
+                      />
+                    </div>
+                    {(client.targetHours && client.targetHours > 0) && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                        {Math.max(0, client.targetHours - (client.monthlyHours || 0)).toFixed(1)}h restantes ce mois
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => navigate(`/clients/${client._id}`)}
+                      className="flex-1 px-4 py-2.5 bg-gradient-to-r from-[#026aa1] to-[#0487d9] text-white rounded-lg font-medium hover:from-[#0487d9] hover:to-[#026aa1] transition-all duration-200 shadow-md hover:shadow-lg"
+                    >
+                      Voir détails
+                    </button>
+                    <button
+                      onClick={() => navigate(`/clients/${client._id}/edit`)}
+                      className="p-2.5 border-2 border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        ) : (
+          // Vue liste
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-gray-50 dark:bg-gray-700">
+                <tr>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Client
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Statut
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Taux horaire cible
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Budget mensuel
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Heures (effectuées/max)
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                {filteredClients.map((client) => (
+                  <tr key={client._id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        {client.logo ? (
+                          <img 
+                            src={client.logo} 
+                            alt={client.name}
+                            className="w-10 h-10 rounded-lg object-cover mr-3"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 bg-gradient-to-br from-[#026aa1] to-[#0487d9] rounded-lg flex items-center justify-center text-white font-bold mr-3">
+                            {client.name.substring(0, 2).toUpperCase()}
+                          </div>
+                        )}
+                        <div>
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">
+                            {client.name}
+                          </div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400">
+                            {client.description || 'Pas de description'}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                        client.status === 'actif' 
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' 
+                          : client.status === 'inactif' 
+                          ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
+                          : 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
+                      }`}>
+                        {client.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                      {client.hourlyRate || 100}€/h
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                      {(client.monthlyBudget || 0).toLocaleString()}€
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-900 dark:text-white">
+                          {client.monthlyHours || 0}h / {client.targetHours || 0}h
+                        </span>
+                        <div className="w-20 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                          <div 
+                            className={`h-2 rounded-full ${
+                              (client.monthlyHours || 0) / (client.targetHours || 1) > 0.9 
+                                ? 'bg-red-500' 
+                                : (client.monthlyHours || 0) / (client.targetHours || 1) > 0.7
+                                ? 'bg-yellow-500'
+                                : 'bg-green-500'
+                            }`}
+                            style={{ width: `${Math.min(100, (client.monthlyHours || 0) / (client.targetHours || 1) * 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <button
+                        onClick={() => navigate(`/clients/${client._id}`)}
+                        className="text-[#026aa1] hover:text-[#0487d9] font-medium"
+                      >
+                        Voir détails →
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Suppression de la modal de création rapide - on redirige vers le formulaire complet */}
+        {showCreateModal && (() => {
+          navigate('/clients/new');
+          return null;
+        })()}
+      </div>
     </div>
   );
-  // === Fin : Composant principal Clients ===
 };
 
 export default Clients;
