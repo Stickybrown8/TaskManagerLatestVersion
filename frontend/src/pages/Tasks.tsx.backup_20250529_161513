@@ -533,6 +533,15 @@ const Tasks: React.FC = () => {
                                               <span>Progression</span>
                                               <span>{Math.round((task.totalTimeMinutes / (task.estimatedTime || 1)) * 100)}%</span>
                                             </div>
+                                    {!isCompleted && (
+                                      <button
+                                        onClick={() => handleComplete(taskId)}
+                                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+                                        title="Marquer comme terminée"
+                                      >
+                                        ✅ Terminer
+                                      </button>
+                                    )}
                                             <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                                               <div
                                                 className={`h-2 rounded-full transition-all ${task.totalTimeMinutes > (task.estimatedTime || 0)
@@ -561,15 +570,6 @@ const Tasks: React.FC = () => {
                                       className="px-4 py-2 bg-[#026aa1] hover:bg-[#0487d9] text-white rounded-lg font-medium transition-colors"
                                       title="Démarrer un timer"
                                     >
-                                    {!isCompleted && (
-                                      <button
-                                        onClick={() => handleComplete(taskId)}
-                                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
-                                        title="Marquer comme terminée"
-                                      >
-                                        ✅ Terminer
-                                      </button>
-                                    )}
                                       ⏱️ Timer
                                     </button>
 
