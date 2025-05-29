@@ -294,7 +294,7 @@ const Tasks: React.FC = () => {
     const hours = Math.floor(minutes / 60);
     const mins = Math.round(minutes % 60);
     if (hours === 0) return `${mins}min`;
-    return mins > 0 ? `${hours}h${mins}min` : `${hours}h`;
+    return mins > 0 ? `${hours}h${mins}` : `${hours}h`;
   };
 
   const formatHours = (hours: number): string => {

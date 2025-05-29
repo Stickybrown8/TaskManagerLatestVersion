@@ -17612,3 +17612,304 @@
 {"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 15:35:54","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
 {"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 15:35:54"}
 {"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 15:35:54"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/tasks","service":"mongodb","timestamp":"2025-05-29 15:40:54"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 15:40:54","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 15:40:54"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 15:40:54"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/tasks","service":"mongodb","timestamp":"2025-05-29 15:40:54"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 15:40:54","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 15:40:54"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 15:40:54"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/tasks","service":"mongodb","timestamp":"2025-05-29 15:45:54"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 15:45:54","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 15:45:54"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 15:45:54"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/tasks","service":"mongodb","timestamp":"2025-05-29 15:45:54"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 15:45:54","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 15:45:54"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 15:45:54"}
+{"level":"info","message":"Tentative de connexion à MongoDB...","service":"mongodb","timestamp":"2025-05-29 15:49:00"}
+{"level":"info","message":"MongoDB connecté avec succès: ac-3gzsp6o-shard-00-00.dxsnbnq.mongodb.net","service":"mongodb","timestamp":"2025-05-29 15:49:00"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.createIndex","query":"{\"userId\":1,\"status\":1}","service":"mongodb","timestamp":"2025-05-29 15:49:00"}
+{"doc":"✅","level":"debug","message":"MongoDB activities.createIndex","query":"{\"userId\":1}","service":"mongodb","timestamp":"2025-05-29 15:49:00"}
+{"doc":"✅","level":"debug","message":"MongoDB timers.createIndex","query":"{\"userId\":1}","service":"mongodb","timestamp":"2025-05-29 15:49:00"}
+{"doc":"✅","level":"debug","message":"MongoDB users.createIndex","query":"{\"email\":1}","service":"mongodb","timestamp":"2025-05-29 15:49:00"}
+{"doc":"✅","level":"debug","message":"MongoDB timers.createIndex","query":"{\"clientId\":1}","service":"mongodb","timestamp":"2025-05-29 15:49:00"}
+{"doc":"✅","level":"debug","message":"MongoDB activities.createIndex","query":"{\"timestamp\":1}","service":"mongodb","timestamp":"2025-05-29 15:49:00"}
+{"doc":"✅","level":"debug","message":"MongoDB timers.createIndex","query":"{\"startTime\":-1}","service":"mongodb","timestamp":"2025-05-29 15:49:00"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.createIndex","query":"{\"name\":1}","service":"mongodb","timestamp":"2025-05-29 15:49:00"}
+{"doc":"✅","level":"debug","message":"MongoDB activities.createIndex","query":"{\"userId\":1,\"timestamp\":1}","service":"mongodb","timestamp":"2025-05-29 15:49:00"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.createIndex","query":"{\"userId\":1,\"status\":1}","service":"mongodb","timestamp":"2025-05-29 15:49:00"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.createIndex","query":"{\"clientId\":1,\"status\":1}","service":"mongodb","timestamp":"2025-05-29 15:49:01"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.createIndex","query":"{\"dueDate\":1}","service":"mongodb","timestamp":"2025-05-29 15:49:01"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.createIndex","query":"{\"userId\":1,\"status\":1}","service":"mongodb","timestamp":"2025-05-29 15:49:01"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.createIndex","query":"{\"clientId\":1,\"status\":1}","service":"mongodb","timestamp":"2025-05-29 15:49:01"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.createIndex","query":"{\"dueDate\":1}","service":"mongodb","timestamp":"2025-05-29 15:49:01"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/users/verify","service":"mongodb","timestamp":"2025-05-29 15:49:24"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 15:49:24","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB users.findOne","query":"{\"_id\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 15:49:24"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/users/verify","service":"mongodb","timestamp":"2025-05-29 15:49:24"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 15:49:24","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB users.findOne","query":"{\"_id\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 15:49:24"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/tasks","service":"mongodb","timestamp":"2025-05-29 15:49:24"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 15:49:24","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 15:49:24"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 15:49:24"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/tasks","service":"mongodb","timestamp":"2025-05-29 15:49:25"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 15:49:25","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 15:49:25"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 15:49:25"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/clients","service":"mongodb","timestamp":"2025-05-29 15:49:38"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 15:49:38","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 15:49:38"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/tasks","service":"mongodb","timestamp":"2025-05-29 15:49:38"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 15:49:38","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 15:49:38"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 15:49:38"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/tasks","service":"mongodb","timestamp":"2025-05-29 15:49:39"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 15:49:39","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 15:49:39"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 15:49:39"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/clients","service":"mongodb","timestamp":"2025-05-29 15:49:39"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 15:49:39","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 15:49:39"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/timers","service":"mongodb","timestamp":"2025-05-29 15:49:39"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 15:49:39","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB timers.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 15:49:39"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 15:49:39"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"_id\":{\"$in\":[\"6836ec41dfd0ff5f0833e762\",\"6836ebfadfd0ff5f0833e729\",\"68326ec05db5a63dddc511f0\",\"683844e88de642a6cf61c3d3\",\"6831bce8afbadb7716252fac\",\"683735696eb17bcc2b5af4dc\",\"6837082346f3474125ad60f3\",\"6836ed2adfd0ff5f0833e7c3\",\"68328c385db5a63dddc515b6\",\"6831c838afbadb77162530a2\",\"6831bfa8afbadb771625301d\",\"6831b3b3afbadb7716252e80\",\"6831b3e2afbadb7716252e99\",\"6831ab32afbadb7716252e11\",\"6831a9e5afbadb7716252dc1\"]}}","service":"mongodb","timestamp":"2025-05-29 15:49:39"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/profitability","service":"mongodb","timestamp":"2025-05-29 15:49:39"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 15:49:39","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB profitabilities.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 15:49:39"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 15:49:39"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/timers","service":"mongodb","timestamp":"2025-05-29 15:49:39"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 15:49:39","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB timers.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 15:49:39"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 15:49:39"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"_id\":{\"$in\":[\"6836ec41dfd0ff5f0833e762\",\"6836ebfadfd0ff5f0833e729\",\"68326ec05db5a63dddc511f0\",\"683844e88de642a6cf61c3d3\",\"6831bce8afbadb7716252fac\",\"683735696eb17bcc2b5af4dc\",\"6837082346f3474125ad60f3\",\"6836ed2adfd0ff5f0833e7c3\",\"68328c385db5a63dddc515b6\",\"6831c838afbadb77162530a2\",\"6831bfa8afbadb771625301d\",\"6831b3b3afbadb7716252e80\",\"6831b3e2afbadb7716252e99\",\"6831ab32afbadb7716252e11\",\"6831a9e5afbadb7716252dc1\"]}}","service":"mongodb","timestamp":"2025-05-29 15:49:39"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/timers","service":"mongodb","timestamp":"2025-05-29 15:49:39"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 15:49:39","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB timers.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 15:49:39"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 15:49:39"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"_id\":{\"$in\":[\"6836ec41dfd0ff5f0833e762\",\"6836ebfadfd0ff5f0833e729\",\"68326ec05db5a63dddc511f0\",\"683844e88de642a6cf61c3d3\",\"6831bce8afbadb7716252fac\",\"683735696eb17bcc2b5af4dc\",\"6837082346f3474125ad60f3\",\"6836ed2adfd0ff5f0833e7c3\",\"68328c385db5a63dddc515b6\",\"6831c838afbadb77162530a2\",\"6831bfa8afbadb771625301d\",\"6831b3b3afbadb7716252e80\",\"6831b3e2afbadb7716252e99\",\"6831ab32afbadb7716252e11\",\"6831a9e5afbadb7716252dc1\"]}}","service":"mongodb","timestamp":"2025-05-29 15:49:39"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/profitability","service":"mongodb","timestamp":"2025-05-29 15:49:39"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 15:49:39","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB profitabilities.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 15:49:39"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 15:49:39"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/tasks","service":"mongodb","timestamp":"2025-05-29 15:49:39"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 15:49:39","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 15:49:39"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 15:49:39"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/timers","service":"mongodb","timestamp":"2025-05-29 15:49:39"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 15:49:39","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB timers.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 15:49:39"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 15:49:39"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"_id\":{\"$in\":[\"6836ec41dfd0ff5f0833e762\",\"6836ebfadfd0ff5f0833e729\",\"68326ec05db5a63dddc511f0\",\"683844e88de642a6cf61c3d3\",\"6831bce8afbadb7716252fac\",\"683735696eb17bcc2b5af4dc\",\"6837082346f3474125ad60f3\",\"6836ed2adfd0ff5f0833e7c3\",\"68328c385db5a63dddc515b6\",\"6831c838afbadb77162530a2\",\"6831bfa8afbadb771625301d\",\"6831b3b3afbadb7716252e80\",\"6831b3e2afbadb7716252e99\",\"6831ab32afbadb7716252e11\",\"6831a9e5afbadb7716252dc1\"]}}","service":"mongodb","timestamp":"2025-05-29 15:49:39"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/tasks","service":"mongodb","timestamp":"2025-05-29 15:49:39"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 15:49:39","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 15:49:39"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 15:49:39"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"PUT","path":"/api/tasks/6836ec41dfd0ff5f0833e762/complete","service":"mongodb","timestamp":"2025-05-29 15:50:03"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 15:50:03","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.findOneAndUpdate","query":"{\"_id\":\"6836ec41dfd0ff5f0833e762\",\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 15:50:03"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.findOneAndUpdate","query":"{\"_id\":\"6831a9bbafbadb7716252db0\"}","service":"mongodb","timestamp":"2025-05-29 15:50:03"}
+{"doc":"✅","level":"debug","message":"MongoDB users.findOneAndUpdate","query":"{\"_id\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 15:50:03"}
+{"doc":"✅","level":"debug","message":"MongoDB activities.insertOne","query":"{\"userId\":\"682f58d171400a61ef80cd4a\",\"type\":\"task_completed\",\"description\":\"Tâche \\\"Course à pied\\\" terminée\",\"timestamp\":\"2025-05-29T15:50:03.862Z\",\"details\":{\"taskId\":\"6836ec41dfd0ff5f0833e762\",\"clientId\":\"6831a9bbafbadb7716252db0\",\"pointsEarned\":10,\"experienceEarned\":20,\"levelUp\":true},\"_id\":\"6838822bb849f60cb847146e\",\"__v\":0}","service":"mongodb","timestamp":"2025-05-29 15:50:03"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.findOne","query":"{\"_id\":\"6836ec41dfd0ff5f0833e762\"}","service":"mongodb","timestamp":"2025-05-29 15:50:03"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/tasks","service":"mongodb","timestamp":"2025-05-29 15:50:03"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 15:50:03","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 15:50:03"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 15:50:04"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/tasks","service":"mongodb","timestamp":"2025-05-29 15:54:25"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 15:54:25","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 15:54:25"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 15:54:25"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/tasks","service":"mongodb","timestamp":"2025-05-29 15:54:39"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 15:54:39","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 15:54:39"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 15:54:39"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/tasks","service":"mongodb","timestamp":"2025-05-29 15:59:25"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 15:59:25","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 15:59:25"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 15:59:25"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/tasks","service":"mongodb","timestamp":"2025-05-29 15:59:39"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 15:59:39","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 15:59:39"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 15:59:39"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/tasks","service":"mongodb","timestamp":"2025-05-29 16:04:25"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 16:04:25","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 16:04:25"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 16:04:25"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/tasks","service":"mongodb","timestamp":"2025-05-29 16:04:39"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 16:04:39","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 16:04:39"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 16:04:39"}
+{"level":"info","message":"Tentative de connexion à MongoDB...","service":"mongodb","timestamp":"2025-05-29 16:06:44"}
+{"level":"info","message":"MongoDB connecté avec succès: ac-3gzsp6o-shard-00-00.dxsnbnq.mongodb.net","service":"mongodb","timestamp":"2025-05-29 16:06:44"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.createIndex","query":"{\"userId\":1,\"status\":1}","service":"mongodb","timestamp":"2025-05-29 16:06:44"}
+{"doc":"✅","level":"debug","message":"MongoDB activities.createIndex","query":"{\"userId\":1}","service":"mongodb","timestamp":"2025-05-29 16:06:44"}
+{"doc":"✅","level":"debug","message":"MongoDB timers.createIndex","query":"{\"userId\":1}","service":"mongodb","timestamp":"2025-05-29 16:06:44"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.createIndex","query":"{\"name\":1}","service":"mongodb","timestamp":"2025-05-29 16:06:44"}
+{"doc":"✅","level":"debug","message":"MongoDB users.createIndex","query":"{\"email\":1}","service":"mongodb","timestamp":"2025-05-29 16:06:44"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.createIndex","query":"{\"userId\":1,\"status\":1}","service":"mongodb","timestamp":"2025-05-29 16:06:44"}
+{"doc":"✅","level":"debug","message":"MongoDB timers.createIndex","query":"{\"clientId\":1}","service":"mongodb","timestamp":"2025-05-29 16:06:44"}
+{"doc":"✅","level":"debug","message":"MongoDB activities.createIndex","query":"{\"timestamp\":1}","service":"mongodb","timestamp":"2025-05-29 16:06:44"}
+{"doc":"✅","level":"debug","message":"MongoDB timers.createIndex","query":"{\"startTime\":-1}","service":"mongodb","timestamp":"2025-05-29 16:06:44"}
+{"doc":"✅","level":"debug","message":"MongoDB activities.createIndex","query":"{\"userId\":1,\"timestamp\":1}","service":"mongodb","timestamp":"2025-05-29 16:06:44"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.createIndex","query":"{\"clientId\":1,\"status\":1}","service":"mongodb","timestamp":"2025-05-29 16:06:44"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.createIndex","query":"{\"dueDate\":1}","service":"mongodb","timestamp":"2025-05-29 16:06:45"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.createIndex","query":"{\"userId\":1,\"status\":1}","service":"mongodb","timestamp":"2025-05-29 16:06:45"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.createIndex","query":"{\"clientId\":1,\"status\":1}","service":"mongodb","timestamp":"2025-05-29 16:06:45"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.createIndex","query":"{\"dueDate\":1}","service":"mongodb","timestamp":"2025-05-29 16:06:45"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/users/verify","service":"mongodb","timestamp":"2025-05-29 16:07:11"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 16:07:11","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB users.findOne","query":"{\"_id\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 16:07:11"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/users/verify","service":"mongodb","timestamp":"2025-05-29 16:07:11"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 16:07:11","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB users.findOne","query":"{\"_id\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 16:07:11"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/tasks","service":"mongodb","timestamp":"2025-05-29 16:07:11"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 16:07:11","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 16:07:11"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 16:07:11"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/tasks","service":"mongodb","timestamp":"2025-05-29 16:07:11"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 16:07:11","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 16:07:11"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 16:07:11"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/tasks","service":"mongodb","timestamp":"2025-05-29 16:07:25"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 16:07:25","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 16:07:25"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/clients","service":"mongodb","timestamp":"2025-05-29 16:07:25"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 16:07:25","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 16:07:25"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 16:07:25"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/clients","service":"mongodb","timestamp":"2025-05-29 16:07:25"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 16:07:25","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 16:07:25"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/tasks","service":"mongodb","timestamp":"2025-05-29 16:07:25"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 16:07:25","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 16:07:25"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 16:07:25"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/timers","service":"mongodb","timestamp":"2025-05-29 16:07:25"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 16:07:25","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB timers.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 16:07:25"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 16:07:25"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"_id\":{\"$in\":[\"6836ec41dfd0ff5f0833e762\",\"6836ebfadfd0ff5f0833e729\",\"68326ec05db5a63dddc511f0\",\"683844e88de642a6cf61c3d3\",\"6831bce8afbadb7716252fac\",\"683735696eb17bcc2b5af4dc\",\"6837082346f3474125ad60f3\",\"6836ed2adfd0ff5f0833e7c3\",\"68328c385db5a63dddc515b6\",\"6831c838afbadb77162530a2\",\"6831bfa8afbadb771625301d\",\"6831b3b3afbadb7716252e80\",\"6831b3e2afbadb7716252e99\",\"6831ab32afbadb7716252e11\",\"6831a9e5afbadb7716252dc1\"]}}","service":"mongodb","timestamp":"2025-05-29 16:07:25"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/timers","service":"mongodb","timestamp":"2025-05-29 16:07:25"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 16:07:25","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB timers.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 16:07:25"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 16:07:25"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"_id\":{\"$in\":[\"6836ec41dfd0ff5f0833e762\",\"6836ebfadfd0ff5f0833e729\",\"68326ec05db5a63dddc511f0\",\"683844e88de642a6cf61c3d3\",\"6831bce8afbadb7716252fac\",\"683735696eb17bcc2b5af4dc\",\"6837082346f3474125ad60f3\",\"6836ed2adfd0ff5f0833e7c3\",\"68328c385db5a63dddc515b6\",\"6831c838afbadb77162530a2\",\"6831bfa8afbadb771625301d\",\"6831b3b3afbadb7716252e80\",\"6831b3e2afbadb7716252e99\",\"6831ab32afbadb7716252e11\",\"6831a9e5afbadb7716252dc1\"]}}","service":"mongodb","timestamp":"2025-05-29 16:07:25"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/profitability","service":"mongodb","timestamp":"2025-05-29 16:07:25"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 16:07:25","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB profitabilities.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 16:07:25"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 16:07:25"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/timers","service":"mongodb","timestamp":"2025-05-29 16:07:26"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 16:07:26","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB timers.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 16:07:26"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/profitability","service":"mongodb","timestamp":"2025-05-29 16:07:26"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 16:07:26","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB profitabilities.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 16:07:26"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 16:07:26"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 16:07:26"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"_id\":{\"$in\":[\"6836ec41dfd0ff5f0833e762\",\"6836ebfadfd0ff5f0833e729\",\"68326ec05db5a63dddc511f0\",\"683844e88de642a6cf61c3d3\",\"6831bce8afbadb7716252fac\",\"683735696eb17bcc2b5af4dc\",\"6837082346f3474125ad60f3\",\"6836ed2adfd0ff5f0833e7c3\",\"68328c385db5a63dddc515b6\",\"6831c838afbadb77162530a2\",\"6831bfa8afbadb771625301d\",\"6831b3b3afbadb7716252e80\",\"6831b3e2afbadb7716252e99\",\"6831ab32afbadb7716252e11\",\"6831a9e5afbadb7716252dc1\"]}}","service":"mongodb","timestamp":"2025-05-29 16:07:26"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/timers","service":"mongodb","timestamp":"2025-05-29 16:07:26"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 16:07:26","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB timers.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 16:07:26"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/tasks","service":"mongodb","timestamp":"2025-05-29 16:07:26"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 16:07:26","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 16:07:26"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 16:07:26"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"_id\":{\"$in\":[\"6836ec41dfd0ff5f0833e762\",\"6836ebfadfd0ff5f0833e729\",\"68326ec05db5a63dddc511f0\",\"683844e88de642a6cf61c3d3\",\"6831bce8afbadb7716252fac\",\"683735696eb17bcc2b5af4dc\",\"6837082346f3474125ad60f3\",\"6836ed2adfd0ff5f0833e7c3\",\"68328c385db5a63dddc515b6\",\"6831c838afbadb77162530a2\",\"6831bfa8afbadb771625301d\",\"6831b3b3afbadb7716252e80\",\"6831b3e2afbadb7716252e99\",\"6831ab32afbadb7716252e11\",\"6831a9e5afbadb7716252dc1\"]}}","service":"mongodb","timestamp":"2025-05-29 16:07:26"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 16:07:26"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/tasks","service":"mongodb","timestamp":"2025-05-29 16:07:26"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 16:07:26","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 16:07:26"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 16:07:26"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/clients","service":"mongodb","timestamp":"2025-05-29 16:08:09"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 16:08:09","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 16:08:09"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/timers","service":"mongodb","timestamp":"2025-05-29 16:08:09"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 16:08:09","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB timers.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 16:08:09"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/tasks","service":"mongodb","timestamp":"2025-05-29 16:08:09"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 16:08:09","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 16:08:09"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 16:08:09"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 16:08:09"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"_id\":{\"$in\":[\"6836ec41dfd0ff5f0833e762\",\"6836ebfadfd0ff5f0833e729\",\"68326ec05db5a63dddc511f0\",\"683844e88de642a6cf61c3d3\",\"6831bce8afbadb7716252fac\",\"683735696eb17bcc2b5af4dc\",\"6837082346f3474125ad60f3\",\"6836ed2adfd0ff5f0833e7c3\",\"68328c385db5a63dddc515b6\",\"6831c838afbadb77162530a2\",\"6831bfa8afbadb771625301d\",\"6831b3b3afbadb7716252e80\",\"6831b3e2afbadb7716252e99\",\"6831ab32afbadb7716252e11\",\"6831a9e5afbadb7716252dc1\"]}}","service":"mongodb","timestamp":"2025-05-29 16:08:09"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/clients/6831a9bbafbadb7716252db0","service":"mongodb","timestamp":"2025-05-29 16:08:13"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 16:08:13","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.findOne","query":"{\"_id\":\"6831a9bbafbadb7716252db0\",\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 16:08:13"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/profitability/client/6831a9bbafbadb7716252db0","service":"mongodb","timestamp":"2025-05-29 16:08:13"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 16:08:13","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB profitabilities.findOne","query":"{\"userId\":\"682f58d171400a61ef80cd4a\",\"clientId\":\"6831a9bbafbadb7716252db0\"}","service":"mongodb","timestamp":"2025-05-29 16:08:13"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\"]}}","service":"mongodb","timestamp":"2025-05-29 16:08:13"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\",\"clientId\":\"6831a9bbafbadb7716252db0\",\"status\":\"terminée\",\"completedAt\":{\"$gte\":\"2025-05-01T00:00:00.000Z\"}}","service":"mongodb","timestamp":"2025-05-29 16:08:13"}
+{"doc":"✅","level":"debug","message":"MongoDB timers.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\",\"clientId\":\"6831a9bbafbadb7716252db0\",\"startTime\":{\"$gte\":\"2025-05-01T00:00:00.000Z\"}}","service":"mongodb","timestamp":"2025-05-29 16:08:13"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/tasks/683844e88de642a6cf61c3d3","service":"mongodb","timestamp":"2025-05-29 16:08:27"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 16:08:27","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.findOne","query":"{\"_id\":\"683844e88de642a6cf61c3d3\",\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 16:08:27"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\"]}}","service":"mongodb","timestamp":"2025-05-29 16:08:27"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"POST","path":"/api/timers","service":"mongodb","timestamp":"2025-05-29 16:08:31"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 16:08:31","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB timers.insertOne","query":"{\"userId\":\"682f58d171400a61ef80cd4a\",\"taskId\":\"683844e88de642a6cf61c3d3\",\"clientId\":\"6831a9bbafbadb7716252db0\",\"description\":\"Travail sur: lancé de perche\",\"startTime\":\"2025-05-29T16:08:31.323Z\",\"endTime\":null,\"duration\":0,\"isRunning\":true,\"totalPausedTime\":0,\"tags\":[],\"billable\":true,\"_id\":\"6838867f4b80e8018048b517\",\"breaks\":[],\"createdAt\":\"2025-05-29T16:08:31.325Z\",\"__v\":0}","service":"mongodb","timestamp":"2025-05-29 16:08:31"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.findOne","query":"{\"_id\":\"6831a9bbafbadb7716252db0\"}","service":"mongodb","timestamp":"2025-05-29 16:08:31"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"PUT","path":"/api/timers/stop/6838867f4b80e8018048b517","service":"mongodb","timestamp":"2025-05-29 16:09:45"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 16:09:45","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB timers.findOne","query":"{\"_id\":\"6838867f4b80e8018048b517\"}","service":"mongodb","timestamp":"2025-05-29 16:09:45"}
+{"doc":"✅","level":"debug","message":"MongoDB timers.updateOne","query":"{\"_id\":\"6838867f4b80e8018048b517\"}","service":"mongodb","timestamp":"2025-05-29 16:09:45"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.findOne","query":"{\"_id\":\"683844e88de642a6cf61c3d3\"}","service":"mongodb","timestamp":"2025-05-29 16:09:45"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.updateOne","query":"{\"_id\":\"683844e88de642a6cf61c3d3\"}","service":"mongodb","timestamp":"2025-05-29 16:09:45"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.findOne","query":"{\"_id\":\"683844e88de642a6cf61c3d3\"}","service":"mongodb","timestamp":"2025-05-29 16:09:45"}
+{"level":"info","message":"Timer arrêté et tâche mise à jour","minutesAdded":1,"service":"mongodb","taskId":"683844e88de642a6cf61c3d3","timerId":"6838867f4b80e8018048b517","timestamp":"2025-05-29 16:09:45","totalMinutes":3}
+{"doc":"✅","level":"debug","message":"MongoDB clients.findOne","query":"{\"_id\":\"6831a9bbafbadb7716252db0\"}","service":"mongodb","timestamp":"2025-05-29 16:09:45"}
+{"doc":"✅","level":"debug","message":"MongoDB timers.findOne","query":"{\"_id\":\"6838867f4b80e8018048b517\"}","service":"mongodb","timestamp":"2025-05-29 16:09:45"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\"]}}","service":"mongodb","timestamp":"2025-05-29 16:09:45"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"_id\":{\"$in\":[\"683844e88de642a6cf61c3d3\"]}}","service":"mongodb","timestamp":"2025-05-29 16:09:45"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\",\"clientId\":\"6831a9bbafbadb7716252db0\",\"status\":\"terminée\",\"completedAt\":{\"$gte\":\"2025-05-01T00:00:00.000Z\"}}","service":"mongodb","timestamp":"2025-05-29 16:09:45"}
+{"doc":"✅","level":"debug","message":"MongoDB timers.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\",\"clientId\":\"6831a9bbafbadb7716252db0\",\"startTime\":{\"$gte\":\"2025-05-01T00:00:00.000Z\"}}","service":"mongodb","timestamp":"2025-05-29 16:09:45"}
+{"doc":"✅","level":"debug","message":"MongoDB profitabilities.findOne","query":"{\"userId\":\"682f58d171400a61ef80cd4a\",\"clientId\":\"6831a9bbafbadb7716252db0\"}","service":"mongodb","timestamp":"2025-05-29 16:09:45"}
+{"doc":"✅","level":"debug","message":"MongoDB profitabilities.updateOne","query":"{\"_id\":\"6831a9bbafbadb7716252db3\"}","service":"mongodb","timestamp":"2025-05-29 16:09:45"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.findOne","query":"{\"_id\":\"6831a9bbafbadb7716252db0\"}","service":"mongodb","timestamp":"2025-05-29 16:09:45"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/tasks/683844e88de642a6cf61c3d3","service":"mongodb","timestamp":"2025-05-29 16:09:45"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 16:09:45","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.findOne","query":"{\"_id\":\"683844e88de642a6cf61c3d3\",\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 16:09:45"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\"]}}","service":"mongodb","timestamp":"2025-05-29 16:09:45"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"PUT","path":"/api/tasks/683844e88de642a6cf61c3d3","service":"mongodb","timestamp":"2025-05-29 16:09:45"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 16:09:45","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.findOne","query":"{\"_id\":\"683844e88de642a6cf61c3d3\",\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 16:09:45"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.findOneAndUpdate","query":"{\"_id\":\"683844e88de642a6cf61c3d3\",\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 16:09:45"}
+{"error":"Cannot read properties of undefined (reading 'toString')","level":"error","message":"Erreur mise à jour tâche","service":"mongodb","taskId":"683844e88de642a6cf61c3d3","timestamp":"2025-05-29 16:09:45"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"PUT","path":"/api/profitability/update-hours/6831a9bbafbadb7716252db0","service":"mongodb","timestamp":"2025-05-29 16:09:45"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 16:09:45","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\",\"clientId\":\"6831a9bbafbadb7716252db0\",\"status\":\"terminée\",\"completedAt\":{\"$gte\":\"2025-05-01T00:00:00.000Z\"}}","service":"mongodb","timestamp":"2025-05-29 16:09:45"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/tasks","service":"mongodb","timestamp":"2025-05-29 16:09:45"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 16:09:45","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 16:09:45"}
+{"doc":"✅","level":"debug","message":"MongoDB timers.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\",\"clientId\":\"6831a9bbafbadb7716252db0\",\"startTime\":{\"$gte\":\"2025-05-01T00:00:00.000Z\"}}","service":"mongodb","timestamp":"2025-05-29 16:09:45"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 16:09:45"}
+{"doc":"✅","level":"debug","message":"MongoDB profitabilities.findOne","query":"{\"userId\":\"682f58d171400a61ef80cd4a\",\"clientId\":\"6831a9bbafbadb7716252db0\"}","service":"mongodb","timestamp":"2025-05-29 16:09:45"}
+{"doc":"✅","level":"debug","message":"MongoDB profitabilities.updateOne","query":"{\"_id\":\"6831a9bbafbadb7716252db3\"}","service":"mongodb","timestamp":"2025-05-29 16:09:45"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.findOne","query":"{\"_id\":\"6831a9bbafbadb7716252db0\"}","service":"mongodb","timestamp":"2025-05-29 16:09:46"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/clients/6831a9bbafbadb7716252db0","service":"mongodb","timestamp":"2025-05-29 16:09:46"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 16:09:46","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.findOne","query":"{\"_id\":\"6831a9bbafbadb7716252db0\",\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 16:09:46"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/profitability/client/6831a9bbafbadb7716252db0","service":"mongodb","timestamp":"2025-05-29 16:09:46"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 16:09:46","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB profitabilities.findOne","query":"{\"userId\":\"682f58d171400a61ef80cd4a\",\"clientId\":\"6831a9bbafbadb7716252db0\"}","service":"mongodb","timestamp":"2025-05-29 16:09:46"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\"]}}","service":"mongodb","timestamp":"2025-05-29 16:09:46"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\",\"clientId\":\"6831a9bbafbadb7716252db0\",\"status\":\"terminée\",\"completedAt\":{\"$gte\":\"2025-05-01T00:00:00.000Z\"}}","service":"mongodb","timestamp":"2025-05-29 16:09:46"}
+{"doc":"✅","level":"debug","message":"MongoDB timers.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\",\"clientId\":\"6831a9bbafbadb7716252db0\",\"startTime\":{\"$gte\":\"2025-05-01T00:00:00.000Z\"}}","service":"mongodb","timestamp":"2025-05-29 16:09:46"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"PUT","path":"/api/tasks/68326ec05db5a63dddc511f0","service":"mongodb","timestamp":"2025-05-29 16:10:48"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 16:10:48","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.findOne","query":"{\"_id\":\"68326ec05db5a63dddc511f0\",\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 16:10:48"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.findOne","query":"{\"_id\":\"68326ec05db5a63dddc511f0\",\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 16:10:48"}
+{"error":"Cannot read properties of undefined (reading 'toString')","level":"error","message":"Erreur mise à jour tâche","service":"mongodb","taskId":"68326ec05db5a63dddc511f0","timestamp":"2025-05-29 16:10:48"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/tasks","service":"mongodb","timestamp":"2025-05-29 16:12:12"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 16:12:12","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 16:12:12"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 16:12:12"}
+{"hasAuthHeader":true,"level":"debug","message":"🔐 Vérification auth","method":"GET","path":"/api/tasks","service":"mongodb","timestamp":"2025-05-29 16:12:26"}
+{"level":"debug","message":"✅ Auth réussie","service":"mongodb","timestamp":"2025-05-29 16:12:26","userId":"682f58d171400a61ef80cd4a","username":"Steven Test"}
+{"doc":"✅","level":"debug","message":"MongoDB tasks.find","query":"{\"userId\":\"682f58d171400a61ef80cd4a\"}","service":"mongodb","timestamp":"2025-05-29 16:12:26"}
+{"doc":"✅","level":"debug","message":"MongoDB clients.find","query":"{\"_id\":{\"$in\":[\"6831a9bbafbadb7716252db0\",\"6831b8f9afbadb7716252f18\"]}}","service":"mongodb","timestamp":"2025-05-29 16:12:26"}

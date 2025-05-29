@@ -180,3 +180,5 @@
 {"error":"Cannot read properties of undefined (reading 'toString')","level":"error","message":"Erreur mise à jour tâche","service":"mongodb","taskId":"68326ec05db5a63dddc511f0","timestamp":"2025-05-29 14:45:17"}
 {"error":"Cannot read properties of undefined (reading 'toString')","level":"error","message":"Erreur mise à jour tâche","service":"mongodb","taskId":"6836ebfadfd0ff5f0833e729","timestamp":"2025-05-29 14:46:50"}
 {"error":"Cannot read properties of undefined (reading 'toString')","level":"error","message":"Erreur mise à jour tâche","service":"mongodb","taskId":"6836ec41dfd0ff5f0833e762","timestamp":"2025-05-29 15:08:41"}
+{"error":"Cannot read properties of undefined (reading 'toString')","level":"error","message":"Erreur mise à jour tâche","service":"mongodb","taskId":"683844e88de642a6cf61c3d3","timestamp":"2025-05-29 16:09:45"}
+{"error":"Cannot read properties of undefined (reading 'toString')","level":"error","message":"Erreur mise à jour tâche","service":"mongodb","taskId":"68326ec05db5a63dddc511f0","timestamp":"2025-05-29 16:10:48"}

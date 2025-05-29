@@ -70,7 +70,7 @@ const Tasks: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const { tasks, loading, refreshTasks } = useTasks();
-  const { handleCompleteTask, showConfetti } = useTaskCompletion();
+  const { showConfetti } = useTaskCompletion();
 
   // États
   const [clients, setClients] = useState<Client[]>([]);
@@ -196,7 +196,7 @@ const Tasks: React.FC = () => {
         return {
           ...task,
           monthlyTimeMinutes: monthlyMinutes,
-          totalTimeMinutes: (task.timeSpent || 0) + Math.round(timers.filter(timer => timer.taskId && getTaskId(timer.taskId) === task._id).reduce((sum, timer) => sum + (timer.duration || 0), 0) / 60),
+          totalTimeMinutes: task.timeSpent || 0,
           percentageOfClientTime: 0, // Calculé après
           timersThisMonth: taskTimersThisMonth
         };
@@ -282,19 +282,13 @@ const Tasks: React.FC = () => {
   };
 
 
-  const handleComplete = async (taskId: string) => {
-    await handleCompleteTask(taskId);
-    await refreshTasks();
-  };
-
-
 
   const formatMinutes = (minutes: number): string => {
     if (!minutes) return '0min';
     const hours = Math.floor(minutes / 60);
     const mins = Math.round(minutes % 60);
     if (hours === 0) return `${mins}min`;
-    return mins > 0 ? `${hours}h${mins}min` : `${hours}h`;
+    return mins > 0 ? `${hours}h${mins}` : `${hours}h`;
   };
 
   const formatHours = (hours: number): string => {
@@ -397,7 +391,7 @@ const Tasks: React.FC = () => {
                         </div>
 
                         <div>
-                          <p className="text-sm text-gray-600">Forfait mensuel</p>
+                          <p className="text-sm text-gray-600">Revenu estimé</p>
                           <p className="text-2xl font-bold text-emerald-600">
                             {Math.round(metrics.monthlyRevenue)}€
                           </p>
@@ -533,15 +527,6 @@ const Tasks: React.FC = () => {
                                               <span>Progression</span>
                                               <span>{Math.round((task.totalTimeMinutes / (task.estimatedTime || 1)) * 100)}%</span>
                                             </div>
-                                    {!isCompleted && (
-                                      <button
-                                        onClick={() => handleComplete(taskId)}
-                                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
-                                        title="Marquer comme terminée"
-                                      >
-                                        ✅ Terminer
-                                      </button>
-                                    )}
                                             <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                                               <div
                                                 className={`h-2 rounded-full transition-all ${task.totalTimeMinutes > (task.estimatedTime || 0)
