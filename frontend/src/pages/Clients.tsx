@@ -312,17 +312,15 @@ const Clients: React.FC = () => {
               </p>
             </div>
             
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+            <button
               onClick={() => navigate('/clients/new')}
-              className="bg-white text-[#026aa1] px-6 py-3 rounded-xl font-medium shadow-lg hover:shadow-xl transform transition-all duration-200 flex items-center gap-2"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#026aa1] to-[#0487d9] text-white rounded-xl font-medium shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              Nouveau Client
-            </motion.button>
+              Ajouter un client
+            </button>
           </div>
         </div>
 
@@ -477,7 +475,7 @@ const Clients: React.FC = () => {
                     <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
                       <div className="flex items-center gap-2">
                         <span className="text-2xl">📅</span>
-                        <span className="text-sm text-gray-600 dark:text-gray-400">Budget mensuel</span>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">Rémunération mensuelle</span>
                       </div>
                       <span className="font-bold text-lg text-green-700 dark:text-green-300">
                         {(client.monthlyBudget || 0).toLocaleString()}€
@@ -559,7 +557,7 @@ const Clients: React.FC = () => {
                     Taux horaire cible
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Budget mensuel
+                    Rémunération mensuelle
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Heures (effectuées/max)
@@ -646,11 +644,7 @@ const Clients: React.FC = () => {
           </div>
         )}
 
-        {/* Suppression de la modal de création rapide - on redirige vers le formulaire complet */}
-        {showCreateModal && (() => {
-          navigate('/clients/new');
-          return null;
-        })()}
+        {/* Suppression complète de la modal et du code associé */}
       </div>
     </div>
   );

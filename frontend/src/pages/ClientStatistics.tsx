@@ -8,7 +8,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAppDispatch } from '../hooks';
 import { addNotification } from '../store/slices/uiSlice';
 import axios from 'axios';
-import { Bar, Doughnut } from 'react-chartjs-2';
+import { Bar, Doughnut, Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -19,16 +19,15 @@ import {
   Title,
   Tooltip,
   Legend,
-  ArcElement
+  ArcElement,
+  Filler
 } from 'chart.js';
-import ClientLogo from '../components/Clients/ClientLogo';
+import { motion } from 'framer-motion';
 
-// === Début : Configuration de l'API et Chart.js ===
-// Explication simple : On prépare les outils dont on a besoin pour faire des beaux graphiques et parler avec le serveur.
-// Explication technique : Configuration de l'URL de l'API et enregistrement des composants nécessaires pour Chart.js qui permettront de créer différents types de visualisations.
+// Configuration de l'API et Chart.js
 const API_URL = process.env.REACT_APP_API_URL || 'https://task-manager-api-yx13.onrender.com';
 
-// Enregistrement des composants Chart.js (après tous les imports)
+// Enregistrement des composants Chart.js
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -38,237 +37,300 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  ArcElement
+  ArcElement,
+  Filler
 );
-// === Fin : Configuration de l'API et Chart.js ===
 
-// === Début : Interface pour la plage de dates ===
-// Explication simple : C'est comme un petit formulaire qui dit "je veux voir les données de cette date à cette date".
-// Explication technique : Interface TypeScript définissant la structure pour stocker la plage de dates utilisée pour filtrer les données statistiques.
 interface DateRange {
   startDate: string;
   endDate: string;
 }
-// === Fin : Interface pour la plage de dates ===
 
-// === Début : Composant principal des statistiques client ===
-// Explication simple : C'est toute la page qui montre les statistiques des clients avec des graphiques et des nombres.
-// Explication technique : Composant React fonctionnel principal qui gère l'affichage et la logique des statistiques clients avec visualisation de données.
+interface ClientMetrics {
+  id: string;
+  name: string;
+  logo?: string;
+  totalHours: number;
+  billableHours: number;
+  revenue: number;
+  effectiveRate: number;
+  targetRate: number;
+  profitabilityScore: number;
+  monthlyBudget: number;
+}
+
+interface TaskMetrics {
+  id: string;
+  title: string;
+  clientName: string;
+  totalHours: number;
+  percentage: number;
+}
+
 const ClientStatistics: React.FC = () => {
-  // === Début : États et variables du composant ===
-  // Explication simple : On prépare toutes les petites boîtes où on va ranger les informations dont on a besoin.
-  // Explication technique : Initialisation des hooks d'état React pour stocker les données clients, les plages de dates, les statistiques et contrôler l'état de chargement.
   const dispatch = useAppDispatch();
-  const [clients, setClients] = useState<any[]>([]);
-  const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [dateRange, setDateRange] = useState<DateRange>({
     startDate: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0]
   });
-  const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'year' | 'custom'>('month');
-  const [timers, setTimers] = useState<any[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const [profitability, setProfitability] = useState<any>(null);
-  const [timeData, setTimeData] = useState<any>({ labels: [], datasets: [] });
-  const [profitabilityData, setProfitabilityData] = useState<any>({ labels: [], datasets: [] });
-  const [selectedClient, setSelectedClient] = useState<any>(null);
-  // === Fin : États et variables du composant ===
+  const [period, setPeriod] = useState<'week' | 'month' | 'quarter' | 'year' | 'custom'>('month');
+  const [loading, setLoading] = useState<boolean>(true);
+  const [activeTab, setActiveTab] = useState<'overview' | 'clients' | 'tasks'>('overview');
+  
+  // États pour les données
+  const [globalMetrics, setGlobalMetrics] = useState({
+    totalRevenue: 0,
+    totalHours: 0,
+    billableHours: 0,
+    averageHourlyRate: 0,
+    clientCount: 0,
+    taskCount: 0,
+    billablePercentage: 0,
+    monthlyGrowth: 0
+  });
+  
+  const [clientsMetrics, setClientsMetrics] = useState<ClientMetrics[]>([]);
+  const [tasksMetrics, setTasksMetrics] = useState<TaskMetrics[]>([]);
+  const [revenueChartData, setRevenueChartData] = useState<any>({ labels: [], datasets: [] });
+  const [clientDistributionData, setClientDistributionData] = useState<any>({ labels: [], datasets: [] });
+  const [timeDistributionData, setTimeDistributionData] = useState<any>({ labels: [], datasets: [] });
 
-  // === Début : Chargement initial des clients ===
-  // Explication simple : Quand la page s'ouvre, on va chercher la liste de tous les clients pour pouvoir choisir celui qu'on veut voir.
-  // Explication technique : Hook useEffect qui s'exécute au montage du composant pour récupérer la liste des clients depuis l'API, en utilisant le token d'authentification stocké.
-  useEffect(() => {
-    const fetchClients = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        if (!token) return;
-        
-        const response = await axios.get(`${API_URL}/api/clients`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        setClients(response.data);
-      } catch (error) {
-        console.error("Erreur lors du chargement des clients:", error);
-      }
-    };
-    
-    fetchClients();
-  }, []);
-  // === Fin : Chargement initial des clients ===
-
-  // === Début : Fonction de récupération des données du client sélectionné ===
-  // Explication simple : Cette fonction va chercher toutes les informations importantes sur le client que tu as choisi : combien de temps on a travaillé pour lui, combien il paie, etc.
-  // Explication technique : Fonction callback qui effectue plusieurs requêtes API asynchrones pour récupérer les détails du client, ses données de temps (timers) et sa rentabilité, puis met à jour les états correspondants.
-  const fetchClientData = useCallback(async () => {
+  // Fonction pour charger toutes les données
+  const loadAllData = useCallback(async () => {
     try {
       setLoading(true);
-      setError(null);
-      
       const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error("Token d'authentification manquant");
-      }
+      if (!token) throw new Error("Token d'authentification manquant");
       
-      // Récupérer les infos du client
-      const clientResponse = await axios.get(`${API_URL}/api/clients/${selectedClientId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      // Charger les clients, timers et tâches en parallèle
+      const [clientsRes, timersRes, tasksRes, profitabilityRes] = await Promise.all([
+        axios.get(`${API_URL}/api/clients`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        axios.get(`${API_URL}/api/timers`, {
+          params: { startDate: dateRange.startDate, endDate: dateRange.endDate },
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        axios.get(`${API_URL}/api/tasks`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        axios.get(`${API_URL}/api/profitability`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+      ]);
       
-      setSelectedClient(clientResponse.data);
-      
-      // Récupérer les timers pour le client dans la plage de dates
-      const timersResponse = await axios.get(`${API_URL}/api/timers`, {
-        params: {
-          clientId: selectedClientId,
-          startDate: dateRange.startDate,
-          endDate: dateRange.endDate
-        },
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
-      setTimers(timersResponse.data);
-      
-      // Récupérer les données de rentabilité
-      const profitabilityResponse = await axios.get(`${API_URL}/api/profitability/client/${selectedClientId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
-      setProfitability(profitabilityResponse.data);
-      
-      // Préparer les données pour les graphiques
-      prepareChartData(timersResponse.data);
+      processData(clientsRes.data, timersRes.data, tasksRes.data, profitabilityRes.data);
       
     } catch (error: any) {
       console.error("Erreur lors du chargement des données:", error);
-      setError(error.response?.data?.message || error.message || "Erreur lors du chargement des données");
-      
       dispatch(addNotification({
-        message: 'Erreur lors du chargement des statistiques client',
+        message: 'Erreur lors du chargement des statistiques',
         type: 'error'
       }));
     } finally {
       setLoading(false);
     }
-  }, [selectedClientId, dateRange, dispatch]);
-  // === Fin : Fonction de récupération des données du client sélectionné ===
+  }, [dateRange, dispatch]);
 
-  // === Début : Déclenchement de la récupération des données au changement de client ou de dates ===
-  // Explication simple : Dès que tu choisis un client différent ou des dates différentes, on met à jour toutes les informations pour montrer les bonnes statistiques.
-  // Explication technique : Hook useEffect qui surveille les changements de client sélectionné ou de plage de dates pour déclencher une nouvelle récupération des données.
   useEffect(() => {
-    if (selectedClientId) {
-      fetchClientData();
-    }
-  }, [selectedClientId, dateRange, fetchClientData]);
-  // === Fin : Déclenchement de la récupération des données au changement de client ou de dates ===
+    loadAllData();
+  }, [loadAllData]);
 
-  // === Début : Préparation des données pour les graphiques ===
-  // Explication simple : Cette fonction transforme les informations brutes en un format que les graphiques peuvent comprendre et afficher.
-  // Explication technique : Fonction qui traite les données des timers pour créer les structures de données nécessaires aux visualisations Chart.js, avec regroupement par date et séparation du temps facturable et non facturable.
-  const prepareChartData = (timersData: any[]) => {
-    if (!timersData.length) {
-      setTimeData({ labels: [], datasets: [] });
-      setProfitabilityData({ labels: [], datasets: [] });
-      return;
-    }
+  // Traitement des données
+  const processData = (clients: any[], timers: any[], tasks: any[], profitability: any[]) => {
+    // Calcul des métriques globales
+    let totalRevenue = 0;
+    let totalSeconds = 0;
+    let billableSeconds = 0;
+    const activeClients = new Set();
     
-    // Regrouper les timers par jour
-    const entriesByDate: { [date: string]: { total: number, billable: number, nonBillable: number } } = {};
-    
-    // Initialiser toutes les dates dans la plage
-    const startDate = new Date(dateRange.startDate);
-    const endDate = new Date(dateRange.endDate);
-    
-    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-      const dateString = d.toISOString().split('T')[0];
-      entriesByDate[dateString] = { total: 0, billable: 0, nonBillable: 0 };
-    }
-    
-    // Remplir avec les données réelles
-    timersData.forEach(timer => {
-      const date = new Date(timer.startTime).toISOString().split('T')[0];
-      if (!entriesByDate[date]) {
-        entriesByDate[date] = { total: 0, billable: 0, nonBillable: 0 };
-      }
-      
-      // Convertir la durée en secondes si elle est en heures
-      const durationInSeconds = timer.duration * (timer.duration < 100 ? 3600 : 1);
-      
-      // Ajouter au total
-      entriesByDate[date].total += durationInSeconds;
-      
-      // Ajouter au facturable ou non facturable
-      if (timer.billable) {
-        entriesByDate[date].billable += durationInSeconds;
-      } else {
-        entriesByDate[date].nonBillable += durationInSeconds;
+    // Créer un map de profitabilité par client
+    const profitabilityMap = new Map();
+    profitability.forEach(p => {
+      if (p.clientId) {
+        profitabilityMap.set(p.clientId._id || p.clientId, p);
       }
     });
     
-    // Préparer les données pour le graphique de temps
-    const labels = Object.keys(entriesByDate).sort();
+    // Analyser les timers
+    const clientHoursMap = new Map();
+    const taskHoursMap = new Map();
     
-    const timeChartData = {
-      labels,
-      datasets: [
-        {
-          label: 'Temps facturable (heures)',
-          data: labels.map(date => entriesByDate[date].billable / 3600),
-          borderColor: 'rgb(59, 130, 246)',
-          backgroundColor: 'rgba(59, 130, 246, 0.5)',
-        },
-        {
-          label: 'Temps non facturable (heures)',
-          data: labels.map(date => entriesByDate[date].nonBillable / 3600),
-          borderColor: 'rgb(234, 179, 8)',
-          backgroundColor: 'rgba(234, 179, 8, 0.5)',
+    timers.forEach(timer => {
+      const seconds = timer.duration || 0;
+      totalSeconds += seconds;
+      
+      if (timer.billable) {
+        billableSeconds += seconds;
+      }
+      
+      // Accumulation par client
+      if (timer.clientId) {
+        activeClients.add(timer.clientId);
+        const current = clientHoursMap.get(timer.clientId) || { total: 0, billable: 0 };
+        current.total += seconds;
+        if (timer.billable) current.billable += seconds;
+        clientHoursMap.set(timer.clientId, current);
+      }
+      
+      // Accumulation par tâche
+      if (timer.taskId) {
+        const current = taskHoursMap.get(timer.taskId) || 0;
+        taskHoursMap.set(timer.taskId, current + seconds);
+      }
+    });
+    
+    // Calcul des métriques par client
+    const clientsMetricsData: ClientMetrics[] = [];
+    
+    clients.forEach(client => {
+      const hours = clientHoursMap.get(client._id) || { total: 0, billable: 0 };
+      const clientProf = profitabilityMap.get(client._id) || client.profitability || {};
+      const hourlyRate = clientProf.hourlyRate || 100;
+      const targetHours = clientProf.targetHours || 40;
+      const monthlyBudget = clientProf.monthlyBudget || 0;
+      
+      const revenue = (hours.billable / 3600) * hourlyRate;
+      totalRevenue += revenue;
+      
+      const effectiveRate = hours.total > 0 ? revenue / (hours.total / 3600) : 0;
+      const profitabilityScore = hours.total > 0 ? (effectiveRate / hourlyRate) * 100 : 0;
+      
+      clientsMetricsData.push({
+        id: client._id,
+        name: client.name,
+        logo: client.logo,
+        totalHours: hours.total / 3600,
+        billableHours: hours.billable / 3600,
+        revenue,
+        effectiveRate,
+        targetRate: hourlyRate,
+        profitabilityScore,
+        monthlyBudget
+      });
+    });
+    
+    // Trier les clients par revenue
+    clientsMetricsData.sort((a, b) => b.revenue - a.revenue);
+    
+    // Calcul des métriques par tâche
+    const tasksMetricsData: TaskMetrics[] = [];
+    const taskClientMap = new Map();
+    
+    tasks.forEach(task => {
+      if (task.client) {
+        taskClientMap.set(task._id, task.client.name || 'Sans client');
+      }
+    });
+    
+    Array.from(taskHoursMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .forEach(([taskId, seconds]) => {
+        const task = tasks.find(t => t._id === taskId);
+        if (task) {
+          tasksMetricsData.push({
+            id: taskId,
+            title: task.title,
+            clientName: taskClientMap.get(taskId) || 'Sans client',
+            totalHours: seconds / 3600,
+            percentage: (seconds / totalSeconds) * 100
+          });
         }
-      ]
-    };
+      });
     
-    setTimeData(timeChartData);
+    // Mise à jour des états
+    setGlobalMetrics({
+      totalRevenue,
+      totalHours: totalSeconds / 3600,
+      billableHours: billableSeconds / 3600,
+      averageHourlyRate: totalSeconds > 0 ? totalRevenue / (totalSeconds / 3600) : 0,
+      clientCount: activeClients.size,
+      taskCount: taskHoursMap.size,
+      billablePercentage: totalSeconds > 0 ? (billableSeconds / totalSeconds) * 100 : 0,
+      monthlyGrowth: 15 // À calculer avec les données historiques
+    });
     
-    // Préparer les données pour le graphique de rentabilité
-    if (profitability && profitability.hourlyRate) {
-      const hourlyRate = profitability.hourlyRate;
-      
-      const profitabilityChartData = {
-        labels,
-        datasets: [
-          {
-            label: 'Revenus (€)',
-            data: labels.map(date => (entriesByDate[date].billable / 3600) * hourlyRate),
-            borderColor: 'rgb(34, 197, 94)',
-            backgroundColor: 'rgba(34, 197, 94, 0.5)',
-            yAxisID: 'y',
-          },
-          {
-            label: 'Taux horaire (€/h)',
-            data: labels.map(date => {
-              const hours = entriesByDate[date].total / 3600;
-              if (hours === 0) return hourlyRate;
-              const revenue = (entriesByDate[date].billable / 3600) * hourlyRate;
-              return Math.round(revenue / hours);
-            }),
-            borderColor: 'rgb(249, 115, 22)',
-            backgroundColor: 'rgba(249, 115, 22, 0.5)',
-            type: 'line',
-            yAxisID: 'y1',
-          }
-        ]
-      };
-      
-      setProfitabilityData(profitabilityChartData);
-    }
+    setClientsMetrics(clientsMetricsData);
+    setTasksMetrics(tasksMetricsData);
+    
+    // Préparer les données des graphiques
+    prepareChartData(clientsMetricsData, timers);
   };
-  // === Fin : Préparation des données pour les graphiques ===
 
-  // === Début : Gestion du changement de période ===
-  // Explication simple : Cette fonction permet de choisir facilement si on veut voir les données pour aujourd'hui, la semaine, le mois ou l'année.
-  // Explication technique : Fonction qui met à jour la plage de dates en fonction de la période sélectionnée (jour, semaine, mois, année ou personnalisée), en calculant les dates de début et de fin appropriées.
-  const handlePeriodChange = (newPeriod: 'day' | 'week' | 'month' | 'year' | 'custom') => {
+  // Préparation des données pour les graphiques
+  const prepareChartData = (clientsData: ClientMetrics[], timers: any[]) => {
+    // Graphique de revenue par client (top 5)
+    const topClients = clientsData.slice(0, 5);
+    setClientDistributionData({
+      labels: topClients.map(c => c.name),
+      datasets: [{
+        data: topClients.map(c => c.revenue),
+        backgroundColor: [
+          'rgba(59, 130, 246, 0.8)',
+          'rgba(16, 185, 129, 0.8)',
+          'rgba(251, 146, 60, 0.8)',
+          'rgba(147, 51, 234, 0.8)',
+          'rgba(236, 72, 153, 0.8)'
+        ],
+        borderWidth: 0
+      }]
+    });
+    
+    // Graphique de distribution du temps
+    const billableHours = clientsData.reduce((sum, c) => sum + c.billableHours, 0);
+    const nonBillableHours = clientsData.reduce((sum, c) => sum + (c.totalHours - c.billableHours), 0);
+    
+    setTimeDistributionData({
+      labels: ['Temps facturable', 'Temps non-facturable'],
+      datasets: [{
+        data: [billableHours, nonBillableHours],
+        backgroundColor: ['rgba(16, 185, 129, 0.8)', 'rgba(239, 68, 68, 0.8)'],
+        borderWidth: 0
+      }]
+    });
+    
+    // Graphique d'évolution des revenus
+    const revenueByDate = new Map();
+    const startDate = new Date(dateRange.startDate);
+    const endDate = new Date(dateRange.endDate);
+    
+    // Initialiser toutes les dates
+    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+      revenueByDate.set(d.toISOString().split('T')[0], 0);
+    }
+    
+    // Calculer les revenus par jour
+    timers.forEach(timer => {
+      if (timer.billable && timer.startTime) {
+        const date = timer.startTime.split('T')[0];
+        const client = clientsData.find(c => c.id === timer.clientId);
+        if (client) {
+          const dayRevenue = (timer.duration / 3600) * client.targetRate;
+          revenueByDate.set(date, (revenueByDate.get(date) || 0) + dayRevenue);
+        }
+      }
+    });
+    
+    const sortedDates = Array.from(revenueByDate.keys()).sort();
+    setRevenueChartData({
+      labels: sortedDates.map(date => {
+        const d = new Date(date);
+        return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+      }),
+      datasets: [{
+        label: 'Revenus journaliers',
+        data: sortedDates.map(date => revenueByDate.get(date)),
+        borderColor: 'rgb(59, 130, 246)',
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        tension: 0.4,
+        fill: true
+      }]
+    });
+  };
+
+  // Gestion du changement de période
+  const handlePeriodChange = (newPeriod: typeof period) => {
     setPeriod(newPeriod);
     
     if (newPeriod === 'custom') return;
@@ -277,19 +339,16 @@ const ClientStatistics: React.FC = () => {
     let startDate = new Date();
     
     switch (newPeriod) {
-      case 'day':
-        startDate = new Date(today);
-        break;
       case 'week':
-        startDate = new Date(today);
         startDate.setDate(today.getDate() - 7);
         break;
       case 'month':
-        startDate = new Date(today);
         startDate.setDate(today.getDate() - 30);
         break;
+      case 'quarter':
+        startDate.setDate(today.getDate() - 90);
+        break;
       case 'year':
-        startDate = new Date(today);
         startDate.setDate(today.getDate() - 365);
         break;
     }
@@ -299,336 +358,567 @@ const ClientStatistics: React.FC = () => {
       endDate: today.toISOString().split('T')[0]
     });
   };
-  // === Fin : Gestion du changement de période ===
 
-  // === Début : Formatage de la durée ===
-  // Explication simple : Cette fonction transforme des secondes en un format plus facile à lire comme "2h 30min".
-  // Explication technique : Fonction utilitaire qui convertit une durée en secondes en format horaire lisible (heures et minutes) pour l'affichage dans l'interface.
-  const formatDuration = (seconds: number): string => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    
-    if (hours === 0) {
-      return `${minutes}min`;
-    }
-    
-    return `${hours}h${minutes > 0 ? ` ${minutes}min` : ''}`;
-  };
-  // === Fin : Formatage de la durée ===
-
-  // === Début : Calculs des statistiques totales ===
-  // Explication simple : On calcule tous les totaux importants : combien de temps total, combien d'argent gagné, etc.
-  // Explication technique : Calcul des métriques agrégées à partir des données des timers pour afficher les totaux de temps facturable, non facturable, pourcentage facturable, revenus et taux horaire effectif.
-  const totalBillableSeconds = timers.reduce((total, timer) => {
-    // Convertir la durée en secondes si elle est en heures
-    const durationInSeconds = timer.billable ? (timer.duration * (timer.duration < 100 ? 3600 : 1)) : 0;
-    return total + durationInSeconds;
-  }, 0);
-
-  const totalNonBillableSeconds = timers.reduce((total, timer) => {
-    // Convertir la durée en secondes si elle est en heures
-    const durationInSeconds = !timer.billable ? (timer.duration * (timer.duration < 100 ? 3600 : 1)) : 0;
-    return total + durationInSeconds;
-  }, 0);
-
-  const totalSeconds = totalBillableSeconds + totalNonBillableSeconds;
-  const billablePercentage = totalSeconds > 0 ? Math.round((totalBillableSeconds / totalSeconds) * 100) : 0;
-  const revenue = profitability && profitability.hourlyRate ? (totalBillableSeconds / 3600) * profitability.hourlyRate : 0;
-  const effectiveHourlyRate = totalSeconds > 0 ? revenue / (totalSeconds / 3600) : 0;
-  // === Fin : Calculs des statistiques totales ===
-
-  // === Début : Rendu de l'interface ===
-  // Explication simple : C'est tout ce qu'on va voir à l'écran : les filtres, les graphiques et les chiffres.
-  // Explication technique : Fonction de rendu JSX qui affiche l'interface utilisateur avec les filtres de sélection, les statistiques agrégées et les visualisations de données, avec gestion conditionnelle des états de chargement et d'erreur.
   return (
-    <div className="container mx-auto px-4 py-6">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
-        <span className="mr-2">Statistiques clients</span>
-        {selectedClient && <ClientLogo client={selectedClient} size="small" />}
-      </h1>
-      
-      {/* Filtres */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Client
-            </label>
-            <select
-              value={selectedClientId}
-              onChange={(e) => setSelectedClientId(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
-            >
-              <option value="">Sélectionner un client</option>
-              {clients.map(client => (
-                <option key={client._id} value={client._id}>{client.name}</option>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        {/* Header avec titre et sélecteur de période */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-[#026aa1] to-[#0487d9] text-transparent bg-clip-text mb-2">
+                Tableau de Bord
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400">
+                Analysez votre activité et la rentabilité de vos clients
+              </p>
+            </div>
+            
+            {/* Sélecteur de période */}
+            <div className="flex gap-2">
+              {(['week', 'month', 'quarter', 'year'] as const).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => handlePeriodChange(p)}
+                  className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                    period === p
+                      ? 'bg-gradient-to-r from-[#026aa1] to-[#0487d9] text-white shadow-lg'
+                      : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:shadow-md'
+                  }`}
+                >
+                  {p === 'week' ? 'Semaine' : p === 'month' ? 'Mois' : p === 'quarter' ? 'Trimestre' : 'Année'}
+                </button>
               ))}
-            </select>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Période
-            </label>
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => handlePeriodChange('day')}
-                className={`px-3 py-1 rounded-md text-sm ${
-                  period === 'day'
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                }`}
-              >
-                Aujourd'hui
-              </button>
-              <button
-                onClick={() => handlePeriodChange('week')}
-                className={`px-3 py-1 rounded-md text-sm ${
-                  period === 'week'
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                }`}
-              >
-                7 derniers jours
-              </button>
-              <button
-                onClick={() => handlePeriodChange('month')}
-                className={`px-3 py-1 rounded-md text-sm ${
-                  period === 'month'
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                }`}
-              >
-                30 derniers jours
-              </button>
-              <button
-                onClick={() => handlePeriodChange('year')}
-                className={`px-3 py-1 rounded-md text-sm ${
-                  period === 'year'
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                }`}
-              >
-                365 derniers jours
-              </button>
-              <button
-                onClick={() => handlePeriodChange('custom')}
-                className={`px-3 py-1 rounded-md text-sm ${
-                  period === 'custom'
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                }`}
-              >
-                Personnalisé
-              </button>
             </div>
           </div>
-        </div>
-        
-        {period === 'custom' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Date de début
-              </label>
-              <input
-                type="date"
-                value={dateRange.startDate}
-                onChange={(e) => setDateRange({ ...dateRange, startDate: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Date de fin
-              </label>
-              <input
-                type="date"
-                value={dateRange.endDate}
-                onChange={(e) => setDateRange({ ...dateRange, endDate: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
-              />
-            </div>
+        </motion.div>
+
+        {loading ? (
+          <div className="flex justify-center items-center py-20">
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-[#026aa1] border-t-transparent"></div>
           </div>
-        )}
-      </div>
-      
-      {loading ? (
-        <div className="flex justify-center items-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
-        </div>
-      ) : error ? (
-        <div className="bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200 p-4 rounded-md">
-          {error}
-        </div>
-      ) : selectedClientId ? (
-        <>
-          {/* Statistiques générales */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-              <h2 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Temps total</h2>
-              <div className="text-3xl font-bold text-gray-900 dark:text-white">
-                {formatDuration(totalSeconds)}
-              </div>
-              <div className="mt-1 flex items-center">
-                <div className="text-sm text-gray-500 dark:text-gray-400">
-                  <span className="font-medium text-blue-600 dark:text-blue-400">{formatDuration(totalBillableSeconds)}</span> facturable
+        ) : (
+          <>
+            {/* Métriques principales */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.1 }}
+                className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-14 h-14 bg-gradient-to-br from-green-400 to-green-600 rounded-xl flex items-center justify-center">
+                    <span className="text-2xl">💰</span>
+                  </div>
+                  <span className={`text-sm font-medium px-3 py-1 rounded-full ${
+                    globalMetrics.monthlyGrowth > 0 
+                      ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400' 
+                      : 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+                  }`}>
+                    {globalMetrics.monthlyGrowth > 0 ? '+' : ''}{globalMetrics.monthlyGrowth}%
+                  </span>
                 </div>
-                <span className="mx-2 text-gray-300 dark:text-gray-600">|</span>
-                <div className="text-sm text-gray-500 dark:text-gray-400">
-                  <span className="font-medium text-yellow-600 dark:text-yellow-400">{formatDuration(totalNonBillableSeconds)}</span> non-facturable
+                <h3 className="text-gray-600 dark:text-gray-400 text-sm font-medium mb-1">
+                  Revenus totaux
+                </h3>
+                <p className="text-3xl font-bold text-gray-900 dark:text-white">
+                  {globalMetrics.totalRevenue.toLocaleString()}€
+                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                  Taux horaire moyen: {Math.round(globalMetrics.averageHourlyRate)}€/h
+                </p>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.2 }}
+                className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-14 h-14 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl flex items-center justify-center">
+                    <span className="text-2xl">⏱️</span>
+                  </div>
+                  <span className="text-sm font-medium px-3 py-1 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400">
+                    {Math.round(globalMetrics.billablePercentage)}% facturable
+                  </span>
                 </div>
-              </div>
+                <h3 className="text-gray-600 dark:text-gray-400 text-sm font-medium mb-1">
+                  Heures travaillées
+                </h3>
+                <p className="text-3xl font-bold text-gray-900 dark:text-white">
+                  {Math.round(globalMetrics.totalHours)}h
+                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                  Dont {Math.round(globalMetrics.billableHours)}h facturables
+                </p>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.3 }}
+                className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-14 h-14 bg-gradient-to-br from-purple-400 to-purple-600 rounded-xl flex items-center justify-center">
+                    <span className="text-2xl">👥</span>
+                  </div>
+                </div>
+                <h3 className="text-gray-600 dark:text-gray-400 text-sm font-medium mb-1">
+                  Clients actifs
+                </h3>
+                <p className="text-3xl font-bold text-gray-900 dark:text-white">
+                  {globalMetrics.clientCount}
+                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                  {globalMetrics.taskCount} tâches travaillées
+                </p>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.4 }}
+                className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-14 h-14 bg-gradient-to-br from-orange-400 to-orange-600 rounded-xl flex items-center justify-center">
+                    <span className="text-2xl">📈</span>
+                  </div>
+                </div>
+                <h3 className="text-gray-600 dark:text-gray-400 text-sm font-medium mb-1">
+                  Productivité
+                </h3>
+                <p className="text-3xl font-bold text-gray-900 dark:text-white">
+                  {Math.round(globalMetrics.totalHours / 30 * 10) / 10}h/jour
+                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                  En moyenne sur la période
+                </p>
+              </motion.div>
             </div>
-            
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-              <h2 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Taux horaire</h2>
-              <div className="text-3xl font-bold text-gray-900 dark:text-white">
-                {profitability?.hourlyRate || 0}€/h
-              </div>
-              <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Objectif mensuel: <span className="font-medium">{profitability?.targetHours || 0}h</span>
-              </div>
+
+            {/* Tabs pour naviguer entre les vues */}
+            <div className="flex gap-4 mb-6">
+              {(['overview', 'clients', 'tasks'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`px-6 py-3 rounded-xl font-medium transition-all ${
+                    activeTab === tab
+                      ? 'bg-white dark:bg-gray-800 text-[#026aa1] shadow-lg'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  {tab === 'overview' ? '📊 Vue d\'ensemble' : 
+                   tab === 'clients' ? '👥 Analyse clients' : 
+                   '📋 Analyse tâches'}
+                </button>
+              ))}
             </div>
-            
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-              <h2 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Revenus générés</h2>
-              <div className="text-3xl font-bold text-green-600 dark:text-green-400">
-                {Math.round(revenue)}€
-              </div>
-              <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Basé sur le temps facturable
-              </div>
-            </div>
-            
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-              <h2 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Taux effectif</h2>
-              <div className={`text-3xl font-bold ${
-                effectiveHourlyRate >= (profitability?.hourlyRate || 0)
-                  ? 'text-green-600 dark:text-green-400'
-                  : 'text-red-600 dark:text-red-400'
-              }`}>
-                {Math.round(effectiveHourlyRate)}€/h
-              </div>
-              <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                {Math.round(billablePercentage)}% du temps facturable
-              </div>
-            </div>
-          </div>
-          
-          {/* Graphiques */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Temps passé par jour</h2>
-              {timeData.labels.length > 0 ? (
-                <Bar
-                  data={timeData}
-                  options={{
-                    responsive: true,
-                    scales: {
-                      x: {
-                        stacked: true,
-                      },
-                      y: {
-                        stacked: true,
-                        title: {
-                          display: true,
-                          text: 'Heures'
+
+            {/* Contenu selon l'onglet actif */}
+            {activeTab === 'overview' && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Graphique d'évolution des revenus */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6"
+                >
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
+                    Évolution des revenus
+                  </h3>
+                  {revenueChartData.labels.length > 0 ? (
+                    <Line
+                      data={revenueChartData}
+                      options={{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                          legend: { display: false },
+                          tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            cornerRadius: 8,
+                            callbacks: {
+                              label: (context) => `${context.parsed.y.toLocaleString()}€`
+                            }
+                          }
+                        },
+                        scales: {
+                          y: {
+                            beginAtZero: true,
+                            ticks: {
+                              callback: (value) => `${value}€`
+                            }
+                          }
                         }
-                      }
-                    }
-                  }}
-                />
-              ) : (
-                <div className="bg-gray-100 dark:bg-gray-700 p-6 rounded-lg text-center">
-                  <p className="text-gray-600 dark:text-gray-400">Aucune donnée pour la période sélectionnée</p>
-                </div>
-              )}
-            </div>
-            
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Répartition du temps</h2>
-              {totalSeconds > 0 ? (
-                <Doughnut
-                  data={{
-                    labels: ['Facturable', 'Non facturable'],
-                    datasets: [
-                      {
-                        data: [totalBillableSeconds, totalNonBillableSeconds],
-                        backgroundColor: [
-                          'rgba(59, 130, 246, 0.7)',
-                          'rgba(234, 179, 8, 0.7)'
-                        ],
-                        borderColor: [
-                          'rgba(59, 130, 246, 1)',
-                          'rgba(234, 179, 8, 1)'
-                        ],
-                        borderWidth: 1,
-                      },
-                    ],
-                  }}
-                  options={{
-                    responsive: true,
-                    plugins: {
-                      legend: {
-                        position: 'bottom',
-                      },
-                    },
-                  }}
-                />
-              ) : (
-                <div className="bg-gray-100 dark:bg-gray-700 p-6 rounded-lg text-center">
-                  <p className="text-gray-600 dark:text-gray-400">Aucune donnée pour la période sélectionnée</p>
-                </div>
-              )}
-            </div>
-          </div>
-          
-          {/* Graphique de rentabilité */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Rentabilité et revenus</h2>
-            {profitabilityData.labels.length > 0 ? (
-              <Bar
-                data={profitabilityData}
-                options={{
-                  responsive: true,
-                  scales: {
-                    y: {
-                      position: 'left',
-                      title: {
-                        display: true,
-                        text: 'Revenus (€)'
-                      }
-                    },
-                    y1: {
-                      position: 'right',
-                      grid: {
-                        drawOnChartArea: false,
-                      },
-                      title: {
-                        display: true,
-                        text: 'Taux horaire (€/h)'
-                      }
-                    },
-                  }
-                }}
-              />
-            ) : (
-              <div className="bg-gray-100 dark:bg-gray-700 p-6 rounded-lg text-center">
-                <p className="text-gray-600 dark:text-gray-400">Aucune donnée pour la période sélectionnée</p>
+                      }}
+                      height={300}
+                    />
+                  ) : (
+                    <div className="h-[300px] flex items-center justify-center">
+                      <p className="text-gray-500">Aucune donnée disponible</p>
+                    </div>
+                  )}
+                </motion.div>
+
+                {/* Répartition des revenus par client */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6"
+                >
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
+                    Top 5 clients par revenus
+                  </h3>
+                  {clientDistributionData.labels.length > 0 ? (
+                    <Doughnut
+                      data={clientDistributionData}
+                      options={{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                          legend: {
+                            position: 'right',
+                            labels: {
+                              padding: 20,
+                              usePointStyle: true,
+                              font: { size: 12 }
+                            }
+                          },
+                          tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            cornerRadius: 8,
+                            callbacks: {
+                              label: (context) => {
+                                const label = context.label || '';
+                                const value = context.parsed || 0;
+                                const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
+                                const percentage = ((value / total) * 100).toFixed(1);
+                                return `${label}: ${value.toLocaleString()}€ (${percentage}%)`;
+                              }
+                            }
+                          }
+                        }
+                      }}
+                      height={300}
+                    />
+                  ) : (
+                    <div className="h-[300px] flex items-center justify-center">
+                      <p className="text-gray-500">Aucune donnée disponible</p>
+                    </div>
+                  )}
+                </motion.div>
+
+                {/* Répartition du temps */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6"
+                >
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
+                    Répartition du temps
+                  </h3>
+                  {timeDistributionData.labels.length > 0 ? (
+                    <Doughnut
+                      data={timeDistributionData}
+                      options={{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                          legend: {
+                            position: 'bottom',
+                            labels: {
+                              padding: 20,
+                              usePointStyle: true,
+                              font: { size: 14 }
+                            }
+                          },
+                          tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            cornerRadius: 8,
+                            callbacks: {
+                              label: (context) => {
+                                const label = context.label || '';
+                                const value = context.parsed || 0;
+                                return `${label}: ${Math.round(value)}h`;
+                              }
+                            }
+                          }
+                        }
+                      }}
+                      height={300}
+                    />
+                  ) : (
+                    <div className="h-[300px] flex items-center justify-center">
+                      <p className="text-gray-500">Aucune donnée disponible</p>
+                    </div>
+                  )}
+                </motion.div>
+
+                {/* Insights et recommandations */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl p-6 border border-blue-200 dark:border-blue-800"
+                >
+                  <h3 className="text-xl font-bold text-blue-900 dark:text-blue-100 mb-4 flex items-center gap-2">
+                    <span className="text-2xl">💡</span>
+                    Insights & Recommandations
+                  </h3>
+                  <div className="space-y-3">
+                    {globalMetrics.billablePercentage < 70 && (
+                      <div className="flex items-start gap-3">
+                        <span className="text-yellow-500 text-xl">⚠️</span>
+                        <div>
+                          <p className="font-medium text-gray-900 dark:text-white">
+                            Temps facturable faible ({Math.round(globalMetrics.billablePercentage)}%)
+                          </p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            Essayez de réduire le temps non-facturable ou de le facturer davantage.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {globalMetrics.averageHourlyRate < 80 && (
+                      <div className="flex items-start gap-3">
+                        <span className="text-red-500 text-xl">📉</span>
+                        <div>
+                          <p className="font-medium text-gray-900 dark:text-white">
+                            Taux horaire moyen bas ({Math.round(globalMetrics.averageHourlyRate)}€/h)
+                          </p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            Considérez d'augmenter vos tarifs ou de vous concentrer sur des clients plus rentables.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {globalMetrics.averageHourlyRate >= 100 && (
+                      <div className="flex items-start gap-3">
+                        <span className="text-green-500 text-xl">🎯</span>
+                        <div>
+                          <p className="font-medium text-gray-900 dark:text-white">
+                            Excellente rentabilité !
+                          </p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            Votre taux horaire moyen de {Math.round(globalMetrics.averageHourlyRate)}€/h est très bon.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
               </div>
             )}
-          </div>
-        </>
-      ) : (
-        <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-lg text-center">
-          <p className="text-blue-800 dark:text-blue-200">Veuillez sélectionner un client pour voir ses statistiques</p>
-        </div>
-      )}
+
+            {activeTab === 'clients' && (
+              <div className="space-y-6">
+                {/* Liste des clients avec métriques */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden"
+                >
+                  <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                      Analyse de rentabilité par client
+                    </h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            Client
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            Heures
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            Revenus
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            Taux effectif
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            Score rentabilité
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            Statut
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                        {clientsMetrics.map((client, index) => (
+                          <motion.tr
+                            key={client.id}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: index * 0.05 }}
+                            className="hover:bg-gray-50 dark:hover:bg-gray-700"
+                          >
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                {client.logo ? (
+                                  <img src={client.logo} alt={client.name} className="w-10 h-10 rounded-lg mr-3" />
+                                ) : (
+                                  <div className="w-10 h-10 bg-gradient-to-br from-[#026aa1] to-[#0487d9] rounded-lg flex items-center justify-center text-white font-bold mr-3">
+                                    {client.name.substring(0, 2).toUpperCase()}
+                                  </div>
+                                )}
+                                <div>
+                                  <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                    {client.name}
+                                  </div>
+                                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                                    Budget: {client.monthlyBudget.toLocaleString()}€/mois
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900 dark:text-white">
+                                {Math.round(client.totalHours)}h
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {Math.round(client.billableHours)}h facturables
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                {client.revenue.toLocaleString()}€
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className={`text-sm font-medium ${
+                                client.effectiveRate >= client.targetRate 
+                                  ? 'text-green-600 dark:text-green-400' 
+                                  : 'text-red-600 dark:text-red-400'
+                              }`}>
+                                {Math.round(client.effectiveRate)}€/h
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                Cible: {client.targetRate}€/h
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center gap-2">
+                                <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                  <div
+                                    className={`h-2 rounded-full ${
+                                      client.profitabilityScore >= 90 
+                                        ? 'bg-green-500' 
+                                        : client.profitabilityScore >= 70 
+                                        ? 'bg-yellow-500' 
+                                        : 'bg-red-500'
+                                    }`}
+                                    style={{ width: `${Math.min(100, client.profitabilityScore)}%` }}
+                                  />
+                                </div>
+                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                  {Math.round(client.profitabilityScore)}%
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                                client.profitabilityScore >= 90 
+                                  ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' 
+                                  : client.profitabilityScore >= 70 
+                                  ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
+                                  : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                              }`}>
+                                {client.profitabilityScore >= 90 ? '🚀 Excellent' : 
+                                 client.profitabilityScore >= 70 ? '👍 Bon' : 
+                                 '⚠️ À améliorer'}
+                              </span>
+                            </td>
+                          </motion.tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </motion.div>
+              </div>
+            )}
+
+            {activeTab === 'tasks' && (
+              <div className="space-y-6">
+                {/* Top 10 des tâches chronophages */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6"
+                >
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
+                    Top 10 des tâches les plus chronophages
+                  </h3>
+                  <div className="space-y-4">
+                    {tasksMetrics.map((task, index) => (
+                      <motion.div
+                        key={task.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        className="flex items-center gap-4"
+                      >
+                        <div className="w-8 h-8 bg-gradient-to-br from-[#026aa1] to-[#0487d9] rounded-lg flex items-center justify-center text-white font-bold text-sm">
+                          {index + 1}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex justify-between items-start mb-1">
+                            <div>
+                              <h4 className="font-medium text-gray-900 dark:text-white">
+                                {task.title}
+                              </h4>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                                {task.clientName}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-bold text-gray-900 dark:text-white">
+                                {Math.round(task.totalHours)}h
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {task.percentage.toFixed(1)}% du temps total
+                              </p>
+                            </div>
+                          </div>
+                          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${task.percentage}%` }}
+                              transition={{ duration: 1, delay: index * 0.05 }}
+                              className="h-2 rounded-full bg-gradient-to-r from-[#026aa1] to-[#0487d9]"
+                            />
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </motion.div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
-  // === Fin : Rendu de l'interface ===
 };
-// === Fin : Composant principal des statistiques client ===
 
 export default ClientStatistics;

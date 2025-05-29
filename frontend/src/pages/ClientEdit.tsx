@@ -254,7 +254,7 @@ const ClientEdit: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  💰 Budget mensuel du client
+                  💰 Rémunération mensuelle du client
                 </label>
                 <div className="relative">
                   <span className="absolute left-3 top-3 text-gray-500">€</span>
@@ -263,12 +263,12 @@ const ClientEdit: React.FC = () => {
                     name="monthlyBudget"
                     value={profitabilityData.monthlyBudget}
                     onChange={handleProfitabilityChange}
-                    placeholder="Ex: 1000"
+                    placeholder="Combien le client vous paye par mois"
                     className="w-full pl-8 pr-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#026aa1] focus:border-transparent dark:bg-gray-700 dark:text-white font-bold text-lg"
                   />
                 </div>
                 <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                  Montant total que le client vous verse chaque mois
+                  Montant que le client vous verse chaque mois
                 </p>
               </div>
 
@@ -323,6 +323,17 @@ const ClientEdit: React.FC = () => {
                       <p className="text-sm text-green-600 dark:text-green-400 mt-2">
                         soit environ {Math.round(profitabilityData.targetHours / 8 * 10) / 10} jours de travail
                       </p>
+                    </div>
+
+                    <div className="pt-3 border-t border-green-200 dark:border-green-800">
+                      <div className="flex items-center justify-between">
+                        <span className="text-lg font-medium text-gray-900 dark:text-white">
+                          Rémunération annuelle
+                        </span>
+                        <span className="text-2xl font-bold text-green-600 dark:text-green-400">
+                          {(profitabilityData.monthlyBudget * 12).toLocaleString()}€
+                        </span>
+                      </div>
                     </div>
 
                     <div className="pt-4 border-t border-green-200 dark:border-green-700">

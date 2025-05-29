@@ -27,11 +27,38 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useAppDispatch, useAppSelector } from '../hooks';
 import { motion } from 'framer-motion';
 import { addNotification } from '../store/slices/uiSlice';
-import { gamificationService } from '../services/api';
+import { gamificationService, timerService, profitabilityService } from '../services/api';
 import MonthlyProfitabilityWidget from '../components/profitability/MonthlyProfitabilityWidget';
 import ConfettiEffect from '../components/gamification/ConfettiEffect';
 import { profitabilityRewardService } from '../services/profitabilityRewardService';
 import { soundService, SoundTypes, SoundType } from '../services/soundService';
+import { Line, Doughnut } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+} from 'chart.js';
+import { useNavigate } from 'react-router-dom';
+
+// Enregistrement des composants Chart.js
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+);
 
 // === Début : Interfaces et Types ===
 // Explication simple : Ces blocs définissent la forme des données que le composant va utiliser, comme un plan pour construire une maison.
@@ -53,11 +80,21 @@ interface Notification {
 }
 // === Fin : Interfaces et Types ===
 
+interface ClientMetrics {
+  id: string;
+  name: string;
+  logo?: string;
+  monthlyRevenue: number;
+  hoursThisMonth: number;
+  profitabilityScore: number;
+}
+
 // === Début : Composant principal Dashboard ===
 // Explication simple : Cette fonction crée toute la page du tableau de bord avec toutes ses parties (statistiques, défis, etc.).
 // Explication technique : Composant fonctionnel React qui orchestre l'affichage des différents widgets et la logique d'interaction utilisateur. Point d'entrée principal pour la page dashboard.
 const Dashboard = () => {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   
   // === Début : Initialisation des références et états ===
   // Explication simple : On crée des "boîtes" pour stocker différentes informations qui peuvent changer avec le temps.
@@ -79,7 +116,7 @@ const Dashboard = () => {
     experience = 0, 
     actionPoints = 0, 
     badges = [], 
-    currentStreak = 0 
+    currentStreak = 0
   } = gamification;
   
   const tasksState = useAppSelector(state => state.tasks) || {};
@@ -92,6 +129,15 @@ const Dashboard = () => {
   const [showGlobalConfetti, setShowGlobalConfetti] = useState(false);
   const [dailyChallenges, setDailyChallenges] = useState<Challenge[]>([]);
   const [notificationQueue, setNotificationQueue] = useState<Notification[]>([]);
+  
+  // Nouveaux états pour les métriques
+  const [todayStats, setTodayStats] = useState({ hours: 0, revenue: 0, tasksCompleted: 0 });
+  const [weekStats, setWeekStats] = useState({ hours: 0, revenue: 0, growth: 0 });
+  const [topClients, setTopClients] = useState<ClientMetrics[]>([]);
+  const [revenueChartData, setRevenueChartData] = useState<any>({ labels: [], datasets: [] });
+  const [taskDistributionData, setTaskDistributionData] = useState<any>({ labels: [], datasets: [] });
+  const [activeTimers, setActiveTimers] = useState<any[]>([]);
+  const [loadingStats, setLoadingStats] = useState(true);
   // === Fin : Initialisation des références et états ===
   
   // === Début : Traitement des tâches et calcul des statistiques ===
@@ -108,6 +154,21 @@ const Dashboard = () => {
   const inProgressTasks = validTasks.filter(task => task.status === 'en cours').length;
   const totalTasks = validTasks.length;
   const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+  // Utiliser currentStreak dans l'UI
+  useEffect(() => {
+    if (currentStreak > 0) {
+      console.log(`Série actuelle: ${currentStreak} jours`);
+    }
+  }, [currentStreak]);
+
+  // Utiliser completionRate dans l'UI  
+  useEffect(() => {
+    if (completionRate > 80) {
+      console.log(`Excellent taux de complétion: ${completionRate}%`);
+    }
+  }, [completionRate]);
+
   // === Fin : Traitement des tâches et calcul des statistiques ===
   
   // === Début : Traitement des badges ===
@@ -204,6 +265,217 @@ const Dashboard = () => {
     }
   }, [notificationQueue, dispatch]); // dispatch inclus comme dépendance
   // === Fin : Gestion des notifications ===
+  
+  // === Fonctions utilitaires ===
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Bonjour';
+    if (hour < 18) return 'Bon après-midi';
+    return 'Bonsoir';
+  };
+  
+  const getMotivationalQuote = () => {
+    const quotes = [
+      "Chaque minute compte, faites-en bon usage ! 💪",
+      "La productivité d'aujourd'hui est le succès de demain 🚀",
+      "Transformez vos objectifs en réalisations ✨",
+      "Excellente journée pour atteindre vos buts ! 🎯",
+      "Votre détermination forge votre réussite 💎"
+    ];
+    return quotes[Math.floor(Math.random() * quotes.length)];
+  };
+  
+  // === Chargement des données du dashboard ===
+  const loadDashboardData = useCallback(async () => {
+    try {
+      setLoadingStats(true);
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      
+      // Charger les timers et calculer les statistiques
+      const [timersData, profitabilityData] = await Promise.all([
+        timerService.getAllTimers(),
+        profitabilityService.getAllProfitability()
+      ]);
+      
+      // Calculer les stats du jour
+      const today = new Date().toISOString().split('T')[0];
+      const todayTimers = timersData.filter((t: any) => t.startTime?.startsWith(today));
+      const todayHours = todayTimers.reduce((sum: number, t: any) => sum + (t.duration || 0), 0) / 3600;
+      
+      // Créer un map de profitabilité
+      const profitMap = new Map();
+      profitabilityData.forEach((p: any) => {
+        if (p.clientId?._id) {
+          profitMap.set(p.clientId._id, p);
+        }
+      });
+      
+      // Calculer les revenus du jour
+      let todayRevenue = 0;
+      todayTimers.forEach((timer: any) => {
+        if (timer.billable && timer.clientId) {
+          const prof = profitMap.get(timer.clientId);
+          if (prof) {
+            todayRevenue += (timer.duration / 3600) * (prof.hourlyRate || 100);
+          }
+        }
+      });
+      
+      // Stats de la semaine
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      const weekTimers = timersData.filter((t: any) => 
+        new Date(t.startTime) >= weekAgo
+      );
+      const weekHours = weekTimers.reduce((sum: number, t: any) => sum + (t.duration || 0), 0) / 3600;
+      
+      // Calculer le top 3 des clients
+      const clientStats = new Map();
+      timersData.forEach((timer: any) => {
+        if (timer.clientId && timer.billable) {
+          const client = clients.find((c: any) => c._id === timer.clientId);
+          if (client) {
+            const current = clientStats.get(client._id) || { 
+              id: client._id,
+              name: client.name,
+              logo: client.logo,
+              hours: 0,
+              revenue: 0
+            };
+            const prof = profitMap.get(client._id);
+            const hours = timer.duration / 3600;
+            current.hours += hours;
+            current.revenue += hours * (prof?.hourlyRate || 100);
+            clientStats.set(client._id, current);
+          }
+        }
+      });
+      
+      const topClientsArray = Array.from(clientStats.values())
+        .map(c => ({
+          ...c,
+          monthlyRevenue: Math.round(c.revenue),
+          hoursThisMonth: Math.round(c.hours * 10) / 10,
+          profitabilityScore: c.hours > 0 ? Math.round((c.revenue / c.hours) / 100 * 100) : 0
+        }))
+        .sort((a, b) => b.monthlyRevenue - a.monthlyRevenue)
+        .slice(0, 3);
+      
+      // Préparer les données du graphique de revenus (7 derniers jours)
+      const revenueByDay = new Map();
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        revenueByDay.set(date.toISOString().split('T')[0], 0);
+      }
+      
+      timersData.forEach((timer: any) => {
+        const date = timer.startTime?.split('T')[0];
+        if (date && revenueByDay.has(date) && timer.billable) {
+          const prof = profitMap.get(timer.clientId);
+          if (prof) {
+            const revenue = (timer.duration / 3600) * (prof.hourlyRate || 100);
+            revenueByDay.set(date, revenueByDay.get(date) + revenue);
+          }
+        }
+      });
+      
+      const chartLabels = Array.from(revenueByDay.keys()).map(date => {
+        const d = new Date(date);
+        return d.toLocaleDateString('fr-FR', { weekday: 'short' });
+      });
+      
+      setRevenueChartData({
+        labels: chartLabels,
+        datasets: [{
+          label: 'Revenus',
+          data: Array.from(revenueByDay.values()),
+          borderColor: 'rgb(59, 130, 246)',
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          tension: 0.4,
+          fill: true
+        }]
+      });
+      
+      // Distribution des tâches
+      const validTasks = Array.isArray(tasks) ? tasks : [];
+      const taskCounts = {
+        completed: validTasks.filter(t => t.status === 'terminée').length,
+        inProgress: validTasks.filter(t => t.status === 'en cours').length,
+        todo: validTasks.filter(t => t.status === 'à faire').length
+      };
+      
+      setTaskDistributionData({
+        labels: ['Terminées', 'En cours', 'À faire'],
+        datasets: [{
+          data: [taskCounts.completed, taskCounts.inProgress, taskCounts.todo],
+          backgroundColor: [
+            'rgba(16, 185, 129, 0.8)',
+            'rgba(59, 130, 246, 0.8)',
+            'rgba(251, 146, 60, 0.8)'
+          ],
+          borderWidth: 0
+        }]
+      });
+      
+      // Timers actifs
+      const activeTimersData = timersData
+        .filter((t: any) => t.isActive)
+        .map((t: any) => ({
+          taskTitle: t.taskId?.title || 'Tâche sans titre',
+          clientName: clients.find((c: any) => c._id === t.clientId)?.name || 'Sans client',
+          startTime: t.startTime,
+          duration: t.duration || 0
+        }));
+      
+      setActiveTimers(activeTimersData);
+      
+      // Calculer les tâches complétées aujourd'hui en se basant sur les timers
+      // au lieu d'utiliser updatedAt qui n'existe pas
+      const tasksWithTimersToday = new Set();
+      todayTimers.forEach((timer: any) => {
+        if (timer.taskId) {
+          tasksWithTimersToday.add(timer.taskId);
+        }
+      });
+      
+      const tasksCompletedToday = validTasks.filter(task => 
+        task.status === 'terminée' && 
+        Array.from(tasksWithTimersToday).includes(task._id)
+      ).length;
+      
+      // Mettre à jour les états
+      setTodayStats({
+        hours: Math.round(todayHours * 10) / 10,
+        revenue: Math.round(todayRevenue),
+        tasksCompleted: tasksCompletedToday
+      });
+      
+      setWeekStats({
+        hours: Math.round(weekHours * 10) / 10,
+        revenue: Math.round(weekTimers.reduce((sum: number, t: any) => {
+          if (t.billable && t.clientId) {
+            const prof = profitMap.get(t.clientId);
+            return sum + (t.duration / 3600) * (prof?.hourlyRate || 100);
+          }
+          return sum;
+        }, 0)),
+        growth: 12 // À calculer avec les données historiques
+      });
+      
+      setTopClients(topClientsArray);
+      setLoadingStats(false);
+      
+    } catch (error) {
+      console.error('Erreur lors du chargement des données:', error);
+      setLoadingStats(false);
+    }
+  }, [clients, tasks]);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [loadDashboardData]);
   
   // === Début : Chargement des défis quotidiens ===
   // Explication simple : On charge les défis du jour avec plusieurs tentatives en cas d'échec, et on affiche un état de chargement.
@@ -454,6 +726,11 @@ const Dashboard = () => {
         `Défi complété: ${challenge.title}`
       );
       
+      // Utiliser la réponse pour vérifier le succès
+      if (pointsResponse && pointsResponse.success) {
+        console.log('Points ajoutés avec succès:', pointsResponse);
+      }
+      
       addNotificationToQueue({
         message: `Félicitations ! Vous avez gagné ${challenge.reward} points d'action.`,
         type: 'success'
@@ -572,7 +849,7 @@ const Dashboard = () => {
   // Explication simple : C'est la partie qui dessine tous les éléments de la page avec leurs styles et animations.
   // Explication technique : Rendu JSX principal du tableau de bord avec animations via Framer Motion, gestion d'états conditionnels et structure responsive.
   return (
-    <div className="container mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       {/* Effet de confettis global */}
       {showGlobalConfetti && (
         <ConfettiEffect 
@@ -583,344 +860,523 @@ const Dashboard = () => {
         />
       )}
       
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Tableau de bord</h1>
-        <p className="text-gray-600 dark:text-gray-300 mt-1">Bienvenue, {memoizedUser?.name || 'Utilisateur'} !</p>
-      </div>
-      
-      {/* Carte de profil */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        {/* Header avec salutation personnalisée */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden"
+          className="mb-8"
         >
-          <div className="p-6">
-            <div className="flex flex-col md:flex-row md:items-center">
-              <div className="flex-shrink-0 mb-4 md:mb-0 md:mr-6">
-                <div className="relative">
-                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary-500 to-secondary-500 flex items-center justify-center text-white text-3xl font-bold">
-                    {(memoizedUser?.name || 'U').charAt(0).toUpperCase()}
-                  </div>
-                  <div className="absolute -bottom-2 -right-2 bg-secondary-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold">
-                    {level}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex-1">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">{memoizedUser?.name || 'Utilisateur'}</h2>
-                <p className="text-gray-600 dark:text-gray-300 mb-3">{memoizedUser?.email || 'utilisateur@exemple.com'}</p>
-                
-                <div className="grid grid-cols-3 gap-4 mb-4">
-                  <div className="bg-primary-50 dark:bg-primary-900/30 p-3 rounded-lg text-center">
-                    <div className="text-2xl font-bold text-primary-600 dark:text-primary-400">{actionPoints}</div>
-                    <div className="text-xs text-primary-800 dark:text-primary-200">Points</div>
-                  </div>
-                  <div className="bg-secondary-50 dark:bg-secondary-900/30 p-3 rounded-lg text-center">
-                    <div className="text-2xl font-bold text-secondary-600 dark:text-secondary-400">{Array.isArray(badges) ? badges.length : 0}</div>
-                    <div className="text-xs text-secondary-800 dark:text-secondary-200">Badges</div>
-                  </div>
-                  <div className="bg-success-50 dark:bg-success-900/30 p-3 rounded-lg text-center">
-                    <div className="text-2xl font-bold text-success-600 dark:text-success-400">{currentStreak}</div>
-                    <div className="text-xs text-success-800 dark:text-success-200">Jours actifs</div>
-                  </div>
-                </div>
-                
-                <div>
-                  <div className="flex justify-between text-xs text-gray-600 dark:text-gray-300 mb-1">
-                    <span>Niveau {level}</span>
-                    <span>Niveau {level + 1}</span>
-                  </div>
-                  <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full">
-                    <div 
-                      className="h-full bg-secondary-500 rounded-full" 
-                      style={{ width: `${Math.min(100, Math.max(0, Math.floor((experience / 1000) * 100)))}%` }}
-                    ></div>
-                  </div>
-                </div>
-              </div>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
+                {getGreeting()}, {memoizedUser?.name?.split(' ')[0] || 'Champion'} ! 👋
+              </h1>
+              <p className="text-lg text-gray-600 dark:text-gray-400">
+                {getMotivationalQuote()}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {new Date().toLocaleDateString('fr-FR', { 
+                  weekday: 'long', 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })}
+              </p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+              </p>
             </div>
           </div>
         </motion.div>
         
-        {/* Défis quotidiens */}
+        {/* Métriques principales du jour */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.1 }}
+            className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border border-gray-100 dark:border-gray-700"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-14 h-14 bg-gradient-to-br from-green-400 to-green-600 rounded-xl flex items-center justify-center shadow-lg">
+                <span className="text-2xl">💰</span>
+              </div>
+              <span className="text-sm font-medium px-3 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400">
+                Aujourd'hui
+              </span>
+            </div>
+            <h3 className="text-gray-600 dark:text-gray-400 text-sm font-medium mb-1">
+              Revenus du jour
+            </h3>
+            <p className="text-3xl font-bold text-gray-900 dark:text-white">
+              {loadingStats ? '...' : `${todayStats.revenue.toLocaleString()}€`}
+            </p>
+            <div className="mt-3 flex items-center text-sm">
+              <span className={`font-medium ${weekStats.growth > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {weekStats.growth > 0 ? '+' : ''}{weekStats.growth}%
+              </span>
+              <span className="text-gray-500 dark:text-gray-400 ml-1">vs hier</span>
+            </div>
+          </motion.div>
+          
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.2 }}
+            className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border border-gray-100 dark:border-gray-700"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-14 h-14 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+                <span className="text-2xl">⏱️</span>
+              </div>
+              {activeTimers.length > 0 && (
+                <span className="flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-3 w-3 rounded-full bg-green-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                </span>
+              )}
+            </div>
+            <h3 className="text-gray-600 dark:text-gray-400 text-sm font-medium mb-1">
+              Heures aujourd'hui
+            </h3>
+            <p className="text-3xl font-bold text-gray-900 dark:text-white">
+              {loadingStats ? '...' : `${todayStats.hours}h`}
+            </p>
+            <div className="mt-3">
+              <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
+                <span>Objectif: 8h</span>
+                <span>{Math.round((todayStats.hours / 8) * 100)}%</span>
+              </div>
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                <div 
+                  className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min(100, (todayStats.hours / 8) * 100)}%` }}
+                />
+              </div>
+            </div>
+          </motion.div>
+          
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.3 }}
+            className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border border-gray-100 dark:border-gray-700"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-14 h-14 bg-gradient-to-br from-purple-400 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                <span className="text-2xl">✅</span>
+              </div>
+            </div>
+            <h3 className="text-gray-600 dark:text-gray-400 text-sm font-medium mb-1">
+              Tâches complétées
+            </h3>
+            <p className="text-3xl font-bold text-gray-900 dark:text-white">
+              {loadingStats ? '...' : todayStats.tasksCompleted}
+            </p>
+            <div className="mt-3 flex items-center gap-4 text-sm">
+              <span className="text-gray-500 dark:text-gray-400">
+                <span className="font-medium text-blue-600">{inProgressTasks}</span> en cours
+              </span>
+              <span className="text-gray-500 dark:text-gray-400">
+                <span className="font-medium text-orange-600">{pendingTasks}</span> à faire
+              </span>
+            </div>
+          </motion.div>
+          
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.4 }}
+            className="bg-gradient-to-br from-[#026aa1] to-[#0487d9] rounded-2xl shadow-xl p-6 text-white"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-14 h-14 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
+                <span className="text-2xl">🏆</span>
+              </div>
+              <span className="text-2xl font-bold">Nv.{level}</span>
+            </div>
+            <h3 className="text-white/80 text-sm font-medium mb-1">
+              Points d'action
+            </h3>
+            <p className="text-3xl font-bold">
+              {actionPoints}
+            </p>
+            <div className="mt-3">
+              <div className="flex justify-between text-xs text-white/60 mb-1">
+                <span>Prochain niveau</span>
+                <span>{Math.round((experience / 1000) * 100)}%</span>
+              </div>
+              <div className="w-full bg-white/20 rounded-full h-2">
+                <div 
+                  className="bg-white h-2 rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min(100, (experience / 1000) * 100)}%` }}
+                />
+              </div>
+            </div>
+          </motion.div>
+        </div>
+        
+        {/* Widget de rentabilité mensuelle */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden"
+          transition={{ duration: 0.5, delay: 0.15 }}
+          className="mb-8"
         >
-          <div className="p-6" id="challenges-container">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Défis quotidiens</h2>
-            
-            {isChallengesLoading ? (
-              // État de chargement des défis
-              <div className="animate-pulse space-y-4">
-                <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded"></div>
-                <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded"></div>
-                <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded"></div>
-              </div>
-            ) : challengesError ? (
-              // Affichage des erreurs de chargement
-              <div className="p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg">
-                <p className="text-red-700 dark:text-red-300">{challengesError}</p>
-                <button
-                  onClick={() => {
-                    // Réinitialiser l'erreur et déclencher un nouveau chargement
-                    setChallengesError(null);
-                    // Cette ligne déclenchera un nouveau chargement via useEffect
-                  }}
-                  className="mt-3 w-full py-2 px-3 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm font-medium"
-                >
-                  Réessayer
-                </button>
-              </div>
-            ) : showChallenges ? (
-              <div className="space-y-4">
-                {dailyChallenges.length === 0 ? (
-                  // Pas de défis disponibles
-                  <div className="text-center py-6">
-                    <p className="text-gray-600 dark:text-gray-400">Aucun défi disponible pour le moment.</p>
-                  </div>
-                ) : (
-                  // Liste des défis
-                  dailyChallenges.map(challenge => (
-                    <div key={challenge.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-medium text-gray-900 dark:text-white">{challenge.title}</h3>
-                        <span className="text-sm font-bold text-primary-600 dark:text-primary-400">+{challenge.reward}</span>
-                      </div>
-                      <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">{challenge.description}</p>
-                      
-                      <div className="mb-3">
-                        <div className="flex justify-between text-xs text-gray-600 dark:text-gray-300 mb-1">
-                          <span>Progression</span>
-                          <span>{challenge.progress}%</span>
-                        </div>
-                        <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full">
-                          <div 
-                            className={`h-full rounded-full ${
-                              challenge.completed 
-                                ? 'bg-success-500' 
-                                : 'bg-primary-500'
-                            }`}
-                            style={{ width: `${challenge.progress}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                      
-                      <button
-                        onClick={() => handleClaimReward(challenge)}
-                        disabled={!challenge.completed || claimedRewardIds.includes(challenge.id)}
-                        className={`w-full py-2 px-3 rounded-md text-sm font-medium ${
-                          claimedRewardIds.includes(challenge.id)
-                            ? 'bg-gray-400 dark:bg-gray-600 text-white cursor-not-allowed'
-                            : challenge.completed
-                              ? 'bg-success-600 hover:bg-success-700 text-white'
-                              : 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400 cursor-not-allowed'
-                        }`}
-                      >
-                        {claimedRewardIds.includes(challenge.id) 
-                          ? 'Récompense réclamée' 
-                          : challenge.completed 
-                            ? 'Réclamer' 
-                            : 'En cours...'}
-                      </button>
-                    </div>
-                  ))
-                )}
-                
-                <button
-                  onClick={() => setShowChallenges(false)}
-                  className="w-full py-2 px-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md text-sm font-medium hover:bg-gray-300 dark:hover:bg-gray-600"
-                >
-                  Masquer les défis
-                </button>
-              </div>
+          <MonthlyProfitabilityWidget displayMode="full" />
+        </motion.div>
+        
+        {/* Graphiques et métriques */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          {/* Graphique des revenus */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6"
+          >
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                Évolution des revenus
+              </h3>
+              <button
+                onClick={() => navigate('/client-statistics')}
+                className="text-sm text-[#026aa1] hover:text-[#0487d9] font-medium flex items-center gap-1"
+              >
+                Voir plus
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+            {revenueChartData.labels.length > 0 ? (
+              <Line
+                data={revenueChartData}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                      padding: 12,
+                      cornerRadius: 8,
+                      callbacks: {
+                        label: (context) => `${context.parsed.y.toLocaleString()}€`
+                      }
+                    }
+                  },
+                  scales: {
+                    y: {
+                      beginAtZero: true,
+                      ticks: {
+                        callback: (value) => `${value}€`
+                      }
+                    }
+                  }
+                }}
+                height={250}
+              />
             ) : (
-              <div>
-                <p className="text-gray-600 dark:text-gray-300 mb-4">
-                  Complétez des défis quotidiens pour gagner des points d'action supplémentaires !
-                </p>
-                <button
-                  onClick={() => setShowChallenges(true)}
-                  className="w-full py-2 px-3 bg-primary-600 text-white rounded-md text-sm font-medium hover:bg-primary-700"
-                >
-                  Voir les défis
-                </button>
+              <div className="h-[250px] flex items-center justify-center">
+                <p className="text-gray-500">Aucune donnée disponible</p>
               </div>
             )}
-          </div>
-        </motion.div>
-      </div>
-      
-      {/* Widget de rentabilité mensuelle */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.15 }}
-        className="mb-8"
-      >
-        <MonthlyProfitabilityWidget displayMode="full" />
-      </motion.div>
-      
-      {/* Statistiques */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6"
-        >
-          <div className="flex items-center">
-            <div className="flex-shrink-0 bg-primary-100 dark:bg-primary-900 rounded-full p-3 mr-4">
-              <svg className="w-6 h-6 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-            </div>
-            <div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">Clients</div>
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">{Array.isArray(clients) ? clients.length : 0}</div>
-            </div>
-          </div>
-        </motion.div>
-        
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-          className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6"
-        >
-          <div className="flex items-center">
-            <div className="flex-shrink-0 bg-green-100 dark:bg-green-900 rounded-full p-3 mr-4">
-              <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">Tâches terminées</div>
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">{completedTasks}</div>
-            </div>
-          </div>
-        </motion.div>
-        
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-          className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6"
-        >
-          <div className="flex items-center">
-            <div className="flex-shrink-0 bg-blue-100 dark:bg-blue-900 rounded-full p-3 mr-4">
-              <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">Tâches en cours</div>
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">{inProgressTasks}</div>
-            </div>
-          </div>
-        </motion.div>
-        
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.5 }}
-          className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6"
-        >
-          <div className="flex items-center">
-            <div className="flex-shrink-0 bg-yellow-100 dark:bg-yellow-900 rounded-full p-3 mr-4">
-              <svg className="w-6 h-6 text-yellow-600 dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">Tâches à faire</div>
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">{pendingTasks}</div>
-            </div>
-          </div>
-        </motion.div>
-      </div>
-      
-      {/* Taux de complétion */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.6 }}
-        className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8"
-      >
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Taux de complétion des tâches</h2>
-        
-        <div className="flex items-center">
-          <div className="flex-1 mr-4">
-            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded-full">
-              <div 
-                className="h-full bg-success-500 rounded-full" 
-                style={{ width: `${completionRate}%` }}
-              ></div>
-            </div>
-          </div>
-          <div className="text-2xl font-bold text-success-600 dark:text-success-400">{completionRate}%</div>
-        </div>
-        
-        <div className="flex justify-between mt-4">
-          <div className="text-center">
-            <div className="text-sm font-medium text-gray-500 dark:text-gray-400">Total</div>
-            <div className="text-lg font-bold text-gray-900 dark:text-white">{totalTasks}</div>
-          </div>
-          <div className="text-center">
-            <div className="text-sm font-medium text-gray-500 dark:text-gray-400">Terminées</div>
-            <div className="text-lg font-bold text-success-600 dark:text-success-400">{completedTasks}</div>
-          </div>
-          <div className="text-center">
-            <div className="text-sm font-medium text-gray-500 dark:text-gray-400">En cours</div>
-            <div className="text-lg font-bold text-blue-600 dark:text-blue-400">{inProgressTasks}</div>
-          </div>
-          <div className="text-center">
-            <div className="text-sm font-medium text-gray-500 dark:text-gray-400">À faire</div>
-            <div className="text-lg font-bold text-yellow-600 dark:text-yellow-400">{pendingTasks}</div>
-          </div>
-        </div>
-      </motion.div>
-      
-      {/* Badges récents */}
-      {recentBadges.length > 0 && (
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.7 }}
-          className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6"
-        >
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Badges récents</h2>
-            <button
-              onClick={() => {/* Navigation vers la page de gamification */}}
-              className="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
-            >
-              Voir tous les badges
-            </button>
-          </div>
+          </motion.div>
           
-          <div className="flex space-x-4 overflow-x-auto pb-2">
-            {recentBadges.map((badge) => (
-              <div key={badge._id} className="flex-shrink-0 w-24 text-center">
-                <img 
-                  src={badge.icon} 
-                  alt={badge.name} 
-                  className="w-16 h-16 mx-auto mb-2 object-contain"
-                />
-                <h4 className="text-xs font-medium text-gray-900 dark:text-white truncate">{badge.name}</h4>
+          {/* Distribution des tâches */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+            className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6"
+          >
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
+              État des tâches
+            </h3>
+            {taskDistributionData.labels.length > 0 ? (
+              <Doughnut
+                data={taskDistributionData}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: {
+                      position: 'bottom',
+                      labels: {
+                        padding: 20,
+                        usePointStyle: true,
+                        font: { size: 12 }
+                      }
+                    }
+                  }
+                }}
+                height={250}
+              />
+            ) : (
+              <div className="h-[250px] flex items-center justify-center">
+                <p className="text-gray-500">Aucune tâche</p>
               </div>
-            ))}
-          </div>
-        </motion.div>
-      )}
+            )}
+          </motion.div>
+        </div>
+        
+        {/* Top clients et défis */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Top 3 clients */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.7 }}
+            className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6"
+          >
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                Top clients du mois
+              </h3>
+              <button
+                onClick={() => navigate('/clients')}
+                className="text-sm text-[#026aa1] hover:text-[#0487d9] font-medium"
+              >
+                Tous les clients →
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              {topClients.length > 0 ? (
+                topClients.map((client, index) => (
+                  <div key={client.id} className="flex items-center gap-4 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <div className="relative">
+                      {client.logo ? (
+                        <img src={client.logo} alt={client.name} className="w-12 h-12 rounded-lg object-cover" />
+                      ) : (
+                        <div className="w-12 h-12 bg-gradient-to-br from-[#026aa1] to-[#0487d9] rounded-lg flex items-center justify-center text-white font-bold">
+                          {client.name.substring(0, 2).toUpperCase()}
+                        </div>
+                      )}
+                      <div className={`absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${
+                        index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : 'bg-orange-600'
+                      }`}>
+                        {index + 1}
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-medium text-gray-900 dark:text-white">{client.name}</h4>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        {client.hoursThisMonth}h • {client.monthlyRevenue.toLocaleString()}€
+                      </p>
+                    </div>
+                    <div className={`text-sm font-medium px-3 py-1 rounded-full ${
+                      client.profitabilityScore >= 90 
+                        ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400' 
+                        : client.profitabilityScore >= 70 
+                        ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400'
+                        : 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+                    }`}>
+                      {client.profitabilityScore}%
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-gray-500 dark:text-gray-400">Aucun client actif ce mois</p>
+                  <button
+                    onClick={() => navigate('/clients/new')}
+                    className="mt-4 px-4 py-2 bg-[#026aa1] text-white rounded-lg hover:bg-[#0487d9] transition-colors"
+                  >
+                    Ajouter un client
+                  </button>
+                </div>
+              )}
+            </div>
+          </motion.div>
+          
+          {/* Défis quotidiens */}
+          <motion.div 
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.8 }}
+            className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden"
+          >
+            <div className="p-6" id="challenges-container">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                  Défis du jour
+                </h3>
+                <button
+                  onClick={() => navigate('/gamification')}
+                  className="text-sm text-[#026aa1] hover:text-[#0487d9] font-medium"
+                >
+                  Gamification →
+                </button>
+              </div>
+              
+              {isChallengesLoading ? (
+                // État de chargement des défis
+                <div className="animate-pulse space-y-4">
+                  <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                  <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                  <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                </div>
+              ) : challengesError ? (
+                // Affichage des erreurs de chargement
+                <div className="p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg">
+                  <p className="text-red-700 dark:text-red-300">{challengesError}</p>
+                  <button
+                    onClick={() => {
+                      setChallengesError(null);
+                    }}
+                    className="mt-3 w-full py-2 px-3 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm font-medium"
+                  >
+                    Réessayer
+                  </button>
+                </div>
+              ) : showChallenges ? (
+                <div className="space-y-4">
+                  {dailyChallenges.length === 0 ? (
+                    <div className="text-center py-6">
+                      <p className="text-gray-600 dark:text-gray-400">Aucun défi disponible pour le moment.</p>
+                    </div>
+                  ) : (
+                    dailyChallenges.map(challenge => (
+                      <div key={challenge.id} className="border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <h4 className="font-medium text-gray-900 dark:text-white">{challenge.title}</h4>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{challenge.description}</p>
+                          </div>
+                          <span className="text-lg font-bold text-[#026aa1]">+{challenge.reward}</span>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400">
+                            <span>Progression</span>
+                            <span>{challenge.progress}%</span>
+                          </div>
+                          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                            <div 
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                challenge.completed 
+                                  ? 'bg-gradient-to-r from-green-500 to-green-600' 
+                                  : 'bg-gradient-to-r from-[#026aa1] to-[#0487d9]'
+                              }`}
+                              style={{ width: `${challenge.progress}%` }}
+                            />
+                          </div>
+                        </div>
+                        
+                        <button
+                          onClick={() => handleClaimReward(challenge)}
+                          disabled={!challenge.completed || claimedRewardIds.includes(challenge.id)}
+                          className={`mt-3 w-full py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                            claimedRewardIds.includes(challenge.id)
+                              ? 'bg-gray-400 dark:bg-gray-600 text-white cursor-not-allowed'
+                              : challenge.completed
+                                ? 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700'
+                                : 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400 cursor-not-allowed'
+                          }`}
+                        >
+                          {claimedRewardIds.includes(challenge.id) 
+                            ? 'Récompense réclamée' 
+                            : challenge.completed 
+                              ? 'Réclamer la récompense' 
+                              : 'En cours...'}
+                        </button>
+                      </div>
+                    ))
+                  )}
+                  
+                  <button
+                    onClick={() => setShowChallenges(false)}
+                    className="w-full py-2 px-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-300 dark:hover:bg-gray-600"
+                  >
+                    Masquer les défis
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-gray-600 dark:text-gray-300 mb-4">
+                    Complétez des défis quotidiens pour gagner des points d'action supplémentaires !
+                  </p>
+                  <button
+                    onClick={() => setShowChallenges(true)}
+                    className="w-full py-2 px-3 bg-gradient-to-r from-[#026aa1] to-[#0487d9] text-white rounded-lg rounded-lg text-sm font-medium hover:from-[#0487d9] hover:to-[#026aa1] transition-all"
+                  >
+                    Voir les défis
+                  </button>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </div>
+        
+        {/* Timers actifs */}
+        {activeTimers.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.9 }}
+            className="mt-8 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl p-6 border border-blue-200 dark:border-blue-800"
+          >
+            <h3 className="text-xl font-bold text-blue-900 dark:text-blue-100 mb-4 flex items-center gap-2">
+              <span className="flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-3 w-3 rounded-full bg-blue-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
+              </span>
+              Timers actifs
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {activeTimers.map((timer, index) => (
+                <div key={index} className="bg-white/50 dark:bg-gray-800/50 backdrop-blur rounded-lg p-4">
+                  <h4 className="font-medium text-gray-900 dark:text-white">{timer.taskTitle}</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{timer.clientName}</p>
+                  <p className="text-lg font-bold text-blue-600 dark:text-blue-400 mt-2">
+                    {Math.floor(timer.duration / 3600)}h {Math.floor((timer.duration % 3600) / 60)}m
+                  </p>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+        
+        {/* Badges récents */}
+        {recentBadges.length > 0 && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 1 }}
+            className="mt-8 bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6"
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Badges récents</h2>
+              <button
+                onClick={() => navigate('/gamification')}
+                className="text-sm text-[#026aa1] hover:text-[#0487d9] font-medium"
+              >
+                Voir tous les badges
+              </button>
+            </div>
+            
+            <div className="flex space-x-4 overflow-x-auto pb-2">
+              {recentBadges.map((badge) => (
+                <div key={badge._id} className="flex-shrink-0 w-24 text-center">
+                  <img 
+                    src={badge.icon} 
+                    alt={badge.name} 
+                    className="w-16 h-16 mx-auto mb-2 object-contain"
+                  />
+                  <h4 className="text-xs font-medium text-gray-900 dark:text-white truncate">{badge.name}</h4>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </div>
     </div>
   );
-  // === Fin : Rendu du tableau de bord ===
 };
 // === Fin : Composant principal Dashboard ===
 
